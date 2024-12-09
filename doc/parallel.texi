@@ -4,6 +4,14 @@
 
 @majorheading Parallel computing in SINGULAR
 
+The available ressources are given by the number of cpus
+(set by the command line parameter @code{--cpus=..}, or the enviremoent variable @CODE{SINGULAR_CPUS}, defaults to the
+number of processors currently online) and the number of threads
+(set by the command line parameter @code{--threads=..}, defaults to 1).
+Threads are currently used with FLINT and NTL.
+Setting @code{--cpus} to 0 disables the creation of new processes and
+chooses a sequentiell algorith if possible.
+
 Via modular methods, requires QQ as coefficient field:
 @itemize
 @item assPrimes: @ref{assPrimes}
@@ -27,7 +35,7 @@ Via modular methods, requires ZZ as coefficient domain:
 
 Via modular methods, requires a function field over QQ as coefficient field:
 @itemize
-@item ffmodStd: ref{ffmodStd}
+@item ffmodStd: @ref{ffmodStd}
 @end itemize
 
 Via modular methods, requires a algebraic field over QQ as coefficient field:

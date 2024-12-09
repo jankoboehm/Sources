@@ -37,7 +37,7 @@ NOTE:     The procedure computes a standard basis of (I:J) (over the rational
 SEE ALSO: modular; quotient
 EXAMPLE:  example modQuotient; shows an example"
 {
-    if(getcores()<=1) { return(quotient(I,J));}
+    if(system("--cpus")<1) { return(quotient(I,J));}
     I = modStd(I);
     def IJ=modular("quotient",list(I,J),primeTest_quotient,
       Modstd::deleteUnluckyPrimes_std,pTest_quotient,finalTest_quotient);
