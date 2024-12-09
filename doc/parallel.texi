@@ -51,7 +51,7 @@ Via different algorithms:
 @item primdec: @ref{primdec}
 @item minAss: @ref{minAss}
 @item signatureNemethi: @ref{signatureNemethi}
-@itemize
+@end itemize
 
 Frameworks for parallel algorithms:
 @itemize
