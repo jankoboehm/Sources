@@ -49,10 +49,10 @@ machines - This is always the case since currently, only factory uses NTL.)
 @code{system("absFact",..)}, function fields, polynomial division)
 @item
 if only NTL is used, extgcd has a limit on the coefficients:
-NTL_MAX_FFTPRIMES
-// At the current setting of 20000, on 64-bit machines with 50-bit
-// FFT primes, this allows for polynomials with 20*50/2 = 500K-bit
-// coefficients, while the table itself takes 160KB.
+At the current setting of NTL_MAX_FFTPRIMES (20000),
+on 64-bit machines with 50-bit
+FFT primes, this allows for polynomials with 20*50/2 = 500K-bit
+coefficients, while the table itself takes 160KB.
 @item
 the number of elements in GF(p,n) must be less than 65536 (2^16)
 @item
