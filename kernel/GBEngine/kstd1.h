@@ -42,12 +42,15 @@ poly k_NF (ideal F, ideal Q, poly p,int syzComp, int lazyReduce, const ring _cur
 ideal kSba(ideal F,ideal Q, tHomog h, intvec ** mw, int incremental=0, int arri=0, bigintmat *hilb=NULL,
           int syzComp=0,int newIdeal=0, intvec *vw=NULL);
 
+/// generic interface to GB/SB computations
 ideal kStd(ideal F, ideal Q, tHomog h, intvec ** mw,intvec *hilb=NULL,
           int syzComp=0,int newIdeal=0, intvec *vw=NULL, s_poly_proc_t sp=NULL);
 
+/// generic interface to GB/SB computations, large hilbert vectors
 ideal kStd2(ideal F, ideal Q, tHomog h, intvec ** mw,bigintmat *hilb=NULL,
           int syzComp=0,int newIdeal=0, intvec *vw=NULL, s_poly_proc_t sp=NULL);
 
+/// pure GB/SB computations
 ideal kStd_internal(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb=NULL,
          int syzComp=0, int newIdeal=0, intvec *vw=NULL, s_poly_proc_t sp=NULL);
 
