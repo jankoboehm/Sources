@@ -49,6 +49,11 @@ PROCEDURES:
  absPrimdecGTZ(I);  the absolute prime components of I
  absPrimdecGTZE(I); the absolute prime components of I. Assumes I is not unit ideal.
  sep(f,k);          the separabel part of f as polynomial in Fp(t1,...,tm)
+ primaryTest();
+ zeroRad();
+ idealsEqual(I,J);   equality of I and J
+ gcdTest(I);
+ zero_decomp();
 
 SEE ALSO: primdecint_lib
 KEYWORDS: primary decomposition
@@ -173,7 +178,7 @@ NOTE:    result is a std basis in the basering
 ///////////////////////////////////////////////////////////////////////////////
 
 
-proc minSat(ideal inew, ideal h)
+static proc minSat(ideal inew, ideal h)
 {
   ASSUME(0, hasFieldCoefficient(basering) );
   ASSUME(0, not isQuotientRing(basering) ) ;
@@ -1174,7 +1179,7 @@ example
    pr;
 }
 ///////////////////////////////////////////////////////////////////////////////
-proc extF(list l,list #)
+static proc extF(list l,list #)
 {
   ASSUME(0, hasFieldCoefficient(basering) );
   ASSUME(0, not isQuotientRing(basering) ) ;
@@ -1257,7 +1262,7 @@ proc extF(list l,list #)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-proc zeroSp(ideal i)
+static proc zeroSp(ideal i)
 {
 //preparation for the separable closure
 //decomposition into ideals of special type
@@ -1359,7 +1364,7 @@ proc zeroSp(ideal i)
 }
 ///////////////////////////////////////////////////////////////////////////////
 
-proc zeroSepClos(ideal I,ideal F)
+static proc zeroSepClos(ideal I,ideal F)
 {
 //computes the separable closure of the special ideal I
 //F is the set of special elements of I
@@ -1405,7 +1410,7 @@ proc zeroSepClos(ideal I,ideal F)
 ///////////////////////////////////////////////////////////////////////////////
 
 
-proc insepDecomp_i(int patchPrimaryDecomposition, ideal i)
+static proc insepDecomp_i(int patchPrimaryDecomposition, ideal i)
 {
 //decomposes i into special ideals
 //computes the prime decomposition of the special ideals
@@ -1828,7 +1833,7 @@ static proc cleanPrimary(list l)
 ///////////////////////////////////////////////////////////////////////////////
 
 
-proc minAssPrimesoldE(ideal I, list #)
+static proc minAssPrimesoldE(ideal I, list #)
 "USAGE:   minAssPrimesoldE(I); I ideal
          minAssPrimesold(I,1); I ideal  (to use also the factorizing Groebner)
 RETURN:  list = the minimal associated prime ideals of I
@@ -1848,7 +1853,7 @@ example
    minAssPrimesoldE(i,1);
 }
 
-proc minAssPrimesold(ideal I, list #)
+static proc minAssPrimesold(ideal I, list #)
 "USAGE:   minAssPrimesold(I); I ideal
          minAssPrimesold(i,1); I ideal  (to use also the factorizing Groebner)
 RETURN:  list = the minimal associated prime ideals of I. In case I is unit ideal, returns list(ideal(1));
@@ -2640,7 +2645,7 @@ static proc islp()
 //w=0: GTZ
 //w=1: SY
 //w=2: minAss
-proc algeDecoE(ideal I, int w)
+static proc algeDecoE(ideal I, int w)
 {//reduces primery decomposition over algebraic extensions to
 //the other cases
     return( algeDeco_i( 1, I, w) );
@@ -2650,7 +2655,7 @@ proc algeDecoE(ideal I, int w)
 //w=1: SY
 //w=2: minAss
 // deprecated. use 'algeDecoE()'
-proc algeDeco(ideal I, int w)
+static proc algeDeco(ideal I, int w)
 {//reduces primery decomposition over algebraic extensions to
 //the other cases
     return( algeDeco_i(0, I, w));
@@ -4271,7 +4276,6 @@ NOTE:    The output is the ideal of all elements a of the basering R such that
 EXAMPLE: example Ann; shows an example
 "
 {
-
   M=prune(M);  //to obtain a small embedding
   ideal ann=quotient1(M,freemodule(nrows(M)));
   return(ann);
@@ -8662,7 +8666,7 @@ static proc newReduction(ideal @j, ideal ser, bigintvec @hilb, intvec @w, int jd
 
 ///////////////////////////////////////////////////////////////////////////////
 // Based on minAssGTZ
-proc minAssE(ideal I,list #)
+static proc minAssE(ideal I,list #)
 "USAGE:   minAssE(I[, l]); I ideal, l list (optional) of parameters, same as minAssGTZ
 RETURN:  a list, the minimal associated prime ideals of I.
 NOTE:    Designed for characteristic 0, works also in char k > 0 based
@@ -8788,7 +8792,7 @@ static proc minAssSLIteration(ideal I, ideal P);
 // If no list is specified or #[1] = 1, the output is all the max indep set of the
 // leading terms ideal. This is the original output of maxIndependSet
 
-proc newMaxIndependSetLp(ideal j, list #)
+static proc newMaxIndependSetLp(ideal j, list #)
 "USAGE:   newMaxIndependentSetLp(i); i ideal (returns all maximal independent sets of the corresponding leading terms ideal)
           newMaxIndependentSetLp(i, 0); i ideal (returns only one maximal independent set)
 RETURN:  list = #1. new varstring with the maximal independent set at the end,
@@ -8886,7 +8890,7 @@ example
 
 ///////////////////////////////////////////////////////////////////////////////
 
-proc newZero_decomp (ideal j, ideal ser, int @wr, list #)
+static proc newZero_decomp (ideal j, ideal ser, int @wr, list #)
 "USAGE:   newZero_decomp(j,ser,@wr); j,ser ideals, @wr=0 or 1
          (@wr=0 for primary decomposition, @wr=1 for computation of associated
          primes)
