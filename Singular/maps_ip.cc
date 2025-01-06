@@ -166,6 +166,7 @@ BOOLEAN maApplyFetch(int what,map theMap,leftv res, leftv w, ring preimage_r,
     case MATRIX_CMD:
     case IDEAL_CMD:
     case MAP_CMD:
+    case SMATRIX_CMD:
     {
       int C=((matrix)data)->cols();
       int R;

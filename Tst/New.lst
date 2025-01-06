@@ -58,6 +58,7 @@ New/rref.tst
 New/sat_cleardenom.tst
 New/stdmodule.tst
 New/short_print.tst
+New/smatrix.tst
 New/sres_bug.tst
 New/stdZ.tst
 New/stdZtests.tst
