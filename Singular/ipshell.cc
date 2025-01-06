@@ -731,11 +731,12 @@ leftv iiMap(map theMap, const char * what)
       BOOLEAN overflow=FALSE;
       if ((tmpW.rtyp==IDEAL_CMD)
         || (tmpW.rtyp==MODUL_CMD)
+        || (tmpW.rtyp==SMATRIX_CMD)
         || (tmpW.rtyp==MAP_CMD))
       {
         ideal id=(ideal)tmpW.data;
         long *degs=NULL;
-	if (IDELEMS(id)>0) degs=(long*)omAlloc(IDELEMS(id)*sizeof(long));
+        if (IDELEMS(id)>0) degs=(long*)omAlloc(IDELEMS(id)*sizeof(long));
         for(int i=IDELEMS(id)-1;i>=0;i--)
         {
           poly p=id->m[i];
@@ -762,7 +763,8 @@ leftv iiMap(map theMap, const char * what)
         }
         if (degs!=NULL) omFreeSize(degs,IDELEMS(id)*sizeof(long));
       }
-      else if (tmpW.rtyp==POLY_CMD)
+      else if ((tmpW.rtyp==POLY_CMD)
+      || (tmpW.rtyp==VECTOR_CMD))
       {
         for(int j=IDELEMS(theMap)-1;j>=0 && !overflow;j--)
         {
@@ -802,6 +804,7 @@ leftv iiMap(map theMap, const char * what)
         if ((tmpW.rtyp==IDEAL_CMD)
         ||(tmpW.rtyp==MODUL_CMD)
         ||(tmpW.rtyp==MATRIX_CMD)
+        ||(tmpW.rtyp==SMATRIX_CMD)
         ||(tmpW.rtyp==MAP_CMD))
         {
           v->rtyp=tmpW.rtyp;
@@ -811,7 +814,7 @@ leftv iiMap(map theMap, const char * what)
           v->data=maMapIdeal(IDIDEAL(w), src_ring, (ideal)theMap, currRing,nMap);
           theMap->preimage=tmp; // map gets its preimage back
         }
-        if (v->data==NULL) /*i.e. not IDEAL_CMD/MODUL_CMD/MATRIX_CMD/MAP */
+        if (v->data==NULL) /*i.e. not IDEAL/MODUL/SMATRIX/MATRIX/MAP */
         {
           if (maApplyFetch(MAP_CMD,theMap,v,&tmpW,src_ring,NULL,NULL,0,nMap))
           {
