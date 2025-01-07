@@ -49,11 +49,11 @@ PROCEDURES:
  absPrimdecGTZ(I);  the absolute prime components of I
  absPrimdecGTZE(I); the absolute prime components of I. Assumes I is not unit ideal.
  sep(f,k);          the separabel part of f as polynomial in Fp(t1,...,tm)
- primaryTest();
- zeroRad();
- idealsEqual(I,J);   equality of I and J
+ primaryTest(I,p);
+ zeroRad(I);        radical of I (I zero dimensional)
+ idealsEqual(I,J);  equality of I and J
  gcdTest(I);
- zero_decomp();
+ zero_decomp(I,..); list of primary ideals and their radicals (I zero dimensional)
 
 SEE ALSO: primdecint_lib
 KEYWORDS: primary decomposition
@@ -2894,10 +2894,19 @@ example
 }
 
 static proc decomp_i(int patchPrimaryDecomposition, ideal i,list #)
+"USAGE:  decomp_i(p,I); I ideal  (for primary decomposition)   (resp.
+         decomp_i(p,I,1);        (for the associated primes of dimension of I) )
+         decomp_i(p,I,2);        (for the minimal associated primes) )
+         decomp_i(p,I,3);        (for the absolute primary decomposition) )
+RETURN:  list = list of primary ideals and their associated primes
+         (at even positions in the list)
+         (resp. a list of the minimal associated primes)
+         if I is unit ideal, returns list(ideal(1),ideal(1)) ( resp. list(ideal(1)))
+EXAMPLE: example decomp_i; shows an example
+"
 {
 // if patchPrimaryDecomposition=1,  drop unit ideal in the decomposition,
 // since the unit ideal it is not prime, otherwise take no special action.
-// for other parameters see 'decomp' or 'decompE'
   ASSUME(1, hasFieldCoefficient(basering) );
   ASSUME(1, not isQuotientRing(basering) ) ;
   ASSUME(1, hasGlobalOrdering(basering) ) ;
@@ -3934,6 +3943,16 @@ static proc decomp_i(int patchPrimaryDecomposition, ideal i,list #)
     { return(prepare_absprimdec(primary));}
   }
   return(primary);
+}
+example
+{ "EXAMPLE:"; echo = 2;
+   ring  r = 32003,(x,y,z),lp;
+   poly  p = z2+1;
+   poly  q = z4+2;
+   ideal i = p^2*q^3,(y-z3)^3,(x-yz+z4)^4;
+   list pr= decomp_i(0,i);
+   pr;
+   testPrimary( pr, i);
 }
 
 
