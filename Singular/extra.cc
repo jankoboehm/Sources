@@ -3829,7 +3829,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     else
     #endif
 /* ccluster --------------------------------------------------------------*/
-#ifdef HAVE_CCLUSTER
+#if defined(HAVE_CCLUSTER) && defined(HAVE_FLINT)
     if(strcmp(sys_cmd,"ccluster")==0)
     {
       if ((currRing!=NULL)
