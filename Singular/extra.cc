@@ -748,13 +748,7 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
         }
         return FALSE;
       }
-      if (h->Typ() != STRING_CMD &&
-          h->Typ() != INT_CMD)
-      {
-        WerrorS("Need string or int argument to set option value");
-        return TRUE;
-      }
-      const char* errormsg;
+      const char* errormsg=NULL;
       if (h->Typ() == INT_CMD)
       {
         if (feOptSpec[opt].type == feOptString)
@@ -766,11 +760,16 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
         if (errormsg != NULL)
           Werror("Option '--%s=%d' %s", sys_cmd, (int) ((long)h->Data()), errormsg);
       }
-      else
+      else if (h->Typ()==STRING_CMD)
       {
         errormsg = feSetOptValue(opt, (char*) h->Data());
         if (errormsg != NULL)
           Werror("Option '--%s=%s' %s", sys_cmd, (char*) h->Data(), errormsg);
+      }
+      else
+      {
+        WerrorS("Need string or int argument to set option value");
+        return TRUE;
       }
       if (errormsg != NULL) return TRUE;
       return FALSE;
