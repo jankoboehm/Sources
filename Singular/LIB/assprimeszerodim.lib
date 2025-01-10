@@ -53,7 +53,7 @@ EXAMPLE: example zeroRadical; shows an example
       I = modStd(I, exactness);
    }
 
-   if(system("cpu")>0)
+   if(system("cpu")>1)
    {
      /* call modular() */
      // TODO: write deleteUnluckyPrimes_zeroRadical()
@@ -241,7 +241,7 @@ EXAMPLE: example assPrimes; shows an example
    I = J;
    kill J;
 
-   if (system("cpu")>0)
+   if (system("cpu")>1)
    {
      /* call modular() */
      if(exactness)
