@@ -1667,7 +1667,7 @@ static proc select_the_command(ideal I, list #)
        computation first but if this command applied in a machine with a single
        core it returns (by default) the command ffmodStdOne
     */
-    if(getcores() == 1)
+    if(system("cpu") <= 1)
     {
         def F = ffmodStdOne(I, #);
         return(list("ffmodStdOne", F));

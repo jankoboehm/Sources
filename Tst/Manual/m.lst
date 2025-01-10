@@ -47,7 +47,6 @@ ArnoldAction
 arrange
 ASCII
 ASCII_links
-assPrimes
 attrib
 attrib_1
 attrib_2
@@ -765,7 +764,6 @@ Miscellaneous_oddities_4
 mod2id
 modDec
 ModEqn
-modStd
 module_containment
 module_declarations
 module_declarations_BR_PLURAL_BR
@@ -1142,7 +1140,6 @@ solutionsMod2
 solve
 solve_IP ; needs solve_IP!
 solvelinearpart
-Solving_systems_of_polynomial_equations
 sort
 sortandmap
 sortier
@@ -1182,7 +1179,6 @@ squarefree
 squareRoot
 sres
 Ssi_file_links
-Ssi_tcp_links
 StabEqn
 StabEqnId
 standard

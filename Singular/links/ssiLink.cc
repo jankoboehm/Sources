@@ -1103,8 +1103,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           }
           loop
           {
-            if (!SI_LINK_OPEN_P(l)) m2_end(0);
-            if(d->f_read->is_eof) m2_end(0);
+            if (!SI_LINK_OPEN_P(l)) m2_end(-1);
+            if(d->f_read->is_eof) m2_end(-1);
             leftv h=ssiRead1(l); /*contains an exit.... */
             if (feErrors != NULL && *feErrors != '\0')
             {

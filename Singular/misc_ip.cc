@@ -1449,7 +1449,7 @@ void siInit(char *name)
     if (env_cpu!=NULL)
     {
       int t=atoi(env_cpu);
-      if ((t>0)&&(t<cpus)) cpus=t;
+      if ((t>=0)&&(t<cpus)) cpus=t;
     }
     feSetOptValue(FE_OPT_CPUS, cpus);
 // how many threads ? -----------------------------------------------------

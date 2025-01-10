@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version assprimeszerodim.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version assprimeszerodim.lib 4.4.0.7 Jan_2025 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  assprimeszerodim.lib   associated primes of a zero-dimensional ideal
@@ -53,19 +53,26 @@ EXAMPLE: example zeroRadical; shows an example
       I = modStd(I, exactness);
    }
 
-   /* call modular() */
-   // TODO: write deleteUnluckyPrimes_zeroRadical()
-   if(exactness)
+   if(system("cpu")>0)
    {
+     /* call modular() */
+     // TODO: write deleteUnluckyPrimes_zeroRadical()
+     if(exactness)
+     {
       ideal F = modular("Assprimeszerodim::zeroRadP", list(I),
          Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
          pTest_zeroRadical, finalTest_zeroRadical);
-   }
-   else
-   {
+     }
+     else
+     {
       ideal F = modular("Assprimeszerodim::zeroRadP", list(I),
          Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
          pTest_zeroRadical);
+     }
+   }
+   else
+   {
+     ideal F=zeroRadP(I);
    }
 
    /* compute the squarefree parts */
@@ -234,20 +241,27 @@ EXAMPLE: example assPrimes; shows an example
    I = J;
    kill J;
 
-   /* call modular() */
-   if(exactness)
+   if (system("cpu")>0)
    {
+     /* call modular() */
+     if(exactness)
+     {
       ideal F = modular("Assprimeszerodim::modpSpecialAlgDep",
          list(I, f, d, a),
          Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
          pTest_assPrimes, finalTest_assPrimes);
-   }
-   else
-   {
+     }
+     else
+     {
       ideal F = modular("Assprimeszerodim::modpSpecialAlgDep",
          list(I, f, d, a),
          Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
          pTest_assPrimes);
+     }
+   }
+   else
+   {
+     ideal F=modpSpecialAlgDep(I,f,d,a);
    }
 
    /* compute the components */
