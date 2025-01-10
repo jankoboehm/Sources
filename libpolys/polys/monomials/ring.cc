@@ -1929,12 +1929,18 @@ BOOLEAN rHasBlockOrder(const ring r)
 
   if ((r->block0[s]!=1)||(r->block1[s]!=r->N))
     return TRUE;
-  if ((r->order[s] == ringorder_aa)
-  || (r->order[s] == ringorder_lp)
+  if ((r->order[s] == ringorder_lp)
   || (r->order[s] == ringorder_rp)
   || (r->order[s] == ringorder_ls)
   || (r->order[s] == ringorder_rs))
     return TRUE;
+  if(r->order[s] == ringorder_a)
+  {
+    for(int i=0;i<r->N;i++) // we have: block0[s]=1, block1[s]=N
+    {
+      if(r->wvhdl[s][i]==0) return TRUE;
+    }
+  }
   return FALSE;
 }
 
