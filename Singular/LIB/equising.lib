@@ -1086,7 +1086,7 @@ static proc esComputation (int typ, poly p_F, list #)
       Jtriv=subst(Jtriv,b(i),0);
     }
   }
-  option(not_tricks);
+  option(pure_gb);
   Jtriv=std(Jtriv);
 
 

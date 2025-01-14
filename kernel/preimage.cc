@@ -134,7 +134,7 @@ ideal maGetPreimage(ring theImageRing, map theMap, ideal id, const ring dst_r)
   // we ignore here homogeneity - may be changed later:
   BITSET save;
   SI_SAVE_OPT2(save);
-  si_opt_2|=Sy_bit(V_NOT_TRICKS);
+  si_opt_2|=Sy_bit(V_PURE_GB);
   temp2 = kStd2(temp1,NULL,isNotHomog,NULL,(bigintmat*)NULL);
   SI_RESTORE_OPT2(save);
 

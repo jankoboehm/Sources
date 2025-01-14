@@ -894,7 +894,7 @@ SEE ALSO: modStd
 EXAMPLE: example nfmodStd; shows an example
 "
 {
-     intvec save_opt=option(get);option(not_tricks);
+     intvec save_opt=option(get);option(pure_gb);
      list L=#;
      def Rbs=basering;
      poly f;

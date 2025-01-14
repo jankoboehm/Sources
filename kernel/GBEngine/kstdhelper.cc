@@ -269,7 +269,7 @@ static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
 
 ideal kTryHilbstd(ideal F, ideal Q)
 {
- if(!TEST_V_NOT_TRICKS)
+ if(!TEST_V_PURE_GB)
  {
    tHomog h = (tHomog)id_HomIdealDP(F,Q,currRing);
    if (h==(tHomog)TRUE) return kTryHilbstd_homog(F,Q);
@@ -281,7 +281,7 @@ ideal kTryHilbstd(ideal F, ideal Q)
 ideal kTryHilbstd_par(ideal F, ideal Q, tHomog h, intvec ** mw)
 {
 #if 0
-  if(!TEST_V_NOT_TRICKS)
+  if(!TEST_V_PURE_GB)
   {
     int cp_std[2];
     int cp_hstd[2];
@@ -308,7 +308,7 @@ ideal kTryHilbstd_par(ideal F, ideal Q, tHomog h, intvec ** mw)
       d.f_write=fdopen(cp_std[1],"w");
       d.fd_write=cp_std[1];
       d.r=currRing;
-      si_opt_2|=Sy_bit(V_NOT_TRICKS);
+      si_opt_2|=Sy_bit(V_PURE_GB);
       ideal res=kStd_internal(F,Q,h,mw);
       ssiWriteIdeal(&d,IDEAL_CMD,res);
       fclose(d.f_write);
@@ -327,7 +327,7 @@ ideal kTryHilbstd_par(ideal F, ideal Q, tHomog h, intvec ** mw)
       d.fd_write=cp_hstd[1];
       d.r=currRing;
 
-      si_opt_2|=Sy_bit(V_NOT_TRICKS);
+      si_opt_2|=Sy_bit(V_PURE_GB);
       ideal res=kTryHilbstd(F,Q);
       if (res!=NULL)
       {

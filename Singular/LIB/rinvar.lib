@@ -88,7 +88,7 @@ ASSUME:  basering K[s(1..r),t(1..m)] has r + m variables, G is the ideal of an
 EXAMPLE: example ImageGroup; shows an example
 "
 {
-  intvec save_opt=option(get);option(not_tricks);
+  intvec save_opt=option(get);option(pure_gb);
   int i, j, k, newVars, nrt, imageSize, dbPrt;
   ideal matrixEntries;
   matrix coMx;
@@ -291,7 +291,7 @@ RETURN:  polynomial ring over the same ground field, containing the ideal
 EXAMPLE: example ImageVariety; shows an example
 "
 {
-  intvec save_opt=option(get);option(not_tricks);
+  intvec save_opt=option(get);option(pure_gb);
   int i, dbPrt, nrNewVars;
   intvec wt, wth, hs1;
   def RARB = basering;
@@ -378,7 +378,7 @@ NOTE:    set printlevel > 0 to see a trace
 EXAMPLE: example LinearizeAction; shows an example
 "
 {
-  intvec save_opt=option(get);option(not_tricks);
+  intvec save_opt=option(get);option(pure_gb);
   def altring = basering;
   int i, j, k, ok, loop, nrt, sizeOfDecomp, dbPrt;
   intvec wt;
@@ -615,7 +615,7 @@ NOTE:    the minimal polynomial of the output ring depends on some random
 EXAMPLE: example InvariantRing; shows an example
 "
 {
-  intvec save_opt=option(get);option(not_tricks);
+  intvec save_opt=option(get);option(pure_gb);
   int i, ok, dbPrt, noReynolds, primaryDec;
   ideal invarsGens, groupid;
 
@@ -882,7 +882,7 @@ NOTE:    the generators of the nullcone are homogeneous, but in general not inva
 EXAMPLE: example NullCone; shows an example
 "
 {
-  intvec save_opt=option(get);option(not_tricks);
+  intvec save_opt=option(get);option(pure_gb);
   int i, nt, dbPrt, offset, groupVars;
   string ringSTR, vars, order;
   def RNCB = basering;
@@ -972,7 +972,7 @@ ASSUME:  basering = K[s(1..r),t(1..n)], K = Q or K = Q(a') and minpoly != 0,
          group action of G
 "
 {
-  intvec saveOpt=option(get);option(not_tricks);
+  intvec saveOpt=option(get);option(pure_gb);
   def ROBR = basering;
   int i, j, n, ns, primaryDec;
   ideal G1 = Grp;

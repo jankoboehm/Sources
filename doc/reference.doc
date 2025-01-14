@@ -5509,8 +5509,8 @@ select shorter reducers in std computations,
 disables the regularity bound for @code{res} and @code{mres} (see
 @ref{regularity}).
 @c ---------
-@item @code{not_tricks}
-@cindex not_tricks, option
+@item @code{pure_gb}
+@cindex pure_gb, option
 @cindex highest corner, option
 @cindex hilbert driven Groebner basis, option
 @cindex corner (highest), option

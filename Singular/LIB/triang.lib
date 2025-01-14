@@ -836,7 +836,7 @@ EXAMPLE: example triangMH; shows an example
     option(redSB);
     option(redTail);
     option(returnSB);
-    option(not_tricks);
+    option(pure_gb);
 
     list F,Fh;       // Ergebnislisten
     int nG = size(G);
@@ -941,7 +941,7 @@ EXAMPLE: example triangMH; shows an example
 
                   dbprint(string(timer)+" S"+s+"L"+string(m-l-k)+": Ggt und oberes Dreieckssystem anhaengen.");
                 // Ggt an jede Dreiecksbasis anhaengen.
-		option(not_tricks);
+		option(pure_gb);
                 for (i = 1; i <= size(Fh); i++)
                 {
                     Fh[i] = std(Fh[i] + G[m-k]);

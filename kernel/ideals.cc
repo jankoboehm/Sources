@@ -1001,7 +1001,7 @@ ideal idLiftStd (ideal  h1, matrix* T, tHomog hi, ideal * S, GbVariant alg,
 
   BITSET saveOpt1,saveOpt2;
   SI_SAVE_OPT(saveOpt1,saveOpt2);
-  si_opt_2|=Sy_bit(V_NOT_TRICKS);
+  si_opt_2|=Sy_bit(V_PURE_GB);
   k=si_max(1,inputIsIdeal);
 
   if ((!lift3)&&(!TEST_OPT_RETURN_SB)) si_opt_2 |=Sy_bit(V_IDLIFT);
@@ -3509,7 +3509,7 @@ ideal idSaturate_intern(ideal I, ideal J, int &k, BOOLEAN isIdeal, BOOLEAN isSB)
     ideal Iquot,Istd;
     intvec *w=NULL;
     Istd=id_Satstd(I,J,currRing);
-    si_opt_2|=Sy_bit(V_NOT_TRICKS);
+    si_opt_2|=Sy_bit(V_PURE_GB);
     k=0;
     loop
     {
@@ -3546,7 +3546,7 @@ ideal idSaturate_intern(ideal I, ideal J, int &k, BOOLEAN isIdeal, BOOLEAN isSB)
     k++;
     Iquot=idQuot(Istd,J,isSB,isIdeal);
     isSB=FALSE;
-    si_opt_2|=Sy_bit(V_NOT_TRICKS); // used from 2nd loop on
+    si_opt_2|=Sy_bit(V_PURE_GB); // used from 2nd loop on
     ideal tmp=kNF(Istd,currRing->qideal,Iquot,5);
     int  elem=idElem(tmp);
     id_Delete(&tmp,currRing);

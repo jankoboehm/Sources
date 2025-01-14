@@ -1693,7 +1693,7 @@ static proc select_the_command(ideal I, list #)
 static proc ffmodStdOne(ideal I, list #)
 {
     // compute std of I using dense univariate rational interpolation
-    intvec opt=option(get);option(not_tricks);
+    intvec opt=option(get);option(pure_gb);
     option(redSB);
     int tmp, tmp1, evbd;
     def G_t = basering;
@@ -1837,7 +1837,7 @@ EXAMPLE: example ffmodStd; shows an example
         }
     }
     intvec opt = option(get);
-    option(not_tricks);
+    option(pure_gb);
     option(redSB); // to obtain the reduced standard basis
     I = normalize(I);
     I = scalIdeal(I);

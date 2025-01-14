@@ -62,7 +62,7 @@ EXAMPLE: example stdfglm; shows an example"
   }
 
   intvec opt = option(get);            //save options
-  option(not_tricks);
+  option(pure_gb);
   if((s > 0) && (typeof(#[1]) == "string"))
   {
     os = #[1];
@@ -188,7 +188,7 @@ EXAMPLE: example stdhilb;  shows an example"
 
   //save options:
   intvec gopt = option(get);
-  option(not_tricks);
+  option(pure_gb);
   int p_opt;
   string s_opt = option();
   if (find(s_opt, "prot"))  { p_opt = 1; }
