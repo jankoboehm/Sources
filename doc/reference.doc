@@ -7692,6 +7692,12 @@ characteristic 0, we recommend std with ordering ds (or Ds), due to
 the implementation of the new algorithm described in ‘Using
 Semicontinuity for Standard Bases Computations’ (arXiv:2108.09735), as
 of Singular 4.4.0 (Sept 2024).
+@*The new algorithm can be switched off by @code{option(pure_gb);}.
+
+@item @strong{Note:}
+Uses a hilbert driven Groebner algorithm in the case of a block ordering
+      and ideal over @code{QQ}.
+@*The new algorithm can be switched off by @code{option(pure_gb);}.
 
 @item @strong{Example:}
 @smallexample

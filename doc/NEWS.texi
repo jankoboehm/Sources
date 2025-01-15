@@ -41,10 +41,12 @@ Changed libraries:
 Changes in the kernel/build system:
 @itemize
 @item use new algorithm for weighted Hilbert function @nref{hilb}
-@item use new algorithm for @nref{std} in the case of ordering @code{dsi/Ds}
+@item use new algorithm for @nref{std} in the case of ordering @code{ds/Ds}
       and zero dimensional ideal over @code{QQ}
+      (can be switched off by @code{option(pure_gb;})
 @item use new algorithm for @nref{std} in the case of a block ordering
       and ideal over @code{QQ}
+      (can be switched off by @code{option(pure_gb;})
 @item changed reduction routine for local orderings
 @end itemize
 
