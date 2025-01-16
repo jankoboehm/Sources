@@ -244,7 +244,7 @@ BOOLEAN kVerify2(ideal F, ideal Q)
   {
     si_set_signal(SIGTERM,sig_term_hdl_child);
     singular_close_links();
-    feSetOptValue(FE_OPT_CPUS,1);
+    feSetOptValue(FE_OPT_CPUS,0);
     loop
     {
       int ind=queue->dequeue();

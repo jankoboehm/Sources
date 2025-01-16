@@ -249,7 +249,7 @@ ideal id_ChineseRemainder_0(ideal *xx, number *q, int rl, const ring r)
   {
     si_set_signal(SIGTERM,sig_term_hdl_child);
     singular_close_links();
-    feSetOptValue(FE_OPT_CPUS,1);
+    feSetOptValue(FE_OPT_CPUS,0);
     number *x=(number *)omAlloc(rl*sizeof(number));
     poly *p=(poly *)omAlloc(rl*sizeof(poly));
     CFArray inv_cache(rl);
@@ -363,7 +363,7 @@ ideal id_Farey_0(ideal x, number N, const ring r)
   {
     si_set_signal(SIGTERM,sig_term_hdl_child);
     singular_close_links();
-    feSetOptValue(FE_OPT_CPUS,1);
+    feSetOptValue(FE_OPT_CPUS,0);
     loop
     {
       int ind=queue->dequeue();
