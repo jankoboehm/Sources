@@ -1,7 +1,7 @@
-AC_INIT([singular], [4.4.0], [singular@mathematik.uni-kl.de])
+AC_INIT([singular], [4.4.1], [singular@mathematik.uni-kl.de])
 
-AC_SUBST([VERSION_DATE], 2024)
-AC_DEFINE([VERSION_DATE],["Apr 2024"],[release date])
+AC_SUBST([VERSION_DATE], 2025)
+AC_DEFINE([VERSION_DATE],["Jan 2025"],[release date])
 
 _AC_SRCDIRS(["$ac_dir"])
 
