@@ -65,6 +65,7 @@
 #include "Singular/subexpr.h"
 #include "Singular/fevoices.h"
 #include "Singular/sdb.h"
+#include "Singular/feOpt.h"
 
 #include <cmath>
 #include <ctype.h>
@@ -6656,7 +6657,7 @@ void iiSetReturn(const leftv source)
 
 int siSetCpus(int cpu)
 {
-  int old=feOptValue(FE_OPT_CPUS);
+  int old=(int)(long)feOptValue(FE_OPT_CPUS);
   feSetOptValue(FE_OPT_CPUS,cpu);
   return old;
 }
