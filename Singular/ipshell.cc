@@ -6653,3 +6653,11 @@ void iiSetReturn(const leftv source)
   }
   iiRETURNEXPR.Copy(source);
 }
+
+int siSetCpus(int cpu)
+{
+  int old=feOptValue(FE_OPT_CPUS);
+  feSetOptValue(FE_OPT_CPUS,cpu);
+  return old;
+}
+  

@@ -110,6 +110,8 @@ syStrategy syConvList(lists li);
 BOOLEAN syBetti1(leftv res, leftv u);
 BOOLEAN syBetti2(leftv res, leftv u, leftv w);
 
+int siSetCpus(int cpu);
+
 /* ================================================================== */
 /* Expressions : */
 BOOLEAN iiExprArith1(leftv res, sleftv* a, int op);
