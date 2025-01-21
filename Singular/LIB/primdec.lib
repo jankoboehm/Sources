@@ -6466,11 +6466,11 @@ EXAMPLE: example radical; shows an example
       def j=imap(s,j);
       return(j);
   }
+  for(int j=ncols(i);j>0;j--) { i[j]=sqrfree(i[j],3);}
   if(hasAlgExtensionCoefficient(basering))
   {
     return(algeRad(i));
   }
-  int j;
   def P0 = basering;
   list Pl=ring_list(P0);
   Pl[3]=list(list("dp",1:nvars(P0)),list("C",0));
