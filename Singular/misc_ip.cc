@@ -1364,7 +1364,9 @@ void siInit(char *name)
     om_Opts.OutOfMemoryFunc = omSingOutOfMemoryFunc;
 #ifndef OM_NDEBUG
 #ifndef __OPTIMIZE__
+  #ifndef MAKE_DISTRUBTION
     om_Opts.ErrorHook = dErrorBreak;
+  #endif
 #else
     om_Opts.Keep = 0; /* !OM_NDEBUG, __OPTIMIZE__*/
 #endif
