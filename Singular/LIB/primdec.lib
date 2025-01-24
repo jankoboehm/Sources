@@ -6252,7 +6252,7 @@ static proc minAssGTZ_i(int patchPrimaryDecomposition, ideal i,list #)
   int useFac;
 
   // Set input parameters
-  algorithm = "GTZ";         // Default: GTZ algorithm
+  algorithm = "SL";         // Default: GTZ algorithm
   facstdOption = "facstd";
   if(size(#) > 0)
   {
@@ -6466,7 +6466,8 @@ EXAMPLE: example radical; shows an example
       def j=imap(s,j);
       return(j);
   }
-  for(int j=ncols(i);j>0;j--) { i[j]=sqrfree(i[j],3);}
+  int j;
+  for(j=ncols(i);j>0;j--) { i[j]=sqrfree(i[j],3);}
   if(hasAlgExtensionCoefficient(basering))
   {
     return(algeRad(i));
