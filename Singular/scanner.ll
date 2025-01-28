@@ -282,8 +282,8 @@ newline                  {
                            lvalp->name = (char *)yytext;
                            return MONOM;
                          }
-\$                        {
-                           m2_end(-1);
+\$                       {
+                           m2_end(1);
                          }
 (quit|exit)[ \t\n]*;     {
                            #ifdef MM_STAT
@@ -294,7 +294,7 @@ newline                  {
                              omPrintUsedTrackAddrs(stdout, 10);
                            #endif
                            #endif
-                           m2_end(0);
+                           m2_end(1);
                          }
 
 {rgvars}|{realnum}       {

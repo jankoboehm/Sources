@@ -1305,7 +1305,7 @@ case 59:
 YY_RULE_SETUP
 #line 302 "scanner.l"
 {
-                           m2_end(-1);
+                           m2_end(1);
                          }
 	YY_BREAK
 case 60:
@@ -1320,7 +1320,7 @@ YY_RULE_SETUP
                              omPrintUsedTrackAddrs(stdout, 10);
                            #endif
                            #endif
-                           m2_end(0);
+                           m2_end(1);
                          }
 	YY_BREAK
 case 61:

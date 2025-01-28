@@ -521,7 +521,7 @@ static void stack_trace (char *const*args)
   si_close (in_fd[1]);
   si_close (out_fd[0]);
   si_close (out_fd[1]);
-  m2_end(0);
+  m2_end(1);
 }
 
 #  endif /* !__OPTIMIZE__ */
