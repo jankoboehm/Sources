@@ -105,7 +105,7 @@ int sipc_semaphore_acquire(int id)
 #endif
   sem_acquired[id]++;
   defer_shutdown--;
-  if (!defer_shutdown && do_shutdown) m2_end(1);
+  if (!defer_shutdown && do_shutdown) m2_end(-1);
   return 1;
 }
 
@@ -128,7 +128,7 @@ int sipc_semaphore_try_acquire(int id)
     sem_acquired[id]++;
   }
   defer_shutdown--;
-  if (!defer_shutdown && do_shutdown) m2_end(1);
+  if (!defer_shutdown && do_shutdown) m2_end(-1);
   return !trywait;
 }
 
@@ -146,7 +146,7 @@ int sipc_semaphore_release(int id)
 #endif
   sem_acquired[id]--;
   defer_shutdown--;
-  if (!defer_shutdown && do_shutdown) m2_end(1);
+  if (!defer_shutdown && do_shutdown) m2_end(-1);
   return 1;
 }
 

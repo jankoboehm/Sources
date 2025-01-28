@@ -1099,6 +1099,11 @@ extern "C" {
  */
 volatile BOOLEAN m2_end_called = FALSE;
 
+/* m2_end(0): close everything and return
+ * m2_end(1): close everything and exit(0)
+ * m2_end(i<0): close everything and _exit(0) (for children))
+ * m2_end(i>1): close everything and exit(i)
+ */
 void m2_end(int i)
 {
   if (!m2_end_called)
@@ -1180,16 +1185,17 @@ void m2_end(int i)
     {
       if (TEST_V_QUIET)
       {
-        if (i==0)
+        if ((i==0)||(i==1))
           printf("Auf Wiedersehen.\n");
       }
-      if (i>0)
+      if (i>1)
       {
         printf("\nhalt %d\n",i);
       }
     }
-    if (i>=0) exit(i);
-    else _exit(0);
+    if (i>1) exit(i);
+    else if (i==1) exit(0);
+    else if (i<0) _exit(0);
   }
 }
 }

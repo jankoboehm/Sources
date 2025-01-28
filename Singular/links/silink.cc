@@ -140,7 +140,7 @@ void slCleanUp(si_link l)
     memset((void *) l, 0, sizeof(ip_link));
   }
   defer_shutdown--;
-  if (!defer_shutdown && do_shutdown) m2_end(1);
+  if (!defer_shutdown && do_shutdown) m2_end(-1);
 }
 
 void slKill(si_link l)
@@ -150,7 +150,7 @@ void slKill(si_link l)
   if ((l!=NULL) &&(l->ref == 0))
     omFreeBin((ADDRESS)l,  ip_link_bin);
   defer_shutdown--;
-  if (!defer_shutdown && do_shutdown) m2_end(1);
+  if (!defer_shutdown && do_shutdown) m2_end(-1);
 }
 
 const char* slStatus(si_link l, const char *request)
@@ -253,7 +253,7 @@ BOOLEAN slClose(si_link l)
            l->m->type, l->mode, l->name);
   }
   defer_shutdown--;
-  if (!defer_shutdown && do_shutdown) m2_end(1);
+  if (!defer_shutdown && do_shutdown) m2_end(-1);
   SI_LINK_SET_CLOSE_P(l);
   return res;
 }
