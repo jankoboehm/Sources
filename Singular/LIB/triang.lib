@@ -37,7 +37,7 @@ EXAMPLE: example triangL; shows an example
     // Test, ob G Groebnerbasis eines nulldimensionalen Ideals ist.
     if (attrib(G,"isSB") <> 1)
     {
-        ERROR("The input is no groebner basis.");
+      G = groebner(G);
     }
     else
     {
@@ -210,7 +210,7 @@ NOTE:    Algorithmus von Lazard (siehe: Lazard, D.: Solving
     // Test, ob G Groebnerbasis eines nulldimensionalen Ideals ist.
     if (attrib(G,"isSB") <> 1)
     {
-        ERROR("The input is no groebner basis.");
+      G = groebner(G);
     }
     else
     {
@@ -636,7 +636,7 @@ EXAMPLE: example triangM; shows an example
     // Test, ob G Groebnerbasis ist.
     if (attrib(G,"isSB") <> 1)
     {
-        ERROR("The input is no groebner basis.");
+      G = groebner(G);
     }
 
     // Faktorisierungsschalter setzen.
@@ -817,7 +817,7 @@ EXAMPLE: example triangMH; shows an example
     // Test, ob G Groebnerbasis ist.
     if (attrib(G,"isSB") <> 1)
     {
-        ERROR("The input is no groebner basis.");
+      G = groebner(G);
     }
     if(npars(basering)<>0)
     {
@@ -1192,4 +1192,3 @@ RETURN:  Leitkoeffizient von f bzgl. var(v).
     return(m[size(m),1]);
 }
 ///////////////////////////////////////////////////////////////////////////////
-
