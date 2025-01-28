@@ -665,13 +665,6 @@ void cleanTSbaRing (kStrategy strat)
   strat->tl=-1;
 }
 
-//LSet initL ()
-//{
-//  int i;
-//  LSet l = (LSet)omAlloc(setmaxL*sizeof(LObject));
-//  return l;
-//}
-
 static inline void enlargeL (LSet* L,int* length,const int incr)
 {
   assume((*L)!=NULL);
@@ -1280,7 +1273,7 @@ void enterL (LSet *set,int *length, int *LSetmax, LObject p,int at)
 
   if ((*length)>=0)
   {
-    if ((*length) == (*LSetmax)-1) enlargeL(set,LSetmax,setmaxLinc);
+    if ((*length) == (*LSetmax)-1) enlargeL(set,LSetmax,*LSetmax);
     if (at <= (*length))
 #ifdef ENTER_USE_MEMMOVE
       memmove(&((*set)[at+1]), &((*set)[at]), ((*length)-at+1)*sizeof(LObject));
@@ -9187,7 +9180,7 @@ void enterT(LObject &p, kStrategy strat, int atT)
   if (atT < 0)
     atT = strat->posInT(strat->T, strat->tl, p);
   if (strat->tl == strat->tmax-1)
-    enlargeT(strat->T,strat->R,strat->sevT,strat->tmax,setmaxTinc);
+    enlargeT(strat->T,strat->R,strat->sevT,strat->tmax,strat->tmax);
   if (atT <= strat->tl)
   {
 #ifdef ENTER_USE_MEMMOVE
@@ -9274,7 +9267,7 @@ void enterT_strong(LObject &p, kStrategy strat, int atT)
   if (atT < 0)
     atT = strat->posInT(strat->T, strat->tl, p);
   if (strat->tl == strat->tmax-1)
-    enlargeT(strat->T,strat->R,strat->sevT,strat->tmax,setmaxTinc);
+    enlargeT(strat->T,strat->R,strat->sevT,strat->tmax,strat->tmax);
   if (atT <= strat->tl)
   {
 #ifdef ENTER_USE_MEMMOVE

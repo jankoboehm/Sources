@@ -1394,18 +1394,24 @@ void updateL(kStrategy strat)
 {
   int dL;
   int j=strat->Ll;
-  loop
+  BOOLEAN lastPPfound=FALSE;
+  if (rHasLocalOrMixedOrdering(currRing)
+  && (strat->kNoether==NULL))
   {
-    if (j<0) break;
-    if (hasPurePower(&(strat->L[j]),strat->lastAxis,&dL,strat))
+    loop
     {
-      LObject p;
-      p=strat->L[strat->Ll];
-      strat->L[strat->Ll]=strat->L[j];
-      strat->L[j]=p;
-      break;
+      if (j<0) break;
+      if (hasPurePower(&(strat->L[j]),strat->lastAxis,&dL,strat))
+      {
+        LObject p;
+        p=strat->L[strat->Ll];
+        strat->L[strat->Ll]=strat->L[j];
+        strat->L[j]=p;
+        lastPPfound=TRUE;
+        break;
+      }
+      j--;
     }
-    j--;
   }
   if (j<0)
   {
@@ -1440,11 +1446,14 @@ void updateL(kStrategy strat)
         else
           strat->L[j].SetLength(strat->length_pLength);
 
-        BOOLEAN pp = hasPurePower(&(strat->L[j]),strat->lastAxis,&dL,strat);
+        BOOLEAN pp = FALSE;
+        if (!lastPPfound) pp=hasPurePower(&(strat->L[j]),strat->lastAxis,&dL,strat);
 
         strat->L[j].PrepareRed(strat->use_buckets);
 
-        if (pp)
+        if (pp
+        && rHasLocalOrMixedOrdering(currRing)
+        && (strat->kNoether==NULL))
         {
           LObject p;
           p=strat->L[strat->Ll];
