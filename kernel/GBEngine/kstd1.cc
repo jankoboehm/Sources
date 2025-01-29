@@ -1219,7 +1219,7 @@ static poly redMoraNFRing (poly h,kStrategy strat, int flag)
 /*2
 *reorders  L with respect to posInL
 */
-void reorderL(kStrategy strat)
+static void reorderL(kStrategy strat)
 {
   int i,j,at;
 
@@ -1238,7 +1238,7 @@ void reorderL(kStrategy strat)
 /*2
 *reorders  T with respect to length
 */
-void reorderT(kStrategy strat)
+static void reorderT(kStrategy strat)
 {
   int i,j,at;
   TObject p;
@@ -1276,7 +1276,7 @@ void reorderT(kStrategy strat)
 *returns last != 0 in this case
 *last is the (first) unused axis
 */
-void missingAxis (int* last,kStrategy strat)
+static void missingAxis (int* last,kStrategy strat)
 {
   int   i = 0;
   int   k = 0;
@@ -1309,7 +1309,7 @@ void missingAxis (int* last,kStrategy strat)
 *(*length) gives the length between the pure power and the leading term
 *(should be minimal)
 */
-BOOLEAN hasPurePower (const poly p,int last, int *length,kStrategy strat)
+static BOOLEAN hasPurePower (const poly p,int last, int *length,kStrategy strat)
 {
   poly h;
   int i;
@@ -1340,7 +1340,7 @@ BOOLEAN hasPurePower (const poly p,int last, int *length,kStrategy strat)
   return FALSE;
 }
 
-BOOLEAN hasPurePower (LObject *L,int last, int *length,kStrategy strat)
+static BOOLEAN hasPurePower (LObject *L,int last, int *length,kStrategy strat)
 {
   if (L->bucket != NULL)
   {
@@ -1471,7 +1471,7 @@ static void updateL(BOOLEAN searchPP, kStrategy strat)
 * computes the s-polynomials L[ ].p in L and
 * cuts elements in L above noether
 */
-void updateLHC(kStrategy strat)
+static void updateLHC(kStrategy strat)
 {
 
   int i = 0;
@@ -1537,7 +1537,7 @@ void updateLHC(kStrategy strat)
 * cuts in T above strat->kNoether and tries to cancel a unit
 * changes also S as S is a subset of T
 */
-void updateT(kStrategy strat)
+static void updateT(kStrategy strat)
 {
   int i = 0;
   LObject p;
@@ -1563,7 +1563,7 @@ void updateT(kStrategy strat)
 /*2
 * arranges red, pos and T if strat->kAllAxis (first time)
 */
-void firstUpdate(kStrategy strat)
+static void firstUpdate(kStrategy strat)
 {
   if (strat->update)
   {
@@ -1626,7 +1626,7 @@ void firstUpdate(kStrategy strat)
 *    and cancels units if possible
 *  - reorders s,L
 */
-void enterSMora (LObject &p,int atS,kStrategy strat, int atR = -1)
+void enterSMora (LObject &p,int atS,kStrategy strat, int atR)
 {
   enterSBba(p, atS, strat, atR);
   #ifdef KDEBUG
@@ -1679,7 +1679,7 @@ void enterSMora (LObject &p,int atS,kStrategy strat, int atR = -1)
 *  if TRUE
 *  - computes noether
 */
-void enterSMoraNF (LObject &p, int atS,kStrategy strat, int atR = -1)
+void enterSMoraNF (LObject &p, int atS,kStrategy strat, int atR)
 {
   enterSBba(p, atS, strat, atR);
   if ((!strat->kAllAxis) || (strat->kNoether!=NULL)) HEckeTest(p.p,strat);

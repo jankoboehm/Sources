@@ -655,6 +655,17 @@ BOOLEAN kTest_S(kStrategy strat);
 
 /***************************************************************
  *
+ * From kstd1.cc
+ *
+ ***************************************************************/
+int redFirst (LObject* h,kStrategy strat);
+int redEcart (LObject* h,kStrategy strat);
+void enterSMora (LObject &p,int atS,kStrategy strat, int atR=-1);
+void enterSMoraNF (LObject &p,int atS,kStrategy strat, int atR=-1);
+
+
+/***************************************************************
+ *
  * From kstd2.cc
  *
  ***************************************************************/

@@ -918,7 +918,6 @@ ideal k_sca_mora(const ideal F, const ideal Q, const intvec */*w*/, const bigint
   initBuchMoraPos(strat);
   //Shdl=
     initBuchMora(tempF, tempQ, strat); // temp Q, F!
-//   if (TEST_OPT_FASTHC) missingAxis(&strat->lastAxis,strat);
   // updateS in initBuchMora has Hecketest
   // * and could have put strat->kHEdgdeFound FALSE
   strat->use_buckets = kMoraUseBucket(strat);
