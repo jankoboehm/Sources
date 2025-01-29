@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-version="version triang.lib 4.4.0.6 Oct_2024 "; // $Id$
+version="version triang.lib 4.4.1.0 Jan_2025 "; // $Id$
 category="Symbolic-numerical solving";
 info="
 LIBRARY: triang.lib   Decompose Zero-dimensional Ideals into Triangular Sets
@@ -39,12 +39,9 @@ EXAMPLE: example triangL; shows an example
     {
       G = groebner(G);
     }
-    else
+    if (dim(G) <> 0)
     {
-        if (dim(G) <> 0)
-        {
-            ERROR("ideal is not zero-dimensional.");
-        }
+      ERROR("ideal is not zero-dimensional.");
     }
 
     if (size(G) <= 2)  // schon Dreiecksbasis
@@ -212,12 +209,9 @@ NOTE:    Algorithmus von Lazard (siehe: Lazard, D.: Solving
     {
       G = groebner(G);
     }
-    else
+    if (dim(G) <> 0)
     {
-        if (dim(G) <> 0)
-        {
-            ERROR("ideal is not zero-dimensional.");
-        }
+      ERROR("ideal is not zero-dimensional.");
     }
 
     // Noetige Optionen setzen.
