@@ -232,7 +232,7 @@ KEYWORDS: truncated module
 
   if (attrib(M,"isSB")!=1)
   {
-    ERROR("M must be a standard basis!");
+    M = std(M);
   }
 
   dbprint(PL-1, "// M is a SB! ");
