@@ -1389,14 +1389,16 @@ int posInL10 (const LSet set,const int length, LObject* p,const kStrategy strat)
 
 /*2
 * computes the s-polynomials L[ ].p in L
+* searchPP should be FALSE if updateL is followed by reorderL
 */
-void updateL(kStrategy strat)
+static void updateL(BOOLEAN searchPP, kStrategy strat)
 {
+  // only in mora
+  assume(rHasLocalOrMixedOrdering(currRing));
   int dL;
   int j=strat->Ll;
   BOOLEAN lastPPfound=FALSE;
-  if (rHasLocalOrMixedOrdering(currRing)
-  && (strat->kNoether==NULL))
+  if (searchPP && (strat->kNoether==NULL))
   {
     loop
     {
@@ -1413,57 +1415,55 @@ void updateL(kStrategy strat)
       j--;
     }
   }
-  if (j<0)
+  j=strat->Ll;
+  loop
   {
-    j=strat->Ll;
-    loop
+    if (j<0) break;
+    if (pNext(strat->L[j].p) == strat->tail)
     {
-      if (j<0) break;
-      if (pNext(strat->L[j].p) == strat->tail)
+      if (rField_is_Ring(currRing))
+        pLmDelete(strat->L[j].p);    /*deletes the short spoly and computes*/
+      else
+        pLmFree(strat->L[j].p);    /*deletes the short spoly and computes*/
+      strat->L[j].p = NULL;
+      poly m1 = NULL, m2 = NULL;
+      // check that spoly creation is ok
+      while (strat->tailRing != currRing &&
+             !kCheckSpolyCreation(&(strat->L[j]), strat, m1, m2))
       {
-        if (rField_is_Ring(currRing))
-          pLmDelete(strat->L[j].p);    /*deletes the short spoly and computes*/
-        else
-          pLmFree(strat->L[j].p);    /*deletes the short spoly and computes*/
-        strat->L[j].p = NULL;
-        poly m1 = NULL, m2 = NULL;
-        // check that spoly creation is ok
-        while (strat->tailRing != currRing &&
-               !kCheckSpolyCreation(&(strat->L[j]), strat, m1, m2))
-        {
-          assume(m1 == NULL && m2 == NULL);
-          // if not, change to a ring where exponents are at least
-          // large enough
-          kStratChangeTailRing(strat);
-        }
-        /* create the real one */
-        ksCreateSpoly(&(strat->L[j]), strat->kNoetherTail(), FALSE,
-                      strat->tailRing, m1, m2, strat->R);
-
-        strat->L[j].SetLmCurrRing();
-        if (!strat->honey)
-          strat->initEcart(&strat->L[j]);
-        else
-          strat->L[j].SetLength(strat->length_pLength);
-
-        BOOLEAN pp = FALSE;
-        if (!lastPPfound) pp=hasPurePower(&(strat->L[j]),strat->lastAxis,&dL,strat);
-
-        strat->L[j].PrepareRed(strat->use_buckets);
-
-        if (pp
-        && rHasLocalOrMixedOrdering(currRing)
-        && (strat->kNoether==NULL))
-        {
-          LObject p;
-          p=strat->L[strat->Ll];
-          strat->L[strat->Ll]=strat->L[j];
-          strat->L[j]=p;
-          break;
-        }
+        assume(m1 == NULL && m2 == NULL);
+        // if not, change to a ring where exponents are at least
+        // large enough
+        kStratChangeTailRing(strat);
       }
-      j--;
+      /* create the real one */
+      ksCreateSpoly(&(strat->L[j]), strat->kNoetherTail(), FALSE,
+                    strat->tailRing, m1, m2, strat->R);
+
+      strat->L[j].SetLmCurrRing();
+      if (!strat->honey)
+        strat->initEcart(&strat->L[j]);
+      else
+        strat->L[j].SetLength(strat->length_pLength);
+
+      BOOLEAN pp = FALSE;
+      if (searchPP
+      && (!lastPPfound)
+      && (strat->kNoether==NULL))
+        pp=hasPurePower(&(strat->L[j]),strat->lastAxis,&dL,strat);
+
+      strat->L[j].PrepareRed(strat->use_buckets);
+
+      if (pp)
+      {
+        LObject p;
+        p=strat->L[strat->Ll];
+        strat->L[strat->Ll]=strat->L[j];
+        strat->L[j]=p;
+        break;
+      }
     }
+    j--;
   }
 }
 
@@ -1664,12 +1664,12 @@ void enterSMora (LObject &p,int atS,kStrategy strat, int atR = -1)
         strat->posInLOldFlag = FALSE;
         strat->posInL = posInL10;
         strat->posInLDependsOnLength = TRUE;
-        updateL(strat);
+        updateL(FALSE,strat);
         reorderL(strat);
       }
     }
     else if (strat->lastAxis)
-      updateL(strat);
+      updateL(TRUE,strat);
   }
 }
 
@@ -1916,7 +1916,7 @@ ideal mora (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
     strat->posInLOld = strat->posInL;
     strat->posInLOldFlag = FALSE;
     strat->posInL = posInL10;
-    updateL(strat);
+    updateL(FALSE,strat);
     reorderL(strat);
   }
   kTest_TS(strat);

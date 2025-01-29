@@ -921,26 +921,6 @@ ideal k_sca_mora(const ideal F, const ideal Q, const intvec */*w*/, const bigint
 //   if (TEST_OPT_FASTHC) missingAxis(&strat->lastAxis,strat);
   // updateS in initBuchMora has Hecketest
   // * and could have put strat->kHEdgdeFound FALSE
-#if 0
-  if (ppNoether!=NULL)
-  {
-    strat->kHEdgeFound = TRUE;
-  }
-  if (strat->kHEdgeFound && strat->update)
-  {
-    firstUpdate(strat);
-    updateLHC(strat);
-    reorderL(strat);
-  }
-  if (TEST_OPT_FASTHC && (strat->lastAxis) && strat->posInLOldFlag)
-  {
-    strat->posInLOld = strat->posInL;
-    strat->posInLOldFlag = FALSE;
-    strat->posInL = posInL10;
-    updateL(strat);
-    reorderL(strat);
-  }
-#endif
   strat->use_buckets = kMoraUseBucket(strat);
 
   kTest_TS(strat);
