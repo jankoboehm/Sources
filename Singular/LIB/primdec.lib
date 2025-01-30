@@ -6467,7 +6467,10 @@ EXAMPLE: example radical; shows an example
       return(j);
   }
   int j;
-  for(j=ncols(i);j>0;j--) { i[j]=sqrfree(i[j],3);}
+  if(!hasGFCoefficient(basering))
+  {
+    for(j=ncols(i);j>0;j--) { i[j]=sqrfree(i[j],3);}
+  }
   if(hasAlgExtensionCoefficient(basering))
   {
     return(algeRad(i));
