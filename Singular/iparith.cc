@@ -978,7 +978,8 @@ static BOOLEAN jjTIMES_I(leftv res, leftv u, leftv v)
 {
   long a=(long)u->Data();
   long b=(long)v->Data();
-  long c=a * b;
+  long c=(long)((unsigned long)a * (unsigned long)b);
+  // unsigned long has no overflow
   if ((a!=0)&&(c/a!=b))
     WarnS("int overflow(*), result may be wrong");
   res->data = (char *)c;
