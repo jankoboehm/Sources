@@ -673,6 +673,11 @@ syStrategy syResolution(ideal arg, int maxlength,intvec * w, BOOLEAN minim)
       fr1[i] = fr[i];
     fr[i] = NULL;
   }
+  for (int i=result->length-1;i>0;i--)
+  {
+    if (fr1[i]!=NULL)
+      fr1[i]->rank=IDELEMS(fr1[i-1]);
+  }
   omFreeSize((ADDRESS)fr,(result->length)*sizeof(ideal));
 
 #ifdef HAVE_PLURAL
