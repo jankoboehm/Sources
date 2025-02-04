@@ -1080,10 +1080,10 @@ void scComputeHC(ideal S, ideal Q, int ak, poly &hEdge)
 
   int  i;
   int  k = ak;
+  ideal SS=id_Head(S,currRing);
   if (rField_is_Ring(currRing) && (currRing->OrdSgn == -1))
   {
     //consider just monic generators (over rings with zero-divisors)
-    ideal SS=id_Head(S,currRing);
     for(i=0;i<=idElem(S);i++)
     {
       if((SS->m[i]!=NULL)
@@ -1093,9 +1093,9 @@ void scComputeHC(ideal S, ideal Q, int ak, poly &hEdge)
         p_Delete(&SS->m[i],currRing);
       }
     }
-    S=id_Copy(SS,currRing);
-    idSkipZeroes(S);
   }
+  S=SS;
+  idSkipZeroes(S);
   hNvar = (currRing->N);
   hexist = hInit(S, Q, &hNexist);
   if (hNexist==0) return;
@@ -1128,6 +1128,7 @@ void scComputeHC(ideal S, ideal Q, int ak, poly &hEdge)
   omFreeSize((ADDRESS)hpure, (1 + (hNvar * hNvar)) * sizeof(int));
   hDelete(hexist, hNexist);
   pLmFree(pWork);
+  idDelete(&S);
 }
 
 
