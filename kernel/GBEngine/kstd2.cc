@@ -1258,7 +1258,7 @@ int redHomog (LObject* h,kStrategy strat)
           return 0;
         }
       }
-      else if (h->t_p!=NULL)
+      else //if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -1277,7 +1277,7 @@ int redHomog (LObject* h,kStrategy strat)
           return 1;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -2014,7 +2014,7 @@ int redLazy (LObject* h,kStrategy strat)
           return 0;
         }
       }
-      else if (h->t_p!=NULL)
+      else //if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -2033,7 +2033,7 @@ int redLazy (LObject* h,kStrategy strat)
           return 1;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -2116,7 +2116,6 @@ int redHoney (LObject* h, kStrategy strat)
   if (strat->tl<0) return 1;
   //if (h->GetLmTailRing()==NULL) return 0; // HS: SHOULD NOT BE NEEDED!
   assume(h->FDeg == h->pFDeg());
-  poly h_p;
   int i,j,at,pass,ei, ii, h_d;
   long reddeg,d;
   int li;
@@ -2125,7 +2124,6 @@ int redHoney (LObject* h, kStrategy strat)
   pass = j = 0;
   d = reddeg = h->GetpFDeg() + h->ecart;
   h->SetShortExpVector();
-  h_p = h->GetLmTailRing();
 
   h->PrepareRed(strat->use_buckets);
   loop
@@ -2209,7 +2207,7 @@ int redHoney (LObject* h, kStrategy strat)
           return 0;
         }
       }
-      else if (h->t_p!=NULL)
+      else //if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -2228,7 +2226,7 @@ int redHoney (LObject* h, kStrategy strat)
           return 1;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {

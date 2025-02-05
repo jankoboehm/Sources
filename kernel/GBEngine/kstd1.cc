@@ -275,7 +275,7 @@ int redEcart (LObject* h,kStrategy strat)
           return 0;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -294,7 +294,7 @@ int redEcart (LObject* h,kStrategy strat)
           return 1;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -855,7 +855,7 @@ int redFirst (LObject* h,kStrategy strat)
           return 0;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
@@ -874,7 +874,7 @@ int redFirst (LObject* h,kStrategy strat)
           return 1;
         }
       }
-      else if (h->t_p!=NULL)
+      else // if (h->t_p!=NULL)
       {
         if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
         {
