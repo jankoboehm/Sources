@@ -32,6 +32,7 @@ bug_normalize
 bug_opposite
 bug_OrdSgn
 bug_orderM
+bug_prim
 bug_printres
 bug_paraplanecurve
 bug_qring2
