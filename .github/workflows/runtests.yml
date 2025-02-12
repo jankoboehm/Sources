@@ -15,10 +15,10 @@ jobs:
         configflags: ["", "--with-ntl --with-flint", "--without-ntl --with-flint"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Install dependencies"
         run: |
-               FLINT_JLL="https://github.com/JuliaBinaryWrappers/FLINT_jll.jl/releases/download/FLINT-v200.700.0%2B0/FLINT.v200.700.0"
+               FLINT_JLL="https://github.com/JuliaBinaryWrappers/FLINT_jll.jl/releases/download/FLINT-v300.100.301%2B0/FLINT.v300.100.301"
                if [ "$RUNNER_OS" == "Linux" ]; then
                     # sharutils is for uudecode
                     sudo apt install sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev 4ti2 normaliz libopenblas-dev
