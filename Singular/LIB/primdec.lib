@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////
-version="version primdec.lib 4.4.0.8 Dec_2024 "; // $Id$
+version="version primdec.lib 4.4.1.0 Febv_2025 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY: primdec.lib   Primary Decomposition and Radical of Ideals
@@ -1279,7 +1279,9 @@ static proc zeroSp(ideal i)
 
   //i has to be a reduced groebner basis
   ASSUME(1, dim(i)==0);
-  if (hasQQCoefficient(basering) && (nvars(basering)*vdim(I)>300))
+  if (hasQQCoefficient(basering)
+  && (nvars(basering)*vdim(I)>300)
+  && (system("cpu")>0))
   {
     ideal F=modFinduni(i);
   }
@@ -4052,7 +4054,9 @@ EXAMPLE: example zeroRad; shows an example"
 
    option(redSB);
    ASSUME(1, dim(I)==0);
-   if (hasQQCoefficient(basering) && (nvars(basering)*vdim(I)>300))
+   if (hasQQCoefficient(basering)
+   && (nvars(basering)*vdim(I)>300)
+   && (system("cpu")>0))
    {
      ideal F=modFinduni(I); //F[i] generates I intersected with K[var(i)]
    }
