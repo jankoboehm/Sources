@@ -180,7 +180,7 @@ static proc vfiltmat(matrix B,int d)
     attrib(V0,"isSB",1);
     V1=B*matrix(V1)-var(1)^d*diff(matrix(V1),var(1));
   }
-  option("noredSB");
+  option(noredSB);
 
   B=lift(V0,B*matrix(V)-var(1)^d*diff(matrix(V),var(1)));
   list l=eigenvals(B);

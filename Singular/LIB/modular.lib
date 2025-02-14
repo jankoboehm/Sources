@@ -342,7 +342,7 @@ static proc finalTest_default(string command, alias list args,
 
 static proc farey_parallel(def farey_arg, bigint farey_N)
 {
-    if(system("cpu")==0) { return(farey(farey_arg,farey_N)); }
+    if(system("cpu")<1) { return(farey(farey_arg,farey_N)); }
     arg_type = typeof(farey_arg);
     if (arg_type != "bigint" && arg_type != "ideal" && arg_type != "module"
         && arg_type != "matrix" && arg_type != "list")

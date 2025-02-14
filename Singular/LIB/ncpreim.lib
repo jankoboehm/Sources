@@ -124,7 +124,7 @@ EXAMPLE:  example admissibleSub; shows examples
   M = simplify(M,2); // get rid of double entries in v
   intvec opt = option(get);
   attrib(M,"isSB",1);
-  option("redSB");
+  option(redSB);
   J = NF(I,M);
   option(set,opt);
   for (i=1; i<=ncols(I); i++)

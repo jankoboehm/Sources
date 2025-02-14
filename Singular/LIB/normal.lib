@@ -7380,8 +7380,8 @@ EXAMPLE: example modNormal; shows an example
   int d = dim(I);
   ideal IMin = IM[2];
   qring Q = I;   // We work in the quotient by the groebner base of the ideal I
-  option("redSB");
-  option("returnSB");
+  option(redSB);
+  option(returnSB);
   ideal I = fetch(R, I);
   attrib(I, "isSB", 1);
   ideal IMin = fetch(R, IMin);
@@ -7446,7 +7446,7 @@ EXAMPLE: example modNormal; shows an example
     maxModularTime=0;
     totalModularTime = timer;
     if (k==1) {sh=0;} else {sh=1;}
-    if (ncores == 1)
+    if (ncores <= 1)
     {
       for(j = (k-1)*n2+1+sh; j <= k*n2+1; j++)
       {
@@ -7760,8 +7760,8 @@ EXAMPLE: example locNormal; shows an example
   int d = dim(I);
   ideal IMin = IM[2];
   qring Q = I;   // We work in the quotient by the groebner base of the ideal I
-  option("redSB");
-  option("returnSB");
+  option(redSB);
+  option(returnSB);
   ideal I = fetch(R, I);
   attrib(I, "isSB", 1);
   ideal IMin = fetch(R, IMin);

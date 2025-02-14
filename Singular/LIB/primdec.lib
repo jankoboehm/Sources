@@ -1288,6 +1288,7 @@ static proc zeroSp(ideal i)
   else
   {
     ideal F=finduni(i);
+    F=simplify(F,1);
   }
   int j,k,l,ready;
   list fa;

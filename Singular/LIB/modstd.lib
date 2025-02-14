@@ -43,7 +43,16 @@ NOTE:     The procedure computes a standard basis of I (over the rational
 SEE ALSO: modular
 EXAMPLE:  example modStd; shows an example"
 {
-    if (system("--cpus")<1) { return(groebner(I)); }
+    if (system("--cpus")<1)
+    {
+      intvec save_opt=option(get);
+      option(redSB);
+      ideal res=groebner(I);
+      res=simplify(res,1); // lcf to 1
+      option(set,save_opt);
+      attrib(res,"isSB",1);
+      return(res);
+    }
     /* read optional parameter */
     int exactness = 1;
     if (size(#) > 0)
