@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////
-version="version parallel.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version parallel.lib 4.4.1.1 Feb_2025 "; // $Id$
 category="General purpose";
 info="
 LIBRARY:   parallel.lib  An abstraction layer for parallel skeletons
@@ -91,25 +91,39 @@ EXAMPLE:  example parallelWaitN; shows an example"
         }
     }
 
-    // compute the tasks
-    for (i = 1; i <= njobs; i++) {
-        task t(i) = commands[i], args[i];
-    }
-    startTasks(t(1..njobs));
-    list indices = waitTasks(list(t(1..njobs)), N, timeout);
-
-    // wrap back to saved semaphore
-    if (ncores) {
-        Resources::resetcores_subtree(semaphore_save);
-    }
-
-    // return results
     list results;
-    for (i = size(indices); i > 0; i--) {
-        results[indices[i]] = getResult(t(indices[i]));
+    if(system("cpu")<=1)
+    {
+      list tmp;
+      int tmp_s;
+      for(i=njobs;i>0;i--)
+      {
+        tmp=args[i];
+        tmp_s=size(tmp);
+        execute("results[i]="+commands[i]+"(tmp[1..tmp_s]);");
+      }
     }
-    for (i = 1; i <= njobs; i++) {
+    else
+    {
+      // compute the tasks
+      for (i = 1; i <= njobs; i++) {
+        task t(i) = commands[i], args[i];
+      }
+      startTasks(t(1..njobs));
+      list indices = waitTasks(list(t(1..njobs)), N, timeout);
+
+      // wrap back to saved semaphore
+      if (ncores) {
+        Resources::resetcores_subtree(semaphore_save);
+      }
+
+      // return results
+      for (i = size(indices); i > 0; i--) {
+        results[indices[i]] = getResult(t(indices[i]));
+      }
+      for (i = 1; i <= njobs; i++) {
         killTask(t(i));
+      }
     }
     return(results);
 }
