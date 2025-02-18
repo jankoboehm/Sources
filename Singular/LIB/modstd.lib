@@ -47,7 +47,7 @@ EXAMPLE:  example modStd; shows an example"
     {
       intvec save_opt=option(get);
       option(redSB);
-      ideal res=groebner(I);
+      ideal res=std(I);
       res=simplify(res,1); // lcf to 1
       option(set,save_opt);
       attrib(res,"isSB",1);
