@@ -218,7 +218,6 @@ ideal id_ChineseRemainder_0(ideal *xx, number *q, int rl, const ring r)
     WerrorS("format mismatch in CRT");
     return NULL;
   }
-  int cpus=(int)(long)feOptValue(FE_OPT_CPUS);
   if (cpus>=vspace::internals::MAX_PROCESS)
     cpus=vspace::internals::MAX_PROCESS-1;
   /* start no more than MAX_PROCESS-1 children */
