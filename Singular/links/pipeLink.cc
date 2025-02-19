@@ -35,6 +35,12 @@ typedef struct
 static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
 {
   if (FE_OPT_NO_SHELL_FLAG) {WerrorS("no links allowed");return TRUE;}
+  int cpus = (long) feOptValue(FE_OPT_CPUS);
+  if (cpus<1)
+  {
+    WerrorS("no sub-processes allowed");
+    return TRUE;
+  }
   pipeInfo *d=(pipeInfo*)omAlloc0(sizeof(pipeInfo));
   if (flag & SI_LINK_OPEN)
   {

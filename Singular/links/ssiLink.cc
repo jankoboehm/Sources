@@ -1027,6 +1027,12 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
     {
       if (strcmp(mode,"fork")==0)
       {
+        int cpus = (long) feOptValue(FE_OPT_CPUS);
+        if (cpus<1)
+        {
+          WerrorS("no sub-processes allowed");
+          return TRUE;
+        }
         int pc[2];
         int cp[2];
         int err1=pipe(pc);

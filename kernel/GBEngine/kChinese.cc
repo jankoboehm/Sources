@@ -198,6 +198,12 @@ static long size_poly(poly p, const ring r)
 
 ideal id_ChineseRemainder_0(ideal *xx, number *q, int rl, const ring r)
 {
+  int cpus = (long) feOptValue(FE_OPT_CPUS);
+  if (cpus<1)
+  {
+    WerrorS("no sub-processes allowed");
+    return NULL;
+  }
   int cnt=0;int rw=0; int cl=0;
   // find max. size of xx[.]:
   for(int j=rl-1;j>=0;j--)

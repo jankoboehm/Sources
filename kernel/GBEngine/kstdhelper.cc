@@ -280,6 +280,12 @@ ideal kTryHilbstd(ideal F, ideal Q)
 
 ideal kTryHilbstd_par(ideal F, ideal Q, tHomog h, intvec ** mw)
 {
+  int cpus = (long) feOptValue(FE_OPT_CPUS);
+  if (cpus<1)
+  {
+    //WerrorS("no sub-processes allowed");
+    return NULL;
+  }
 #if 0
   if(!TEST_V_PURE_GB)
   {

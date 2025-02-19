@@ -444,13 +444,7 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
         return TRUE;
       }
       ideal F=(ideal)h->Data();
-      #ifdef HAVE_VSPACE
-      int cpus = (long) feOptValue(FE_OPT_CPUS);
-      if (cpus>1)
-        res->data=(char*)(long) kVerify2(F,currRing->qideal);
-      else
-      #endif
-        res->data=(char*)(long) kVerify1(F,currRing->qideal);
+      res->data=(char*)(long) kVerify(F,currRing->qideal);
       res->rtyp=INT_CMD;
       return FALSE;
     }

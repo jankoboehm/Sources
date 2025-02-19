@@ -21,7 +21,7 @@
 #include "Singular/links/ssiLink.h"
 #endif
 
-BOOLEAN kVerify1(ideal F, ideal Q)
+static BOOLEAN kVerify1(ideal F, ideal Q)
 /* sequential version */
 {
   assume (!rIsNCRing(currRing));
@@ -138,7 +138,7 @@ BOOLEAN kVerify1(ideal F, ideal Q)
   return all_okay;
 }
 
-BOOLEAN kVerify2(ideal F, ideal Q)
+static BOOLEAN kVerify2(ideal F, ideal Q)
 /* parallel version */
 {
 #ifdef HAVE_VSPACE
@@ -361,4 +361,15 @@ BOOLEAN kVerify2(ideal F, ideal Q)
 #else
   return kVerify1(F,Q);
 #endif
+}
+
+BOOLEAN kVerify(ideal F, ideal Q)
+{
+  #ifdef HAVE_VSPACE
+  int cpus = (long) feOptValue(FE_OPT_CPUS);
+  if (cpus>1)
+    return kVerify2(F,currRing->qideal);
+  else
+  #endif
+    return kVerify1(F,currRing->qideal);
 }
