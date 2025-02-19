@@ -22,6 +22,7 @@
 #include "Singular/ipid.h"
 #include "Singular/cntrlc.h"
 #include "Singular/links/ssiLink.h"
+#include "Singular/feOpt.h"
 
 static int kFindLuckyPrime(ideal F, ideal Q) // TODO
 {

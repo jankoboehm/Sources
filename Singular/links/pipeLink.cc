@@ -16,6 +16,7 @@
 #include "links/silink.h"
 #include "lists.h"
 #include "pipeLink.h"
+#include "Singular/feOpt.h"
 
 #include <errno.h>
 #include <sys/types.h>          /* for portability */
