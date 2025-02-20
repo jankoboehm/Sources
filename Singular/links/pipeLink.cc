@@ -33,21 +33,17 @@ typedef struct
 } pipeInfo;
 
 //**************************************************************************/
-static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
+static BOOLEAN pipeOpen(si_link l, short /*flag*/, leftv /*u*/)
 {
   if (FE_OPT_NO_SHELL_FLAG) {WerrorS("no links allowed");return TRUE;}
   int cpus = (long) feOptValue(FE_OPT_CPUS);
   if (cpus<1)
   {
     WerrorS("no sub-processes allowed");
-    l->flag=0;
+    l->flags=0;
     return TRUE;
   }
   pipeInfo *d=(pipeInfo*)omAlloc0(sizeof(pipeInfo));
-  if (flag & SI_LINK_OPEN)
-  {
-      flag = SI_LINK_READ| SI_LINK_WRITE;
-  }
   int pc[2];
   int cp[2];
   int err1=pipe(pc);
@@ -56,7 +52,7 @@ static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
   {
     Werror("pipe failed with %d\n",errno);
     omFreeSize(d,sizeof(*d));
-    l->flag=0;
+    l->flags=0;
     return TRUE;
   }
   /* else */
@@ -88,7 +84,7 @@ static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
   {
     Werror("fork failed (%d)",errno);
     omFreeSize(d,sizeof(*d));
-    l->flag=0;
+    l->flags=0;
     return TRUE;
   }
   l->data=d;
