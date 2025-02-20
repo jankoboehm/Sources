@@ -1031,6 +1031,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         if (cpus<1)
         {
           WerrorS("no sub-processes allowed");
+          l->flags=0;
           return TRUE;
         }
         int pc[2];
@@ -1040,6 +1041,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         if (err1 || err2)
         {
           Werror("pipe failed with %d\n",errno);
+          l->flags=0;
           return TRUE;
         }
         link_list n=(link_list)omAlloc(sizeof(link_struct));
@@ -1057,6 +1059,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         if (pid == -1)
         {
           WerrorS("could not fork");
+          l->flags=0;
+          return TRUE;
         }
         if (pid==0) /*fork: child*/
         {
