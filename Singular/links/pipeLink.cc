@@ -40,6 +40,7 @@ static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
   if (cpus<1)
   {
     WerrorS("no sub-processes allowed");
+    l->flag=0;
     return TRUE;
   }
   pipeInfo *d=(pipeInfo*)omAlloc0(sizeof(pipeInfo));
@@ -55,6 +56,7 @@ static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
   {
     Werror("pipe failed with %d\n",errno);
     omFreeSize(d,sizeof(*d));
+    l->flag=0;
     return TRUE;
   }
   /* else */
@@ -69,7 +71,7 @@ static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
     int r=system(l->name);
     si_close(pc[0]);
     si_close(cp[1]);
-    exit(r);
+    _exit(r);
         /* never reached*/
   }
   else if (pid>0)
@@ -86,6 +88,7 @@ static BOOLEAN pipeOpen(si_link l, short flag, leftv /*u*/)
   {
     Werror("fork failed (%d)",errno);
     omFreeSize(d,sizeof(*d));
+    l->flag=0;
     return TRUE;
   }
   l->data=d;
