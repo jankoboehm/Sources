@@ -1898,7 +1898,9 @@ si_link_extension slInitSsiExtension(si_link_extension s)
 const char* slStatusSsi(si_link l, const char* request)
 {
   ssiInfo *d=(ssiInfo*)l->data;
-  if (d==NULL) return "not open";
+  if ((d==NULL)
+  || (SI_LINK_OPEN_P(l)))
+    return "not open";
   if (((strcmp(l->mode,"fork")==0)
   ||(strcmp(l->mode,"tcp")==0)
   ||(strcmp(l->mode,"connect")==0))
