@@ -21,7 +21,7 @@
 #include "Singular/links/ssiLink.h"
 #endif
 
-static BOOLEAN kVerify1(ideal F, ideal Q)
+BOOLEAN kVerify1(ideal F, ideal Q)
 /* sequential version */
 {
   assume (!rIsNCRing(currRing));
@@ -138,7 +138,7 @@ static BOOLEAN kVerify1(ideal F, ideal Q)
   return all_okay;
 }
 
-static BOOLEAN kVerify2(ideal F, ideal Q)
+BOOLEAN kVerify2(ideal F, ideal Q)
 /* parallel version */
 {
 #ifdef HAVE_VSPACE
