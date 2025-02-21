@@ -53,26 +53,19 @@ EXAMPLE: example zeroRadical; shows an example
       I = modStd(I, exactness);
    }
 
-   if(system("cpu")>0)
+   /* call modular() */
+   // TODO: write deleteUnluckyPrimes_zeroRadical()
+   if(exactness)
    {
-     /* call modular() */
-     // TODO: write deleteUnluckyPrimes_zeroRadical()
-     if(exactness)
-     {
-      ideal F = modular("Assprimeszerodim::zeroRadP", list(I),
-         Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
-         pTest_zeroRadical, finalTest_zeroRadical);
-     }
-     else
-     {
-      ideal F = modular("Assprimeszerodim::zeroRadP", list(I),
-         Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
-         pTest_zeroRadical);
-     }
+    ideal F = modular("Assprimeszerodim::zeroRadP", list(I),
+       Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
+       pTest_zeroRadical, finalTest_zeroRadical);
    }
    else
    {
-     ideal F=zeroRadP(I);
+    ideal F = modular("Assprimeszerodim::zeroRadP", list(I),
+       Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
+       pTest_zeroRadical);
    }
 
    /* compute the squarefree parts */
@@ -241,27 +234,20 @@ EXAMPLE: example assPrimes; shows an example
    I = J;
    kill J;
 
-   if (system("cpu")>0)
+   /* call modular() */
+   if(exactness)
    {
-     /* call modular() */
-     if(exactness)
-     {
-      ideal F = modular("Assprimeszerodim::modpSpecialAlgDep",
-         list(I, f, d, a),
-         Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
-         pTest_assPrimes, finalTest_assPrimes);
-     }
-     else
-     {
-      ideal F = modular("Assprimeszerodim::modpSpecialAlgDep",
-         list(I, f, d, a),
-         Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
-         pTest_assPrimes);
-     }
+    ideal F = modular("Assprimeszerodim::modpSpecialAlgDep",
+       list(I, f, d, a),
+       Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
+       pTest_assPrimes, finalTest_assPrimes);
    }
    else
    {
-     ideal F=modpSpecialAlgDep(I,f,d,a);
+    ideal F = modular("Assprimeszerodim::modpSpecialAlgDep",
+       list(I, f, d, a),
+       Modstd::primeTest_std, Modular::deleteUnluckyPrimes_default,
+       pTest_assPrimes);
    }
 
    /* compute the components */

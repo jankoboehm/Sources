@@ -1280,15 +1280,9 @@ static proc zeroSp(ideal i)
   //i has to be a reduced groebner basis
   ASSUME(1, dim(i)==0);
   if (hasQQCoefficient(basering)
-  && (nvars(basering)*vdim(I)>300)
-  && (system("cpu")>0))
+  && (nvars(basering)*vdim(I)>300))
   {
     ideal F=modFinduni(i);
-  }
-  else
-  {
-    ideal F=finduni(i);
-    F=simplify(F,1);
   }
   int j,k,l,ready;
   list fa;
@@ -4056,8 +4050,7 @@ EXAMPLE: example zeroRad; shows an example"
    option(redSB);
    ASSUME(1, dim(I)==0);
    if (hasQQCoefficient(basering)
-   && (nvars(basering)*vdim(I)>300)
-   && (system("cpu")>0))
+   && (nvars(basering)*vdim(I)>300))
    {
      ideal F=modFinduni(I); //F[i] generates I intersected with K[var(i)]
    }

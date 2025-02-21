@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////
-version="version modular.lib 4.2.0.0 Dec_2020 "; // $Id$
+version="version modular.lib 4.4.1.1 Feb_2025 "; // $Id$
 category="General purpose";
 info="
 LIBRARY:   modular.lib  An abstraction layer for modular techniques
@@ -128,6 +128,8 @@ EXAMPLE:  example modular; shows an example"
     int ncores_available;
     while (1)
     {
+      if(system("cpu")>0)
+      {
         // compute list of primes
         if (nAllPrimes == 0)
         {
@@ -211,6 +213,68 @@ EXAMPLE:  example modular; shows an example"
 
         // finalTest
         if (finalTest(Command, Arguments, result)) break;
+      }
+      else
+      {
+        // compute list of primes
+        nNewPrimes = 3;
+        primes = primeList(nNewPrimes, pmax);
+        pmax = primes[size(primes)]-1;
+        nAllPrimes = nAllPrimes+nNewPrimes;
+
+        // do computation modulo several primes
+        for (i = size(primes); i > 0; i--)
+        {
+            modresults[i]=Modular::modp(primes[i]);
+        }
+
+        // delete unlucky primes
+        indices = deleteUnluckyPrimes(modresults);
+        indices = sort(indices)[1];
+        for (i = size(indices); i > 1; i--)
+        {
+            if (indices[i] == indices[i-1])
+            {
+                indices = delete(indices, i);
+            }
+        }
+        for (i = size(indices); i > 0; i--)
+        {
+            modresults = delete(modresults, indices[i]);
+            primes = delete(primes, indices[i]);
+        }
+
+        // lift result
+        if (N == 1)
+        {
+            result_lift = chinrem_recursive(modresults, primes);
+        }
+        else
+        {
+            result_lift = chinrem_recursive(list(result_lift)+modresults,
+                list(N)+primes);
+        }
+        modresults = list();
+        for (i = size(primes); i > 0; i--)
+        {
+            N = N*primes[i];
+        }
+
+        // apply farey
+        result = farey_parallel(result_lift, N);
+
+        // pTest
+        p = prime(random(pmax div 2, pmax-1));
+        while (!Modular::primeTest(p, Arguments))
+        {
+            if (p <= 2) { ERROR("no more primes"); }
+            p = prime(random(p div 2, p-1));
+        }
+        if (!pTest(Command, Arguments, result, p)) { continue; }
+
+        // finalTest
+        if (finalTest(Command, Arguments, result)) break;
+      }
     }
 
     /* kill exported data */
@@ -265,9 +329,11 @@ static proc chinrem_recursive(list modresults, list moduli)
 
 static proc primeList(int n, int pmax)
 {
-    list primes;
-    int p = pmax;
-    int i;
+  list primes;
+  int p = pmax;
+  int i;
+  if (system("cpu")>0)
+  {
     for (i = 1; i <= n; i++)
     {
         if (p < 2)
@@ -288,11 +354,28 @@ static proc primeList(int n, int pmax)
         }
         killTask(t(i));
     }
-    if (j < n)
+  }
+  else
+  {
+    int j;
+    for (i = 1; i <= n; i++)
     {
-        primes = primes+primeList(n-j, p);
+        if (p < 2)
+        { ERROR("no more primes"); }
+        p = prime(p);
+        if (Modular::primeList_task(p))
+        {
+          j++;
+          primes[j]=p;
+        }
+        p--;
     }
-    return(primes);
+  }
+  if (j < n)
+  {
+      primes = primes+primeList(n-j, p);
+  }
+  return(primes);
 }
 
 static proc primeList_task(int p)
@@ -342,7 +425,6 @@ static proc finalTest_default(string command, alias list args,
 
 static proc farey_parallel(def farey_arg, bigint farey_N)
 {
-    if(system("cpu")<1) { return(farey(farey_arg,farey_N)); }
     arg_type = typeof(farey_arg);
     if (arg_type != "bigint" && arg_type != "ideal" && arg_type != "module"
         && arg_type != "matrix" && arg_type != "list")
@@ -350,6 +432,8 @@ static proc farey_parallel(def farey_arg, bigint farey_N)
     int i;
     if (arg_type == "list")
     {
+      if(system("cpu")>0)
+      {
         int size_farey_arg = size(farey_arg);
         for (i = size_farey_arg; i > 0; i--)
         {
@@ -363,7 +447,16 @@ static proc farey_parallel(def farey_arg, bigint farey_N)
             result[i] = getResult(t(i));
             killTask(t(i));
         }
-        return(result);
+      }
+      else
+      {
+        int size_farey_arg = size(farey_arg);
+        for (i = size_farey_arg; i > 0; i--)
+        {
+          result[i] = Modular::farey_parallel(farey_arg[i], farey_N);
+        }
+      }
+      return(result);
     }
     if (arg_type == "bigint" || arg_type == "matrix")
     { return(farey(farey_arg, farey_N)); }
@@ -373,22 +466,36 @@ static proc farey_parallel(def farey_arg, bigint farey_N)
     //  return(farey(farey_arg,farey_N));
     //}
     exportto(Modular, farey_arg);
-    exportto(Modular, farey_N);
+    if (defined(farey_N)>1) {exportto(Modular, farey_N);}
     int size_arg = ncols(farey_arg);
     int chunks = par_range(size_arg);
     intvec range;
-    for (i = chunks; i > 0; i--)
+    if(system("cpu")>0)
     {
+      for (i = chunks; i > 0; i--)
+      {
         range = par_range(size_arg, i);
         task t(i) = "Modular::farey_task", list(range);
-    }
-    startTasks(t(1..chunks));
-    waitAllTasks(t(1..chunks));
-    def result = getResult(t(chunks));
-    for (i = chunks-1; i > 0; i--)
-    {
+      }
+      startTasks(t(1..chunks));
+      waitAllTasks(t(1..chunks));
+      def result = getResult(t(chunks));
+      for (i = chunks-1; i > 0; i--)
+      {
         result = getResult(t(i)), result;
         killTask(t(i));
+      }
+    }
+    else
+    {
+      def result;
+      range = par_range(size_arg, chunks);
+      result = Modular::farey_task(range);
+      for (i = chunks-1; i > 0; i--)
+      {
+        range = par_range(size_arg, i);
+        result = Modular::farey_task(range),result;
+      }
     }
     kill farey_arg;
     kill farey_N;
