@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-version="version primdecint.lib 4.3.2.2 Nov_2022 "; // $Id$
+version="version primdecint.lib 4.4.1.1 Feb_2025 "; // $Id$
 category = "Commutative Algebra";
 info="
 LIBRARY:  primdecint.lib   primary decomposition of an ideal in the polynomial
@@ -65,6 +65,7 @@ EXAMPLE: example primdecZ; shows an example
          int n = #[1];
          ideal TES = #[2];
       }
+      if (system("cpu")<=1) { n=1; }
    }
    else
    {
@@ -129,7 +130,6 @@ EXAMPLE: example primdecZ; shows an example
          {
             p=int(L[1][i + 1]);
             nu=int(L[2][i + 1]);
-            //link l(i) = "MPtcp:fork";
             link l(i) = "ssi:fork";
             open(l(i));
             write(l(i), quote(modp(eval(J), eval(p), eval(nu))));
