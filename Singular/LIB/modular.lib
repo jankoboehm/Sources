@@ -128,7 +128,7 @@ EXAMPLE:  example modular; shows an example"
     int ncores_available;
     while (1)
     {
-      if(system("cpu")>0)
+      if(system("cpu")>1)
       {
         // compute list of primes
         if (nAllPrimes == 0)
@@ -332,7 +332,7 @@ static proc primeList(int n, int pmax)
   list primes;
   int p = pmax;
   int i;
-  if (system("cpu")>0)
+  if (system("cpu")>1)
   {
     for (i = 1; i <= n; i++)
     {
@@ -432,7 +432,7 @@ static proc farey_parallel(def farey_arg, bigint farey_N)
     int i;
     if (arg_type == "list")
     {
-      if(system("cpu")>0)
+      if(system("cpu")>1)
       {
         int size_farey_arg = size(farey_arg);
         for (i = size_farey_arg; i > 0; i--)
@@ -470,7 +470,7 @@ static proc farey_parallel(def farey_arg, bigint farey_N)
     int size_arg = ncols(farey_arg);
     int chunks = par_range(size_arg);
     intvec range;
-    if(system("cpu")>0)
+    if(system("cpu")>1)
     {
       for (i = chunks; i > 0; i--)
       {
