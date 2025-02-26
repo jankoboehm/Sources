@@ -1,16 +1,16 @@
 //////////////////////////////////////////////////////////////////////////////
-version=" ";
+version="version sresext.lib 4.4.1.0 Feb_2025 "; // $Id$
 category="Noncommutative";
 info="
-LIBRARY: sresforextalg.lib     Schreyer's algorithm for modules over the exterior algebra
-AUTHORS: Ramesh, L.,           ramesh@mathematik.uni-kl.de   
+LIBRARY: sresforext.lib        Schreyer's algorithm for modules over the exterior algebra
+AUTHORS: Ramesh, L.,           ramesh@mathematik.uni-kl.de
 
 OVERVIEW:
 Procedures for and involving computing Schreyer resolution of modules over the exterior algebra
 
 PROCEDURES:
-schreyerSyzExt(m);            (refined) Schreyer syzygy of a module over the exterior algebra 
-sresExt(m,p);                 free resolution of module m over the exterior algebra using refined Schreyer alg        
+schreyerSyzExt(m);            (refined) Schreyer syzygy of a module over the exterior algebra
+sresExt(m,p);                 free resolution of module m over the exterior algebra using refined Schreyer alg
 mresExt(m,p);                 minimal free resolution of module m over the exterior algebra using refined Schreyer alg
 sheafCohBGGsres(M,l,h)        cohomology of twists of the coherent sheaf F on P^n
                               associated to coker(M). The range of twists is determined by l,h.
@@ -23,7 +23,7 @@ LIB "sheafcoh.lib"; // for displayCohom
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static proc leadmonomial_nc(def s) 
+static proc leadmonomial_nc(def s)
 {
   int e;
   poly m;
@@ -67,7 +67,7 @@ example
   leadterm(v);
 }
 
-/*to compute the least common divisor of two monomials that came from the lifting of a module over the exterior algebra. 
+/*to compute the least common divisor of two monomials that came from the lifting of a module over the exterior algebra.
 That is, each monomial may either be a square of a variable, or a monomial where the power of each variable is 0 or 1.
 This function is used to compute the lead syzygy module of a module over the exterior algebra and may not be appropriate for other purposes. */
 static proc lcm_(poly v, poly w)
@@ -194,7 +194,7 @@ static proc lift_tree_(vector s, module M)
   vector g = phi_(s, M);
   vector T = remove_LOT_(g, M);
   vector L;
-  vector ans = s; 
+  vector ans = s;
   int i;
   poly m;
   module temp_I;
@@ -207,10 +207,10 @@ static proc lift_tree_(vector s, module M)
       attrib(temp_I, "isSB", 1);
       if(NF(L, temp_I)==0){
         m = leadmonomial_nc(L)/leadterm(M[i]);
-        //check sign: 
+        //check sign:
         if (m*leadterm(M[i]) != leadterm(L)){
           m = -m;
-        } 
+        }
         if (greater_than_(s, m*gen(i), M)){
           ans = ans - lift_subtree_(m*gen(i),M);
           break;
@@ -243,10 +243,10 @@ static proc lift_subtree_(vector s, module M)
       if(NF(L, temp_I)==0){
         m = leadmonomial_nc(L)/leadmonomial_nc(M[i]); //TODO check sign!
 
-        //check sign: 
+        //check sign:
         if (m*leadterm(M[i]) != leadterm(L)){
           m = -m;
-        } 
+        }
         ans = ans - lift_subtree_(m*gen(i),M);
         break;
       }
@@ -322,7 +322,7 @@ static proc ext_elimination_(module m, module syz_mod)
   int r = size(m);
   int n = nvars(basering);
   module ans_mod, temp_I;
-  
+
   matrix needed_mat = submat(matrix(syz_mod), 1..r, 1..size(syz_mod));
   ans_mod = module(needed_mat);
   int i,j,k;
@@ -349,12 +349,12 @@ static proc ext_elimination_(module m, module syz_mod)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-//THIS IS THE MAIN USER CALLABLE PROCEDURE. 
+//THIS IS THE MAIN USER CALLABLE PROCEDURE.
 proc schreyerSyzExt(module m)
 "USAGE:   schreyerSyzExt(m); m a module over the exterior algebra.
 RETURN:   module
 PURPOSE:  computes the syzygy module of a m over the exterior algebra.
-THEORY:   
+THEORY:
 SEE ALSO: sresExt, mresExt
 EXAMPLE: example schreyerSyzExt; shows an example
 "
@@ -368,7 +368,7 @@ EXAMPLE: example schreyerSyzExt; shows an example
   matrix E = UpOneMatrix(N);
   E = -1*(E);
   def RR = nc_algebra(E,0); setring RR;
-  
+
   //imap m to new ring
   module M = imap(r, m);
 
@@ -401,27 +401,27 @@ example
 
 static proc sres_ext_(module m, int p)
 {
-  int i,j; 
+  int i,j;
   list res_list, lead_terms_list;
   lead_terms_list[1] = m;
-  
+
   res_list[1] = m;
   for (i = 1; i<p; i++){
     res_list[i+1] = total_syz_alg(res_list[i], lead_terms_list);
     lead_terms_list[i+1] = lead(res_list[i+1]);
   }
   resolution ans_res = res_list;
-  //can't return something in a different ring!!! 
+  //can't return something in a different ring!!!
   return(ans_res);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-proc sresExt(module m, int p) 
+proc sresExt(module m, int p)
 "USAGE:   srexExt(m,p); m a module over the polynomial ring.
 RETURN:   resolution
-PURPOSE:  to compute the minimal free resolution of m, where m represents a module over the exterior algebra, up to pth cohomological degree. 
-THEORY:   
+PURPOSE:  to compute the minimal free resolution of m, where m represents a module over the exterior algebra, up to pth cohomological degree.
+THEORY:
 SEE ALSO: mresExt, schreyerSyzExt
 EXAMPLE: example sresExt; shows an example
 "
@@ -503,11 +503,11 @@ static proc lift_tree_with_order(vector s, module M, list LL)
   vector g = phi_(s, M);
   vector T = remove_LOT_(g, M);
   vector L;
-  vector ans = s; 
+  vector ans = s;
   int i;
   poly m;
   module temp_I;
-  
+
   ideal im, iF_, imif, iL;
   while (T != 0){
     L = lead(T);
@@ -515,12 +515,12 @@ static proc lift_tree_with_order(vector s, module M, list LL)
       temp_I = leadmonom(M[i]);
       attrib(temp_I, "isSB", 1);
       if(NF(L, temp_I)==0){
-        m = leadmonomial_nc(L)/leadterm(M[i]); 
-        
-        //check sign: 
+        m = leadmonomial_nc(L)/leadterm(M[i]);
+
+        //check sign:
         if (m*leadterm(M[i])!= leadterm(L)){
           m = -m;
-        } 
+        }
         //schreyer order algorithm should be called here
         if (gr_than_for_res(s,m*gen(i),LL)){
           ans = ans - lift_subtree_(m*gen(i),M);
@@ -564,8 +564,8 @@ static proc gr_than_for_res(vector s, vector v, list L)
 proc mresExt(module m, int p)
 "USAGE:   mresExt(m,p); m a module over the polynomial ring.
 RETURN:   resolution
-PURPOSE:  to compute the minimal free resolution of m, where m represents a module over the exterior algebra, up to pth cohomological degree. 
-THEORY:   
+PURPOSE:  to compute the minimal free resolution of m, where m represents a module over the exterior algebra, up to pth cohomological degree.
+THEORY:
 SEE ALSO: sresExt, schreyerSyzExt
 EXAMPLE: example mresExt; shows an example
 "
@@ -581,7 +581,7 @@ EXAMPLE: example mresExt; shows an example
   //N is the anti-commutative polynomial ring
   def N = nc_algebra(E,0); setring N;
 
-  //now we fetch the given module. 
+  //now we fetch the given module.
   module M = imap(r, m);
   module temp_mod;
 
@@ -637,7 +637,7 @@ DISPLAY: The intmat is displayed in a diagram of the following form:
   @end format
          A @code{'-'} in the diagram refers to a zero entry; a @code{'*'}
          refers to a negative entry (= dimension not yet determined).
-         refers to a not computed dimension. 
+         refers to a not computed dimension.
 NOTE:    This procedure is based on the Bernstein-Gel'fand-Gel'fand
          correspondence and on Tate resolution ( see [Eisenbud, Floystad,
          Schreyer: Sheaf cohomology and free resolutions over exterior
