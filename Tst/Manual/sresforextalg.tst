@@ -1,5 +1,5 @@
 LIB "tst.lib"; tst_init();
-LIB "sresforextalg.lib";
+LIB "sresext.lib";
 // single syzygy computation over the exterior algebra
 ring r1 = (0,q),(x,y,z),dp;
 def e = Exterior(); setring e;
@@ -30,7 +30,7 @@ mresExt(m3,4);
 //-------------------------------------------
 ring r=0,x(1..5),dp;
 module M=0;
-def A=sheafCohBGG_sres(M,-9,4);
+def A=sheafCohBGGsres(M,-9,4);
 displayCohom(A,-9,4,4);
 // cohomology of cotangential bundle on P^3:
 //-------------------------------------------
