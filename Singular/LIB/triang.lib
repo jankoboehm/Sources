@@ -146,7 +146,17 @@ EXAMPLE: example triangL; shows an example
                 if (l > size(G))  // Ende von G erreicht, dann Dreiecks-
                 {                 // basis der Triangulierung gefunden,
                        dbprint(string(timer)+" S"+st+": Dreiecksbasis der Triangulierung gefunden.");
-                    F = F + list(T_neu);
+                    int ndup=1;
+                    matrix mat_T_neu=matrix(T_neu);
+                    for(int j=size(F);j>0;j--)
+                    {
+                      if(matrix(F[j])==mat_T_neu) { ndup=0;break;}
+                    }
+                    if (ndup)
+                    {
+                      F = F + list(T_neu);
+                    }
+                    kill ndup,j,mat_T_neu;
                 }
                 else              // sonst T_neu,l erneut bearbeiten.
                 {
@@ -383,7 +393,6 @@ RETURN:  Liste von Tripeln (Listen) bestehend aus einem Polynom ri,
                 toSee  = list(list(pr,inv[2])) + toSee;
                 attrib(toSee[1][2],"isSB",1);
             }
-
         }
         else           // ansonsten Quasi-Inverses gefunden.
         {
