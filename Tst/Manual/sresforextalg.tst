@@ -20,7 +20,7 @@ m2 = std(m2);
 sresExt(m2,4);
 //Minimal Schreyer resolution over the exterior algebra
 ring r = 0,(x,y,z),dp;
-def E = Exterior();
+def E = Exterior(); setring E;
 vector f1 = [x,y,0,z,0,0];
 vector f2 = [0,x,y,0,z,0];
 vector f3 = [0,0,0,x,y,z];
@@ -30,8 +30,8 @@ mresExt(m3,4);
 //-------------------------------------------
 ring r=0,x(1..5),dp;
 module M=0;
-def A=sheafCohBGGsres(M,-9,4);
-displayCohom(A,-9,4,4);
+//def A=sheafCohBGGsres(M,-9,4); // >15h
+//displayCohom(A,-9,4,4);
 // cohomology of cotangential bundle on P^3:
 //-------------------------------------------
 ring R=0,(x,y,z,u),dp;
