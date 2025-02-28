@@ -75,6 +75,7 @@ EXAMPLE:  example addcores; shows an example"
 
     /* adjust and return NCORES */
     NCORES = NCORES+n;
+    if (system("cpu")) {system("--cpus",NCORES);}
     return(NCORES);
 }
 example
