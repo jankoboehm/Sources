@@ -65,13 +65,13 @@ EXAMPLE: example primdecZ; shows an example
          int n = #[1];
          ideal TES = #[2];
       }
-      if (system("cpu")<=1) { n=1; }
    }
    else
    {
       int n = 1;
       ideal TES = 1;
    }
+   if (system("cpu")<=1) { n=1; }
 
 
    if(size(I)==1 && deg(I[1]) == 0)
