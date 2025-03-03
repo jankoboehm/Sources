@@ -140,7 +140,7 @@ VAR struct fe_option feOptSpec[] =
   "SECS",     "Do not display times smaller than SECS (in seconds)",   feOptString, (void*) "0.5",  0},
 
   {"cpus",            required_argument,    LONG_OPTION_RETURN,
-   "#CPUs",   "maximal number of CPUs to use",                         feOptInt,    (void*)2,      0},
+   "#CPUs",   "maximal number of CPUs to use",                         feOptInt,    (void*)1,      0},
 
   {"threads",         required_argument,    LONG_OPTION_RETURN,
    "#threads", "maximal number of CPUs to use for threads",            feOptInt,    (void*)2,      0},
