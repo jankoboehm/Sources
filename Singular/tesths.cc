@@ -87,12 +87,6 @@ int main(          /* main entry to Singular */
     #ifdef HAVE_SIMPLEIPC
     if (cpus>SIPC_MAX_SEMAPHORES) cpus=SIPC_MAX_SEMAPHORES;
     #endif
-    char *env_cpu=getenv("SINGULAR_CPUS");
-    if (env_cpu!=NULL)
-    {
-      int t=atoi(env_cpu);
-      if ((t>=0)&&(t<cpus)) cpus=t;
-    }
     feSetOptValue(FE_OPT_CPUS, cpus);
 // how many threads ? -----------------------------------------------------
     feSetOptValue(FE_OPT_THREADS, cpus);

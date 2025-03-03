@@ -1385,6 +1385,27 @@ void siInit(char *name)
   extern void initPT();
   initPT();
 #endif
+ { // set cpus (in siInit), if SINGULAR_CPUS is set, set within the limits
+   char *env_cpu=getenv("SINGULAR_CPUS");
+   if (env_cpu!=NULL)
+   {
+      int cpu_n,cpus;
+      #ifdef _SC_NPROCESSORS_ONLN
+      if ((cpu_n=sysconf(_SC_NPROCESSORS_ONLN))>cpus) cpus=cpu_n;
+      #elif defined(_SC_NPROCESSORS_CONF)
+      if ((cpu_n=sysconf(_SC_NPROCESSORS_CONF))>cpus) cpus=cpu_n;
+      #endif
+      #ifdef HAVE_SIMPLEIPC
+      if (cpus>SIPC_MAX_SEMAPHORES) cpus=SIPC_MAX_SEMAPHORES;
+      #endif
+
+     int t=atoi(env_cpu);
+     if ((t>=0)&&(t<cpus)) cpus=t;
+     feSetOptValue(FE_OPT_CPUS, cpus);
+     // how many threads ? -----------------------------------------------------
+     feSetOptValue(FE_OPT_THREADS, cpus);
+   }
+ }
 // options ---------------------------------------------------------------
   si_opt_1=0;
 // interpreter tables etc.: -----------------------------------------------
