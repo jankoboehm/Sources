@@ -1782,7 +1782,7 @@ EXAMPLE: example prepareQuotientring; shows an example
     }
     else
     {
-      if (typeof(rl[1]=="cring"))
+      if (typeof(rl[1])=="cring")
       {
         cring p=rl[1];
         list rl2=rl[2];
