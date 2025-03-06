@@ -82,6 +82,8 @@ or implement something similar (call @code{slClose(l)} for ssi links).
 @item
 error handlers for factory, NTL
 (see @code{init_signals} in @code{Singular/cntrlc.cc}).@*
+@item parallelism:
+The number of cores defaults to 1 (@ref{Parallel computing in SINGULAR})
 @end enumerate
 @c ----------------------------------------------------------
 @node Download instructions
