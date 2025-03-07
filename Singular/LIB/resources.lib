@@ -30,15 +30,16 @@ PROCEDURES:
 /* initialize (lib-)global variables */
 static proc mod_init()
 {
-  if(system("cpu")>0)
+  if(system("cpu")>1)
   {
     int sem_cores = semaphore(system("--cpus")-1);
+    int NCORES = system("semaphore", "get_value", sem_cores)+1;
   }
   else
   {
     int sem_cores = semaphore(0);
+    int NCORES = 1;
   }
-  int NCORES = system("semaphore", "get_value", sem_cores)+1;
   exportto(Resources, sem_cores);
   exportto(Resources, NCORES);
 }
