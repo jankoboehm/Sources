@@ -5768,7 +5768,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
 
     if (!complex_flag)
       complex_flag= (pnn!=NULL) && (pnn->name!=NULL);
-    if( !complex_flag && (float_len2 <= (short)SHORT_REAL_LENGTH))
+    if( !complex_flag && (float_len <= (short)SHORT_REAL_LENGTH))
        cf=nInitChar(n_R, NULL);
     else // longR or longC?
     {
