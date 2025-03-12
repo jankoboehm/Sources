@@ -563,16 +563,16 @@ p_SetmProc p_GetSetmProc(const ring r)
 
   if (r->OrdSize == 1)
   {
-    if (r->typ[0].ord_typ == ro_dp &&
-        r->typ[0].data.dp.start == 1 &&
-        r->typ[0].data.dp.end == r->N &&
-        r->typ[0].data.dp.place == r->pOrdIndex)
+    if ((r->typ[0].ord_typ == ro_dp) &&
+        (r->typ[0].data.dp.start == 1) &&
+        (r->typ[0].data.dp.end == r->N) &&
+        (r->typ[0].data.dp.place == r->pOrdIndex))
       return p_Setm_TotalDegree;
-    if (r->typ[0].ord_typ == ro_wp &&
-        r->typ[0].data.wp.start == 1 &&
-        r->typ[0].data.wp.end == r->N &&
-        r->typ[0].data.wp.place == r->pOrdIndex &&
-        r->typ[0].data.wp.weights == r->firstwv)
+    if ((r->typ[0].ord_typ == ro_wp) &&
+        (r->typ[0].data.wp.start == 1) &&
+        (r->typ[0].data.wp.end == r->N) &&
+        (r->typ[0].data.wp.place == r->pOrdIndex) &&
+        (r->typ[0].data.wp.weights == r->firstwv))
       return p_Setm_WFirstTotalDegree;
   }
   return p_Setm_General;

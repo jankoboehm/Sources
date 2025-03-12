@@ -69,7 +69,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define V_INTERSECT_SYZ  26
 #define V_ASSIGN_NONE    27
 #define V_PURE_GB        28
-/* for tests: 28-30 */
+/* for tests: 29,30 */
 #define V_DEG_STOP       31
 
 

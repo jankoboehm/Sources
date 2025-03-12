@@ -2691,8 +2691,11 @@ ideal bba (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
         && (strat->L[strat->Ll].p1!=NULL) && (strat->L[strat->Ll].p2!=NULL)
         && ((strat->honey && (strat->L[strat->Ll].ecart+currRing->pFDeg(strat->L[strat->Ll].p,currRing)>Kstd1_deg))
             || ((!strat->honey) && (currRing->pFDeg(strat->L[strat->Ll].p,currRing)>Kstd1_deg)))
-        )
+      )
+      {
         deleteInL(strat->L,&strat->Ll,strat->Ll,strat);
+	if(TEST_OPT_PROT) PrintS("D");
+      }
       if (strat->Ll<0) break;
       else strat->noClearS=TRUE;
     }
