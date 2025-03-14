@@ -48,24 +48,20 @@ poly p_Divide(poly p, poly q, const ring r)
   { /* This means that q != 0 consists of at least two terms*/
     if(p_GetComp(p,r)==0)
     {
-      if((rFieldType(r)==n_transExt)
-      &&(convSingTrP(p,r))
-      &&(convSingTrP(q,r))
-      &&(!rIsNCRing(r)))
+      if(!rIsNCRing(r))
       {
-        poly res=singclap_pdivide(p, q, r);
-        p_Delete(&p,r);
-        p_Delete(&q,r);
-        return res;
-      }
-      else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-      &&(!rField_is_Ring(r))
-      &&(!rIsNCRing(r)))
-      {
-        poly res=singclap_pdivide(p, q, r);
-        p_Delete(&p,r);
-        p_Delete(&q,r);
-        return res;
+        if(((rFieldType(r)==n_transExt)
+          &&(convSingTrP(p,r))
+          &&(convSingTrP(q,r)))
+        ||
+        ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
+          &&(!rField_is_Ring(r))))
+        {
+          poly res=singclap_pdivide(p, q, r);
+          p_Delete(&p,r);
+          p_Delete(&q,r);
+          return res;
+        }
       }
       else
       {
@@ -91,7 +87,7 @@ poly p_Divide(poly p, poly q, const ring r)
         return p;
       }
     }
-    else
+    else /* p_GetComp(p,r) >0 */
     {
       int comps=p_MaxComp(p,r);
       ideal I=idInit(comps,1);
@@ -162,13 +158,11 @@ poly p_Divide(poly p, poly q, const ring r)
   }
   else
   { /* This means that q != 0 consists of just one term, or LetterPlace */
-#ifdef HAVE_RINGS
     if (pNext(q)!=NULL)
     {
       WerrorS("division over a coefficient domain only implemented for terms");
       return NULL;
     }
-#endif
     return p_DivideM(p,q,r);
   }
   return NULL;
@@ -189,20 +183,18 @@ poly pp_Divide(poly p, poly q, const ring r)
   { /* This means that q != 0 consists of at least two terms*/
     if(p_GetComp(p,r)==0)
     {
-      if((rFieldType(r)==n_transExt)
-      &&(convSingTrP(p,r))
-      &&(convSingTrP(q,r))
-      &&(!rIsNCRing(r)))
+      if(!rIsNCRing(r))
       {
-        poly res=singclap_pdivide(p, q, r);
-        return res;
-      }
-      else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-      &&(!rField_is_Ring(r))
-      &&(!rIsNCRing(r)))
-      {
-        poly res=singclap_pdivide(p, q, r);
-        return res;
+        if(((rFieldType(r)==n_transExt)
+          &&(convSingTrP(p,r))
+          &&(convSingTrP(q,r)))
+	||
+        ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
+          &&(!rField_is_Ring(r))))
+        {
+          poly res=singclap_pdivide(p, q, r);
+          return res;
+        }
       }
       else
       {
@@ -228,7 +220,7 @@ poly pp_Divide(poly p, poly q, const ring r)
         return p;
       }
     }
-    else
+    else /* pGetComp(p,r) >0 */
     {
       p=p_Copy(p,r);
       int comps=p_MaxComp(p,r);
@@ -253,17 +245,17 @@ poly pp_Divide(poly p, poly q, const ring r)
       {
         if (I->m[i]!=NULL)
         {
-          if((rFieldType(r)==n_transExt)
-          &&(convSingTrP(I->m[i],r))
-          &&(convSingTrP(q,r))
-          &&(!rIsNCRing(r)))
+          if((!rIsNCRing(r))
+	  &&((rFieldType(r)==n_transExt)
+            &&(convSingTrP(I->m[i],r))
+            &&(convSingTrP(q,r))
+            &&(!rIsNCRing(r)))
+            ||
+            ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
+            &&(!rField_is_Ring(r))))
           {
             h=singclap_pdivide(I->m[i],q,r);
           }
-          else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-          &&(!rField_is_Ring(r))
-          &&(!rIsNCRing(r)))
-            h=singclap_pdivide(I->m[i],q,r);
           else
           {
             ideal vi=idInit(1,1); vi->m[0]=q;
@@ -302,13 +294,11 @@ poly pp_Divide(poly p, poly q, const ring r)
   else
   { /* This means that q != 0 consists of just one term,
        or that r is over a coefficient ring. */
-#ifdef HAVE_RINGS
     if (pNext(q)!=NULL)
     {
       WerrorS("division over a coefficient domain only implemented for terms");
       return NULL;
     }
-#endif
     return pp_DivideM(p,q,r);
   }
   return NULL;
