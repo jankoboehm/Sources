@@ -90,7 +90,7 @@ void AddProc(const char* s_what, p_Proc proc, p_Field field, p_Length length, p_
   const char* s_field = p_FieldEnum_2_String(field);
   char* s_full_proc_name = (char*) malloc(200);
 
-  sprintf(s_full_proc_name, "%s__%s_%s_%s", s_what, s_field, s_length, s_ord);
+  snprintf(s_full_proc_name,200, "%s__%s_%s_%s", s_what, s_field, s_length, s_ord);
 
   (generated_p_procs[proc])[index(proc, field, length, ord)] = s_full_proc_name;
   // define all macros

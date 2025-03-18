@@ -66,7 +66,8 @@ int omBackTrace_2_RetInfo(void** bt, omRetInfo info, int max)
     char command[2*MAXPATHLEN + 15 + OM_MAX_BACKTRACE_DEPTH*(2*SIZEOF_VOIDP + 4)];
     FILE *pipe;
     int l;
-    l = sprintf(command, "%s -s -C -f -e %s",
+    l = snprintf(command,2*MAXPATHLEN + 15 + OM_MAX_BACKTRACE_DEPTH*(2*SIZEOF_VOIDP + 4),
+                "%s -s -C -f -e %s",
                 OM_PROG_ADDR2LINE, om_this_prog);
     i=0;
     while (i<j)

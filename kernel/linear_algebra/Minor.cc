@@ -1029,28 +1029,28 @@ string IntMinorValue::toString () const
   bool cacheHasBeenUsed = true;
   if (this->getRetrievals() == -1) cacheHasBeenUsed = false;
 
-  sprintf(h, "%d", this->getResult());
+  snprintf(h,10, "%d", this->getResult());
   string s = h;
   s += " [retrievals: ";
-  if (cacheHasBeenUsed) { sprintf(h, "%d", this->getRetrievals()); s += h; }
+  if (cacheHasBeenUsed) { snprintf(h,10, "%d", this->getRetrievals()); s += h; }
   else s += "/";
   s += " (of ";
   if (cacheHasBeenUsed)
   {
-    sprintf(h, "%d", this->getPotentialRetrievals());
+    snprintf(h,10, "%d", this->getPotentialRetrievals());
     s += h;
   }
   else s += "/";
   s += "), *: ";
-  sprintf(h, "%d", this->getMultiplications()); s += h;
+  snprintf(h,10, "%d", this->getMultiplications()); s += h;
   s += " (accumulated: ";
-  sprintf(h, "%d", this->getAccumulatedMultiplications()); s += h;
+  snprintf(h,10, "%d", this->getAccumulatedMultiplications()); s += h;
   s += "), +: ";
-  sprintf(h, "%d", this->getAdditions()); s += h;
+  snprintf(h,10, "%d", this->getAdditions()); s += h;
   s += " (accumulated: ";
-  sprintf(h, "%d", this->getAccumulatedAdditions()); s += h;
+  snprintf(h,10, "%d", this->getAccumulatedAdditions()); s += h;
   s += "), rank: ";
-  if (cacheHasBeenUsed) { sprintf(h, "%d", this->getUtility()); s += h; }
+  if (cacheHasBeenUsed) { snprintf(h,10, "%d", this->getUtility()); s += h; }
   else s += "/";
   s += "]";
   return s;
@@ -1121,25 +1121,25 @@ string PolyMinorValue::toString () const
 
   string s = pString(_result);
   s += " [retrievals: ";
-  if (cacheHasBeenUsed) { sprintf(h, "%d", this->getRetrievals()); s += h; }
+  if (cacheHasBeenUsed) { snprintf(h,20, "%d", this->getRetrievals()); s += h; }
   else s += "/";
   s += " (of ";
   if (cacheHasBeenUsed)
   {
-    sprintf(h, "%d", this->getPotentialRetrievals());
+    snprintf(h,20, "%d", this->getPotentialRetrievals());
     s += h;
   }
   else s += "/";
   s += "), *: ";
-  sprintf(h, "%d", this->getMultiplications()); s += h;
+  snprintf(h,20, "%d", this->getMultiplications()); s += h;
   s += " (accumulated: ";
-  sprintf(h, "%d", this->getAccumulatedMultiplications()); s += h;
+  snprintf(h,20, "%d", this->getAccumulatedMultiplications()); s += h;
   s += "), +: ";
-  sprintf(h, "%d", this->getAdditions()); s += h;
+  snprintf(h,20, "%d", this->getAdditions()); s += h;
   s += " (accumulated: ";
-  sprintf(h, "%d", this->getAccumulatedAdditions()); s += h;
+  snprintf(h,20, "%d", this->getAccumulatedAdditions()); s += h;
   s += "), rank: ";
-  if (cacheHasBeenUsed) { sprintf(h, "%d", this->getUtility()); s += h; }
+  if (cacheHasBeenUsed) { snprintf(h,20, "%d", this->getUtility()); s += h; }
   else s += "/";
   s += "]";
   return s;

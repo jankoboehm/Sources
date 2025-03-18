@@ -682,8 +682,9 @@ char * rString(ring r)
     char *ch=rCharStr(r);
     char *var=rVarStr(r);
     char *ord=rOrdStr(r);
-    char *res=(char *)omAlloc(strlen(ch)+strlen(var)+strlen(ord)+9);
-    sprintf(res,"(%s),(%s),(%s)",ch,var,ord);
+    int len=strlen(ch)+strlen(var)+strlen(ord)+9;
+    char *res=(char *)omAlloc(len);
+    snprintf(res,len,"(%s),(%s),(%s)",ch,var,ord);
     omFree((ADDRESS)ch);
     omFree((ADDRESS)var);
     omFree((ADDRESS)ord);

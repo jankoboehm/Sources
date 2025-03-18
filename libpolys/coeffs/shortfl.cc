@@ -235,10 +235,10 @@ static void nrWrite (number a, const coeffs r)
 
   //#if SIZEOF_DOUBLE == SIZEOF_LONG
   //char ch[16];
-  //int n = sprintf(ch,"%12.6e", nf(a).F());
+  //int n = snprintf(ch,16,"%12.6e", nf(a).F());
   //#else
   char ch[11];
-  int n = sprintf(ch,"%9.3e", nf(a).F());
+  int n = snprintf(ch,11,"%9.3e", nf(a).F());
   //#endif
   if (ch[0] == '-')
   {

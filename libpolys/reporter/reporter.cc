@@ -80,11 +80,11 @@ void StringAppend(const char *fmt, ...)
     feBufferStart=s;
 #endif
   }
-#ifdef BSD_SPRINTF
-  vsprintf(s, fmt, ap);
-  while (*s!='\0') s++;
-  feBufferStart =s;
-#else
+//#ifdef BSD_SPRINTF
+//  vsprintf(s, fmt, ap);
+//  while (*s!='\0') s++;
+//  feBufferStart =s;
+//#else
 #ifdef HAVE_VSNPRINTF
   vs = vsnprintf(s, feBufferLength - (feBufferStart - feBuffer), fmt, ap);
   if (vs == -1)
@@ -99,7 +99,7 @@ void StringAppend(const char *fmt, ...)
 #else
   feBufferStart += vsprintf(s, fmt, ap);
 #endif
-#endif
+//#endif
   omCheckAddrSize(feBuffer, feBufferLength);
   va_end(ap);
 }
@@ -191,7 +191,11 @@ void Werror(const char *fmt, ...)
   va_list ap;
   va_start(ap, fmt);
   char *s=(char *)omAlloc(256);
+#ifdef HAVE_VSNPRINTF
+  vsnprintf(s,256, fmt, ap);
+#else
   vsprintf(s, fmt, ap);
+#endif  
   WerrorS(s);
   omFreeSize(s,256);
   va_end(ap);

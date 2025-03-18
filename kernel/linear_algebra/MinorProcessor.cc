@@ -298,15 +298,15 @@ string IntMinorProcessor::toString () const
   string t = "";
   string s = "IntMinorProcessor:";
   s += "\n   matrix: ";
-  sprintf(h, "%d", _rows); s += h;
+  snprintf(h,32, "%d", _rows); s += h;
   s += " x ";
-  sprintf(h, "%d", _columns); s += h;
+  snprintf(h,32, "%d", _columns); s += h;
   for (int r = 0; r < _rows; r++)
   {
     s += "\n      ";
     for (int c = 0; c < _columns; c++)
     {
-      sprintf(h, "%d", getEntry(r, c)); t = h;
+      snprintf(h,32, "%d", getEntry(r, c)); t = h;
       for (int k = 0; k < int(4 - strlen(h)); k++) s += " ";
       s += t;
     }
@@ -317,7 +317,7 @@ string IntMinorProcessor::toString () const
   for (int k = 0; k < _containerRows; k++)
   {
     if (k != 0) s += ", ";
-    sprintf(h, "%d", myIndexArray[k]); s += h;
+    snprintf(h,32, "%d", myIndexArray[k]); s += h;
   }
   s += " (first row of matrix has index 0)";
   s += "\n   considered submatrix has column indices: ";
@@ -325,11 +325,11 @@ string IntMinorProcessor::toString () const
   for (int k = 0; k < _containerColumns; k++)
   {
     if (k != 0) s += ", ";
-    sprintf(h, "%d", myIndexArray[k]); s += h;
+    snprintf(h,32, "%d", myIndexArray[k]); s += h;
   }
   s += " (first column of matrix has index 0)";
   s += "\n   size of considered minor(s): ";
-  sprintf(h, "%d", _minorSize); s += h;
+  snprintf(h,32, "%d", _minorSize); s += h;
   s += "x";
   s += h;
   return s;
@@ -833,16 +833,16 @@ string PolyMinorProcessor::toString () const
   string t = "";
   string s = "PolyMinorProcessor:";
   s += "\n   matrix: ";
-  sprintf(h, "%d", _rows); s += h;
+  snprintf(h,32, "%d", _rows); s += h;
   s += " x ";
-  sprintf(h, "%d", _columns); s += h;
+  snprintf(h,32, "%d", _columns); s += h;
   int myIndexArray[500];
   s += "\n   considered submatrix has row indices: ";
   _container.getAbsoluteRowIndices(myIndexArray);
   for (int k = 0; k < _containerRows; k++)
   {
     if (k != 0) s += ", ";
-    sprintf(h, "%d", myIndexArray[k]); s += h;
+    snprintf(h,32, "%d", myIndexArray[k]); s += h;
   }
   s += " (first row of matrix has index 0)";
   s += "\n   considered submatrix has column indices: ";
@@ -850,11 +850,11 @@ string PolyMinorProcessor::toString () const
   for (int k = 0; k < _containerColumns; k++)
   {
     if (k != 0) s += ", ";
-    sprintf(h, "%d", myIndexArray[k]); s += h;
+    snprintf(h,32, "%d", myIndexArray[k]); s += h;
   }
   s += " (first column of matrix has index 0)";
   s += "\n   size of considered minor(s): ";
-  sprintf(h, "%d", _minorSize); s += h;
+  snprintf(h, 32, "%d", _minorSize); s += h;
   s += "x";
   s += h;
   return s;

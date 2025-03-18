@@ -5,6 +5,7 @@
 * ABSTRACT: flint: rational functions over Q (using fmpq_mpoly)
 */
 #include <ctype.h> /* isdigit*/
+#include <string.h> /* strncat*/
 
 #include "misc/auxiliary.h"
 
@@ -1443,13 +1444,13 @@ static CanonicalForm ConvSingNFactoryN(number n, BOOLEAN setChar, const coeffs c
 char * QratCoeffName(const coeffs c)
 {
   STATIC_VAR char CoeffName_flint_Qrat[200];
-  sprintf(CoeffName_flint_Qrat, "flintQQ(%s",c->pParameterNames[0]);
+  snprintf(CoeffName_flint_Qrat,200, "flintQQ(%s",c->pParameterNames[0]);
   for(int i=1; i<c->iNumberOfParameters;i++)
   {
-    strcat(CoeffName_flint_Qrat,",");
-    strcat(CoeffName_flint_Qrat,c->pParameterNames[i]);
+    strncat(CoeffName_flint_Qrat,",",200-strlen(CoeffName_flint_Qrat));
+    strncat(CoeffName_flint_Qrat,c->pParameterNames[i],200-strlen(CoeffName_flint_Qrat));
   }
-  strcat(CoeffName_flint_Qrat,")");
+  strncat(CoeffName_flint_Qrat,")",200-strlen(CoeffName_flint_Qrat));
   return (char*) CoeffName_flint_Qrat;
 
 }

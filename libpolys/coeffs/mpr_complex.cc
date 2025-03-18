@@ -529,17 +529,15 @@ char *nicifyFloatStr( char * in, mp_exp_t exponent, size_t oprec, int *size, int
     else if ( exponent+sign > (int)strlen(in) )
     {
       *size= (strlen(in)+exponent+12)*sizeof(char);
-      out= (char*)omAlloc(*size);
-      memset(out,0,*size);
-      sprintf(out,"%s%s",csign,in+sign);
+      out= (char*)omAlloc0(*size);
+      snprintf(out,*size,"%s%s",csign,in+sign);
       memset(out+strlen(out),'0',exponent-strlen(in)+sign);
     }
     else
     {
       *size= (strlen(in)+2) * sizeof(char) + 10;
-      out= (char*)omAlloc(*size);
-      memset(out,0,*size);
-      sprintf(out,"%s%s",csign,in+sign);
+      out= (char*)omAlloc0(*size);
+      snprintf(out,*size,"%s%s",csign,in+sign);
     }
   }
   else
@@ -553,9 +551,8 @@ char *nicifyFloatStr( char * in, mp_exp_t exponent, size_t oprec, int *size, int
         c++;
       }
       *size= (strlen(in)+12+c) * sizeof(char) + 10;
-      out= (char*)omAlloc(*size);
-      memset(out,0,*size);
-      sprintf(out,"%s0.%se%s%d",csign,in+sign,exponent>=0?"+":"",(int)exponent);
+      out= (char*)omAlloc0(*size);
+      snprintf(out,*size,"%s0.%se%s%d",csign,in+sign,exponent>=0?"+":"",(int)exponent);
 //      }
 //      else
 //      {
@@ -598,8 +595,8 @@ char *floatToStr( const gmp_float & r, const unsigned int oprec )
   return out;
 #else
   // for testing purpose...
-  char *out= (char*)omAlloc( (1024) * sizeof(char) );
-  sprintf(out,"% .10f",(double)r);
+  char *out= (char*)omAlloc(1024);
+  snprintf(out,1024,"% .10f",(double)r);
   return out;
 #endif
 }
@@ -721,15 +718,15 @@ char *complexToStr( gmp_complex & c, const unsigned int oprec, const coeffs src 
       out=(char*)omAlloc(len);
       memset(out,0,len);
       if (  !c.real().isZero() )  // (-23-i*5.43) or (15.1+i*5.3)
-        sprintf(out,"(%s%s%s*%s)",in_real,c.imag().sign()>=0?"+":"-",complex_parameter,in_imag);
+        snprintf(out,len,"(%s%s%s*%s)",in_real,c.imag().sign()>=0?"+":"-",complex_parameter,in_imag);
       else // (-i*43) or (i*34)
       {
         if (c.imag().isOne())
-          sprintf(out,"%s", complex_parameter);
+          snprintf(out,len,"%s", complex_parameter);
         else if (c.imag().isMOne())
-          sprintf(out,"-%s", complex_parameter);
+          snprintf(out,len,"-%s", complex_parameter);
         else
-          sprintf(out,"(%s%s*%s)",c.imag().sign()>=0?"":"-", complex_parameter,in_imag);
+          snprintf(out,len,"(%s%s*%s)",c.imag().sign()>=0?"":"-", complex_parameter,in_imag);
       }
     }
     else
@@ -738,9 +735,9 @@ char *complexToStr( gmp_complex & c, const unsigned int oprec, const coeffs src 
       out=(char*)omAlloc( len );
       memset(out,0,len);
       if ( !c.real().isZero() )
-        sprintf(out,"(%s%s%s)",in_real,c.imag().sign()>=0?"+I*":"-I*",in_imag);
+        snprintf(out,len,"(%s%s%s)",in_real,c.imag().sign()>=0?"+I*":"-I*",in_imag);
       else
-        sprintf(out,"(%s%s)",c.imag().sign()>=0?"I*":"-I*",in_imag);
+        snprintf(out,len,"(%s%s)",c.imag().sign()>=0?"I*":"-I*",in_imag);
     }
     omFree( (void *) in_real );
     omFree( (void *) in_imag );

@@ -945,7 +945,7 @@ ring freeAlgebra(ring r, int d, int ncGenCount)
   char *varname=(char *)omAlloc(20);
   for (int i = 1; i <= ncGenCount; i++)
   {
-    sprintf(varname, "ncgen(%d)", i);
+    snprintf(varname,20, "ncgen(%d)", i);
     ring save = r;
     r = rPlusVar(r, varname, 0);
     if (r==NULL)

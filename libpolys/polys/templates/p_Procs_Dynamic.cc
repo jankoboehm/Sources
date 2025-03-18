@@ -57,7 +57,7 @@ static void* p_ProcInitHandle(void** handle, const char* module)
   if (*handle == NULL)
   {
     char name[25];
-    sprintf(name, "p_Procs_%s", module);
+    snprintf(name,25, "p_Procs_%s", module);
     *handle = dynl_open_binary_warn(name, WARN_MSG);
   }
   return *handle;
@@ -214,7 +214,7 @@ static void* GetDynamicProc(const char* proc_s, p_Proc proc,
 {
   void* proc_ptr = NULL;
   char proc_name[MAX_PROCNAME_LEN];
-  sprintf(proc_name, "%s__%s_%s_%s", proc_s,
+  snprintf(proc_name,MAX_PROCNAME_LEN, "%s__%s_%s_%s", proc_s,
           p_FieldEnum_2_String(field),
           p_LengthEnum_2_String(length),
           p_OrdEnum_2_String(ord));
@@ -229,7 +229,7 @@ static void* GetDynamicProc(const char* proc_s, p_Proc proc,
     {
       proc_ptr = GetGeneralProc(proc);
 #ifdef RDEBUG
-      sprintf(proc_name,"%s", GetGeneralProcName(proc));
+      snprintf(proc_name,MAX_PROCNAME_LEN,"%s", GetGeneralProcName(proc));
 #endif
     }
   }

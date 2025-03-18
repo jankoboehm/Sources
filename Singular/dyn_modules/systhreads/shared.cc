@@ -612,40 +612,40 @@ char *shared_string(blackbox *b, void *d) {
   else if (type == type_regionlock)
     type_name = "regionlock";
   else if (type == type_thread) {
-    sprintf(buf, "<thread #%s>", name.c_str());
+    snprintf(buf,80, "<thread #%s>", name.c_str());
     return omStrDup(buf);
   }
   else if (type == type_threadpool) {
     if (name.size() > 0) {
       name_lock.lock();
-      sprintf(buf, "<threadpool \"%.40s\"@%p>", name.c_str(), obj);
+      snprintf(buf,80, "<threadpool \"%.40s\"@%p>", name.c_str(), obj);
       name_lock.unlock();
     } else
-      sprintf(buf, "<threadpool @%p>", obj);
+      snprintf(buf,80, "<threadpool @%p>", obj);
     return omStrDup(buf);
   }
   else if (type == type_job) {
     if (name.size() > 0) {
       name_lock.lock();
-      sprintf(buf, "<job \"%.40s\"@%p>", name.c_str(), obj);
+      snprintf(buf,80, "<job \"%.40s\"@%p>", name.c_str(), obj);
       name_lock.unlock();
     } else
-      sprintf(buf, "<job @%p>", obj);
+      snprintf(buf,80, "<job @%p>", obj);
     return omStrDup(buf);
   }
   else if (type == type_trigger) {
     if (name.size() > 0) {
       name_lock.lock();
-      sprintf(buf, "<trigger \"%.40s\"@%p>", name.c_str(), obj);
+      snprintf(buf,80, "<trigger \"%.40s\"@%p>", name.c_str(), obj);
       name_lock.unlock();
     } else
-      sprintf(buf, "<trigger @%p>", obj);
+      snprintf(buf,80, "<trigger @%p>", obj);
     return omStrDup(buf);
   } else {
-    sprintf(buf, "<unknown type %d>", type);
+    snprintf(buf,80, "<unknown type %d>", type);
     return omStrDup(buf);
   }
-  sprintf(buf, "<%s \"%.40s\">", type_name, name.c_str());
+  snprintf(buf,80, "<%s \"%.40s\">", type_name, name.c_str());
   return omStrDup(buf);
 }
 
@@ -654,13 +654,13 @@ char *rlock_string(blackbox *b, void *d) {
   SharedObject *obj = *(SharedObject **)d;
   if (!obj)
     return omStrDup("<uninitialized region lock>");
-  sprintf(buf, "<region lock \"%.40s\">", obj->get_name().c_str());
+  snprintf(buf,80, "<region lock \"%.40s\">", obj->get_name().c_str());
   return omStrDup(buf);
 }
 
 void report(const char *fmt, const char *name) {
   char buf[80];
-  sprintf(buf, fmt, name);
+  snprintf(buf,80, fmt, name);
   WerrorS(buf);
 }
 
@@ -1482,7 +1482,7 @@ static InterpreterThread *createInterpreterThread(const char **error) {
   if (*error) return NULL;
   InterpreterThread *thread = new InterpreterThread(ts);
   char buf[10];
-  sprintf(buf, "%d", ts->index);
+  snprintf(buf,10, "%d", ts->index);
   string name(buf);
   thread->set_name(name);
   thread->set_type(type_thread);
