@@ -3494,7 +3494,7 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
     i0=idInit(1,i1->rank);
     i0->m[0]=p;
     i1=idSimpleAdd(i1,i0); //
-    memset(i0->m,0,sizeof(poly)*IDELEMS(i0));
+    i0->m[0]=NULL;
     idDelete(&i0);
     intvec *w=(intvec *)atGet(u,"isHomog",INTVEC_CMD);
     tHomog hom=testHomog;
@@ -4643,8 +4643,8 @@ static BOOLEAN jjPFAC1(leftv res, leftv v)
 static BOOLEAN jjLagSolve(leftv res, leftv v)
 {
   sleftv a2,a3;
-  memset(&a2,0,sizeof(a2));
-  memset(&a3,0,sizeof(a3));
+  a2.Init();
+  a3.Init();
   a2.rtyp=INT_CMD; a2.data=(void*)10;
   a3.rtyp=INT_CMD; a3.data=(void*)1;
   return nuLagSolve(res,v,&a2,&a3);
@@ -10475,7 +10475,7 @@ BOOLEAN jjUNIQLIST(leftv, leftv arg)
       {
         l->m[i].CleanUp();
         for(j=i; j<len;j++) l->m[j]=l->m[j+1];
-        memset(&(l->m[len]),0,sizeof(sleftv));
+        l->m[len].Init();
         l->m[len].rtyp=DEF_CMD;
         len--;
       }
