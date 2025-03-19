@@ -4139,8 +4139,8 @@ yyreduce:
             idhdl h = enterid((yyvsp[(2) - (3)].name),myynest,PROC_CMD,&IDROOT,TRUE);
             if (h==NULL) {omFree((ADDRESS)(yyvsp[(2) - (3)].name));omFree((ADDRESS)(yyvsp[(3) - (3)].name)); YYERROR;}
             iiInitSingularProcinfo(IDPROC(h),"", (yyvsp[(2) - (3)].name), 0, 0);
-            IDPROC(h)->data.s.body = (char *)omAlloc(strlen((yyvsp[(3) - (3)].name))+31);;
-            sprintf(IDPROC(h)->data.s.body,"parameter list #;\n%s;return();\n\n",(yyvsp[(3) - (3)].name));
+            int l=strlen((yyvsp[(3) - (3)].name))+31;IDPROC(h)->data.s.body = (char *)omAlloc(l);
+            snprintf(IDPROC(h)->data.s.body,l,"parameter list #;\n%s;return();\n\n",(yyvsp[(3) - (3)].name));
             omFree((ADDRESS)(yyvsp[(3) - (3)].name));
             omFree((ADDRESS)(yyvsp[(2) - (3)].name));
           ;}
@@ -4162,8 +4162,8 @@ yyreduce:
             char *args=iiProcArgs((yyvsp[(2) - (3)].name),FALSE);
             omFree((ADDRESS)(yyvsp[(2) - (3)].name));
             iiInitSingularProcinfo(IDPROC(h),"", (yyvsp[(1) - (3)].name), 0, 0);
-            IDPROC(h)->data.s.body = (char *)omAlloc(strlen((yyvsp[(3) - (3)].name))+strlen(args)+14);;
-            sprintf(IDPROC(h)->data.s.body,"%s\n%s;return();\n\n",args,(yyvsp[(3) - (3)].name));
+            int l=strlen((yyvsp[(3) - (3)].name))+strlen(args)+14;IDPROC(h)->data.s.body = (char *)omAlloc(l);
+            snprintf(IDPROC(h)->data.s.body,l,"%s\n%s;return();\n\n",args,(yyvsp[(3) - (3)].name));
             omFree((ADDRESS)args);
             omFree((ADDRESS)(yyvsp[(3) - (3)].name));
             omFree((ADDRESS)(yyvsp[(1) - (3)].name));
@@ -4188,8 +4188,8 @@ yyreduce:
             omFree((ADDRESS)(yyvsp[(2) - (4)].name));
             iiInitSingularProcinfo(IDPROC(h),"", (yyvsp[(1) - (4)].name), 0, 0);
             omFree((ADDRESS)(yyvsp[(1) - (4)].name));
-            IDPROC(h)->data.s.body = (char *)omAlloc(strlen((yyvsp[(4) - (4)].name))+strlen(args)+14);;
-            sprintf(IDPROC(h)->data.s.body,"%s\n%s;return();\n\n",args,(yyvsp[(4) - (4)].name));
+            int l=strlen((yyvsp[(4) - (4)].name))+strlen(args)+14;IDPROC(h)->data.s.body = (char *)omAlloc(l);
+            snprintf(IDPROC(h)->data.s.body,l,"%s\n%s;return();\n\n",args,(yyvsp[(4) - (4)].name));
             omFree((ADDRESS)args);
             omFree((ADDRESS)(yyvsp[(4) - (4)].name));
           ;}
