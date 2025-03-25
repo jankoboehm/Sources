@@ -1925,10 +1925,11 @@ In a ring declaration, @sc{Singular} offers the following orderings
 @item @code{lp}
 lexicographical ordering
 
-@item @code{rp}
+@item @code{ip}
 inverse lexicographical ordering, i.e. a lexicographical ordering from the right
 with 1 < x_1 < ... <x_n
-@*(should not be used as it reverses the "natural" x_1 > ... > x_n,
+@*(Should not be used (unless for non-commutaive rings)
+as it reverses the "natural" x_1 > ... > x_n,
 reorder the variables instead)
 
 @item @code{dp}
@@ -1948,9 +1949,8 @@ positive integers only.
 @item @code{Ip}
 degree inverse lexicographical ordering, i.e.sorting by degree, followed by a
 lexicographical ordering from the right with 1 < x_1 < ... <x_n
-@*(should not be used as it reverses the "natural" x_1 > ... > x_n,
+@*(Should not be used (unless for non-commuative rings) as it reverses the "natural" x_1 > ... > x_n,
 reorder the variables instead)
-
 @end table
 
 Global orderings are well-orderings, i.e., @math{1 < x} for each ring
@@ -1962,7 +1962,7 @@ character in their name.
 @item @code{ls}
 negative lexicographical ordering
 
-@item @code{rs}
+@item @code{is}
 negative inverse lexicographical ordering, i.e. a lexicographical ordering from the right
 @*(should not be used as it reverses the "natural" x_1 < ... < x_n,
 reorder the variables instead)
@@ -2022,7 +2022,6 @@ deg([0,0,z]);
 deg([0,0,0,x]);
 @c example
 @end smallexample
-
 
 @item Product ordering
 @table @asis
