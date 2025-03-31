@@ -1025,8 +1025,7 @@ static BOOLEAN jiA_IDEAL(leftv res, leftv a, Subexpr)
   if (errorreported) return TRUE;
   if (res->data!=NULL) idDelete((ideal*)&res->data);
   res->data=(void*)I;
-  if (a->rtyp==IDHDL) id_Normalize((ideal)a->Data(), currRing);
-  else                id_Normalize(I/*(ideal)res->data*/, currRing);
+  if (a->rtyp!=IDHDL) id_Normalize(I, currRing);
   jiAssignAttr(res,a);
   if (((res->rtyp==IDEAL_CMD)||(res->rtyp==MODUL_CMD))
   && (IDELEMS(I/*(ideal)(res->data)*/)==1)
@@ -1058,8 +1057,11 @@ static BOOLEAN jiA_MODUL_P(leftv res, leftv a, Subexpr)
   ideal I=idInit(1,1);
   I->m[0]=(poly)a->CopyD(POLY_CMD);
   if (errorreported) return TRUE;
-  if (I->m[0]!=NULL) pSetCompP(I->m[0],1);
-  pNormalize(I->m[0]);
+  if (I->m[0]!=NULL)
+  {
+    pSetCompP(I->m[0],1);
+    if(a->rtyp!=IDHDL) pNormalize(I->m[0]);
+  }
   if (res->data!=NULL) idDelete((ideal*)&res->data);
   res->data=(void *)I;
   if (TEST_V_QRING && (currRing->qideal!=NULL))
@@ -1079,7 +1081,7 @@ static BOOLEAN jiA_IDEAL_M(leftv res, leftv a, Subexpr)
   IDELEMS((ideal)m)=MATROWS(m)*MATCOLS(m);
   ((ideal)m)->rank=1;
   MATROWS(m)=1;
-  id_Normalize((ideal)m, currRing);
+  if (a->rtyp!=IDHDL) id_Normalize((ideal)m, currRing);
   if (res->data!=NULL) idDelete((ideal*)&res->data);
   res->data=(void *)m;
   if (TEST_V_QRING && (currRing->qideal!=NULL))
@@ -1099,7 +1101,7 @@ static BOOLEAN jiA_IDEAL_Mo(leftv res, leftv a, Subexpr)
     return TRUE;
   }
   if (res->data!=NULL) idDelete((ideal*)&res->data);
-  id_Normalize(m, currRing);
+  if (a->rtyp!=IDHDL) id_Normalize(m, currRing);
   id_Shift(m,-1,currRing);
   m->rank=1;
   res->data=(void *)m;

@@ -1985,7 +1985,8 @@ void id_Normalize(ideal I,const ring r) /* for ideal/matrix */
   int i;
   for(i=I->nrows*I->ncols-1;i>=0;i--)
   {
-    p_Normalize(I->m[i],r);
+    poly p=I->m[i];
+    if (p!=NULL) p_Normalize(p,r);
   }
 }
 
