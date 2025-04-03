@@ -80,6 +80,7 @@ number ndQuotRem (number a, number b, number * r, const coeffs R);
 CanonicalForm ndConvSingNFactoryN( number, BOOLEAN /*setChar*/, const coeffs);
 
 number ndReadFd( const ssiInfo *f, const coeffs r);
+number ndReadFd_S( char**, const coeffs r);
 /// Test whether a is a zero divisor in r
 /// i.e. not coprime with char. of r
 /// very inefficient implementation:

@@ -309,11 +309,24 @@ static void npWriteFd(number n, const ssiInfo* d, const coeffs)
   fprintf(d->f_write,"%d ",(int)(long)n);
 }
 
+static void npWriteFd_S(number n, const coeffs)
+{
+  StringAppend("%d ",(int)(long)n);
+}
+
 static number npReadFd(const ssiInfo *d, const coeffs)
 {
   // read int
   int dd;
   dd=s_readint(d->f_read);
+  return (number)(long)dd;
+}
+
+static number npReadFd_S(char**s, const coeffs)
+{
+  // read int
+  int dd;
+  dd=s_readint_S(s);
   return (number)(long)dd;
 }
 
@@ -404,7 +417,9 @@ BOOLEAN npInitChar(coeffs r, void* p)
 
   // io via ssi
   r->cfWriteFd=npWriteFd;
+  r->cfWriteFd_S=npWriteFd_S;
   r->cfReadFd=npReadFd;
+  r->cfReadFd_S=npReadFd_S;
 
   // the variables:
   r->type = n_Zp;

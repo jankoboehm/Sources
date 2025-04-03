@@ -1050,7 +1050,9 @@ BOOLEAN nrnInitChar (coeffs r, void* p)
   r->cfMPZ         = nrnMPZ;
 #if SI_INTEGER_VARIANT==2
   r->cfWriteFd     = nrzWriteFd;
+  r->cfWriteFd_S   = nrzWriteFd_S;
   r->cfReadFd      = nrzReadFd;
+  r->cfReadFd_S    = nrzReadFd_S;
 #endif
 
 #ifdef LDEBUG

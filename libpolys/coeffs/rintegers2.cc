@@ -642,11 +642,28 @@ void nrzWriteFd(number n, const ssiInfo* d, const coeffs)
   fputc(' ',d->f_write);
 }
 
+void nrzWriteFd_S(number n, const coeffs)
+{
+  int l=mpz_sizeinbase((mpz_ptr)n,SSI_BASE);
+  char *str=(char*)omAlloc(l+2);
+  mpz_get_str (str,SSI_BASE, (mpz_ptr)n);
+  StringAppend("%s ",str);
+  omFreeSize(str,l+2);
+}
+
 number nrzReadFd(const ssiInfo *d, const coeffs)
 {
   mpz_ptr erg = (mpz_ptr) omAllocBin(gmp_nrz_bin);
   mpz_init(erg);
   s_readmpz_base(d->f_read,erg,SSI_BASE);
+  return (number)erg;
+}
+
+number nrzReadFd_S(char**s, const coeffs)
+{
+  mpz_ptr erg = (mpz_ptr) omAllocBin(gmp_nrz_bin);
+  mpz_init(erg);
+  s_readmpz_base_S(s,erg,SSI_BASE);
   return (number)erg;
 }
 
@@ -704,7 +721,9 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->cfChineseRemainder=nlChineseRemainderSym;
   r->cfFarey=nrzFarey;
   r->cfWriteFd=nrzWriteFd;
+  r->cfWriteFd_S=nrzWriteFd_S;
   r->cfReadFd=nrzReadFd;
+  r->cfReadFd_S=nrzReadFd_S;
   // debug stuff
 
 #ifdef LDEBUG

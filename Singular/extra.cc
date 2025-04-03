@@ -4123,6 +4123,29 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     }
     else
 #endif
+/*==================== ssi =================*/
+    if(strcmp(sys_cmd,"ssi")==0)
+    {
+      if (h->Typ()==POLY_CMD)
+      {
+        poly p= (poly)h->Data();
+        res->rtyp=STRING_CMD;
+        res->data=(void*)ssiWritePoly_S(p, currRing);
+        return FALSE;
+      }
+    }
+    else
+    if(strcmp(sys_cmd,"ssi-r")==0)
+    {
+      if (h->Typ()==STRING_CMD)
+      {
+        char* s= (char*)h->Data();
+        res->rtyp=POLY_CMD;
+        res->data=(void*)ssiReadPoly_S(s, currRing);
+        return FALSE;
+      }
+    }
+    else
 /*==================== Error =================*/
       Werror( "(extended) system(\"%s\",...) %s", sys_cmd, feNotImplemented );
   }

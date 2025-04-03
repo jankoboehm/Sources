@@ -70,8 +70,10 @@ VAR volatile BOOLEAN ssiToBeClosed_inactive=TRUE;
 
 // forward declarations:
 static void ssiWritePoly_R(const ssiInfo *d, int typ, poly p, const ring r);
+static void ssiWritePoly_R_S(poly p, const ring r);
 static void ssiWriteIdeal_R(const ssiInfo *d, int typ,const ideal I, const ring r);
 static poly ssiReadPoly_R(const ssiInfo *D, const ring r);
+static poly ssiReadPoly_R_S(char **s, const ring r);
 static ideal ssiReadIdeal_R(const ssiInfo *d,const ring r);
 
 // the helper functions:
@@ -192,6 +194,34 @@ static void ssiWriteNumber_CF(const ssiInfo *d, const number n, const coeffs cf)
   else if (cf->cfWriteFd!=NULL)
   {
     n_WriteFd(n,d,cf);
+  }
+  else WerrorS("coeff field not implemented");
+}
+
+static void ssiWriteNumber_CF_S(const number n, const coeffs cf)
+{
+  // syntax is as follows:
+  // case 1 Z/p:   3 <int>
+  // case 2 Q:     3 4 <int>
+  //        or     3 0 <mpz_t nominator> <mpz_t denominator>
+  //        or     3 1  dto.
+  //        or     3 3 <mpz_t nominator>
+  //        or     3 5 <mpz_t raw nom.> <mpz_t raw denom.>
+  //        or     3 6 <mpz_t raw nom.> <mpz_t raw denom.>
+  //        or     3 8 <mpz_t raw nom.>
+  if (getCoeffType(cf)==n_transExt)
+  {
+    fraction f=(fraction)n;
+    ssiWritePoly_R_S(NUM(f),cf->extRing);
+    ssiWritePoly_R_S(DEN(f),cf->extRing);
+  }
+  else if (getCoeffType(cf)==n_algExt)
+  {
+    ssiWritePoly_R_S((poly)n,cf->extRing);
+  }
+  else if (cf->cfWriteFd_S!=NULL)
+  {
+    n_WriteFd_S(n,cf);
   }
   else WerrorS("coeff field not implemented");
 }
@@ -373,12 +403,35 @@ static void ssiWritePoly_R(const ssiInfo *d, int /*typ*/, poly p, const ring r)
     pIter(p);
   }
 }
+static void ssiWritePoly_R_S(poly p, const ring r)
+{
+  StringAppend("%d ",pLength(p));//number of terms
+
+  while(p!=NULL)
+  {
+    ssiWriteNumber_CF_S(pGetCoeff(p),r->cf);
+    //nWrite(fich,pGetCoeff(p));
+    StringAppend("%ld ",p_GetComp(p,r));//component
+
+    for(int j=1;j<=rVar(r);j++)
+    {
+      StringAppend("%ld ",p_GetExp(p,j,r ));//x^j
+    }
+    pIter(p);
+  }
+}
 
 static void ssiWritePoly(const ssiInfo *d, int typ, poly p)
 {
   ssiWritePoly_R(d,typ,p,d->r);
 }
 
+char* ssiWritePoly_S(poly p, const ring r)
+{
+  StringSetS("");
+  ssiWritePoly_R_S(p,r);
+  return StringEndS();
+}
 static void ssiWriteIdeal_R(const ssiInfo *d, int typ,const ideal I, const ring R)
 {
    // syntax: 7 # of elements <poly 1> <poly2>.....(ideal,module,smatrix)
@@ -524,6 +577,30 @@ static number ssiReadNumber_CF(const ssiInfo *d, const coeffs cf)
   {
     // poly
     return (number)ssiReadPoly_R(d,cf->extRing);
+  }
+  else WerrorS("coeffs not implemented in ssiReadNumber");
+  return NULL;
+}
+
+static number ssiReadNumber_CF_S(char **s, const coeffs cf)
+{
+  if (cf->cfReadFd_S!=ndReadFd_S)
+  {
+     return n_ReadFd_S(s,cf);
+  }
+  else if (getCoeffType(cf) == n_transExt)
+  {
+    // poly poly
+    fraction f=(fraction)n_Init(1,cf);
+    p_Delete(&NUM(f),cf->extRing);
+    NUM(f)=ssiReadPoly_R_S(s,cf->extRing);
+    DEN(f)=ssiReadPoly_R_S(s,cf->extRing);
+    return (number)f;
+  }
+  else if (getCoeffType(cf) == n_algExt)
+  {
+    // poly
+    return (number)ssiReadPoly_R_S(s,cf->extRing);
   }
   else WerrorS("coeffs not implemented in ssiReadNumber");
   return NULL;
@@ -745,11 +822,48 @@ static poly ssiReadPoly_R(const ssiInfo *d, const ring r)
  return ret;
 }
 
+static poly ssiReadPoly_R_S(char **s, const ring r)
+{
+// < # of terms> < term1> < .....
+  int n,i,l;
+  char* c=*s;
+  n=s_readint_S(&c); // # of terms
+  poly p;
+  poly ret=NULL;
+  poly prev=NULL;
+  for(l=0;l<n;l++) // read n terms
+  {
+// coef,comp.exp1,..exp N
+    p=p_Init(r,r->PolyBin);
+    number cf=ssiReadNumber_CF_S(&c,r->cf);
+    pSetCoeff0(p,cf);
+    int D;
+    D=s_readint_S(&c);
+    p_SetComp(p,D,r);
+    for(i=1;i<=rVar(r);i++)
+    {
+      D=s_readint_S(&c);
+      p_SetExp(p,i,D,r);
+    }
+    p_Setm(p,r);
+    p_Test(p,r);
+    if (ret==NULL) ret=p;
+    else           pNext(prev)=p;
+    prev=p;
+ }
+ *s=c;
+ return ret;
+}
+
 static poly ssiReadPoly(ssiInfo *d)
 {
   return ssiReadPoly_R(d,d->r);
 }
 
+poly ssiReadPoly_S(char *s, const ring r)
+{
+  return ssiReadPoly_R_S(&s,r);
+}
 static ideal ssiReadIdeal_R(const ssiInfo *d,const ring r)
 {
 // < # of terms> < term1> < .....

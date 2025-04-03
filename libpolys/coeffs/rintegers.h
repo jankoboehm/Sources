@@ -28,7 +28,9 @@ void    nrzWrite       (number a, const coeffs r); /*for rmodulon.cc*/
 void    nrzDelete      (number *a, const coeffs);  /*for rmodulon.cc*/
 int     nrzSize        (number a, const coeffs);   /*for rmodulon.cc*/
 void nrzWriteFd(number n, const ssiInfo* d, const coeffs); /*for rmodulon.cc*/
+void nrzWriteFd_S(number n, const coeffs); /*for rmodulon.cc*/
 number nrzReadFd(const ssiInfo *d, const coeffs);  /*for rmodulon.cc*/
+number nrzReadFd_S(char**s, const coeffs);  /*for rmodulon.cc*/
 
 number  nrzInit        (long i, const coeffs r); /*for SAGE, better: n_Init*/
 

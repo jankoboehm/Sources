@@ -153,6 +153,12 @@ number ndReadFd( const ssiInfo *, const coeffs r)
   return n_Init(0,r);
 }
 
+number ndReadFd_S( char**, const coeffs r)
+{
+  Warn("ReadFd_S not implemented for %s (c=%d)",r->cfCoeffName(r),getCoeffType(r));
+  return n_Init(0,r);
+}
+
 static void ndWriteFd(number, const ssiInfo *, const coeffs r)
 {
   Warn("WriteFd not implemented for %s (c=%d)",r->cfCoeffName(r),getCoeffType(r));
@@ -452,6 +458,7 @@ coeffs nInitChar(n_coeffType t, void * parameter)
     n->cfFarey = ndFarey; /* not implemented */
     n->cfParDeg = ndParDeg; /* not implemented */
     n->cfReadFd = ndReadFd; /* not implemented */
+    n->cfReadFd_S = ndReadFd_S; /* not implemented */
     n->cfWriteFd = ndWriteFd; /* not implemented */
 
     n->cfParameter = ndParameter;

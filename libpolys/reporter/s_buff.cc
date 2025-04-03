@@ -138,6 +138,25 @@ int s_readint(s_buff F)
   return r*neg;
 }
 
+int s_readint_S(char **s)
+{
+  char *c=*s;
+  int n=0;
+  int neg=1;
+  while(*c<=' ') // skip white space
+  {
+    c++;
+  }
+  if (*c=='-') { neg=-1; c++; }
+  while(isdigit(*c))
+  {
+    n=n*10+(*c-'0');
+    c++;
+  }
+  *s=c;
+  return n*neg;
+}
+
 long s_readlong(s_buff F)
 {
   if (F==NULL)
@@ -148,7 +167,6 @@ long s_readlong(s_buff F)
   char c;
   long neg=1;
   long r=0;
-  //int digit=0;
   do
   {
     c=s_getc(F);
@@ -156,14 +174,30 @@ long s_readlong(s_buff F)
   if (c=='-') { neg=-1; c=s_getc(F); }
   while(isdigit(c))
   {
-    //digit++;
     r=r*10+(c-'0');
     c=s_getc(F);
   }
   s_ungetc(c,F);
-  //if (digit==0) { printf("unknown char %c(%d)\n",c,c); /*debug*/
-  //                printf("buffer:%s\np=%d,e=%d\n",F->buff,F->bp,F->end);fflush(stdout); } /*debug*/
   return r*neg;
+}
+
+long s_readlong_S(char **s)
+{
+  char *c=*s;
+  long n=0;
+  long neg=1;
+  while(*c<=' ') // skip white space
+  {
+    c++;
+  }
+  if (*c=='-') { neg=-1; c++; }
+  while(isdigit(*c))
+  {
+    n=n*10+(*c-'0');
+    c++;
+  }
+  *s=c;
+  return n*neg;
 }
 
 int s_readbytes(char *buff,int len, s_buff F)
@@ -192,7 +226,7 @@ void s_readmpz(s_buff F, mpz_t a)
   mpz_set_ui(a,0);
   char c;
   int neg=1;
-  do
+  do // skip white space
   {
     c=s_getc(F);
   } while((!F->is_eof) && (c<=' '));
@@ -204,6 +238,26 @@ void s_readmpz(s_buff F, mpz_t a)
     c=s_getc(F);
   }
   s_ungetc(c,F);
+  if (neg==-1) mpz_neg(a,a);
+}
+
+void s_readmpz_S(char**s, mpz_t a)
+{
+  mpz_set_ui(a,0);
+  char c;
+  int neg=1;
+  do // skip while space
+  {
+    c=**s;(*s)++;
+  } while (c<=' ');
+  if (c=='-') { neg=-1; c=**s;(*s)++; }
+  while(isdigit(c))
+  {
+    mpz_mul_ui(a,a,10);
+    mpz_add_ui(a,a,(c-'0'));
+    c=**s;(*s)++;
+  }
+  (*s)--;
   if (neg==-1) mpz_neg(a,a);
 }
 
@@ -252,6 +306,49 @@ void s_readmpz_base(s_buff F, mpz_ptr a, int base)
   omFreeSize(str,str_l);
   if (neg==-1) mpz_neg(a,a);
 }
+
+void s_readmpz_base_S(char**s, mpz_ptr a, int base)
+{
+  mpz_set_ui(a,0);
+  char* c=*s;
+  int neg=1;
+  do
+  {
+    c++;
+  } while(*c<=' ');
+  if (*c=='-') { neg=-1; c++; }
+  char *str=(char*)omAlloc0(128);
+  int str_l=128;
+  int str_p=0;
+  while(*c>' ')
+  {
+    if ((isdigit(*c))
+    || ((*c>='a') && (*c<='z'))
+    || ((*c>='A') && (*c<='Z')))
+    {
+      str[str_p]=*c;
+      str_p++;
+    }
+    else
+    {
+      c--;
+      break;
+    }
+    if (str_p>=str_l-1)
+    {
+      int old_str_l=str_l;
+      str_l=str_l*2;
+      str=(char*)omRealloc(str,str_l);
+      memset(str+old_str_l,0,old_str_l);
+    }
+    c++;
+  }
+  if(mpz_set_str(a,str,base)!=0) WerrorS("wrong mpz number");
+  omFreeSize(str,str_l);
+  if (neg==-1) mpz_neg(a,a);
+  *s=c;
+}
+
 int s_iseof(s_buff F)
 {
   if (F!=NULL) return F->is_eof;

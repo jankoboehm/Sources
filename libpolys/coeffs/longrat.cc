@@ -3364,6 +3364,55 @@ void nlWriteFd(number n, const ssiInfo* d, const coeffs)
   }
 }
 
+static void nlWriteFd_S(number n, const coeffs)
+{
+  if(SR_HDL(n) & SR_INT)
+  {
+    #if SIZEOF_LONG == 4
+    StringAppend("4 %ld ",SR_TO_INT(n));
+    #else
+    long nn=SR_TO_INT(n);
+    if ((nn<POW_2_28_32)&&(nn>= -POW_2_28_32))
+    {
+      int nnn=(int)nn;
+      StringAppend("4 %d ",nnn);
+    }
+    else
+    {
+      char str[30];// n< 2^64
+      mpz_t tmp;
+      mpz_init_set_si(tmp,nn);
+      StringAppendS("8 ");
+      mpz_get_str (str,SSI_BASE, tmp);
+      StringAppend("%s ",str);
+      mpz_clear(tmp);
+    }
+    #endif
+  }
+  else if (n->s<2)
+  {
+    int l=mpz_sizeinbase(n->z,SSI_BASE);
+    int l2=mpz_sizeinbase(n->n,SSI_BASE);
+    if (l2>l) l=l2;
+    char *str=(char*)omAlloc(l+2);
+    StringAppend("%d ",n->s+5); // 5 or 6
+    mpz_get_str (str,SSI_BASE, n->z);
+    StringAppend("%s ",str);
+    mpz_get_str (str,SSI_BASE, n->n);
+    StringAppend("%s ",str);
+    omFreeSize(str,l+2);
+  }
+  else /*n->s==3*/
+  {
+    int l=mpz_sizeinbase(n->z,SSI_BASE);
+    char *str=(char*)omAlloc(l+2);
+    StringAppendS("8 ");
+    mpz_get_str (str,SSI_BASE, n->z);
+    StringAppend("%s ",str);
+    omFreeSize(str,l+2);
+  }
+}
+
 number nlReadFd(const ssiInfo *d, const coeffs)
 {
   int sub_type=-1;
@@ -3410,6 +3459,65 @@ number nlReadFd(const ssiInfo *d, const coeffs)
        {// read raw mpz_t
          number n=nlRInit(0);
          s_readmpz_base (d->f_read,n->z, SSI_BASE);
+         n->s=sub_type=3; /*subtype-5*/
+         #if SIZEOF_LONG == 8
+         n=nlShort3(n);
+         #endif
+         return n;
+       }
+
+     default: Werror("error in reading number: invalid subtype %d",sub_type);
+              return NULL;
+  }
+  return NULL;
+}
+
+number nlReadFd_S(char**s, const coeffs)
+{
+  int sub_type=-1;
+  sub_type=s_readint_S(s);
+  switch(sub_type)
+  {
+     case 0:
+     case 1:
+       {// read mpz_t, mpz_t
+         number n=nlRInit(0);
+         mpz_init(n->n);
+         s_readmpz_S(s,n->z);
+         s_readmpz_S(s,n->n);
+         n->s=sub_type;
+         return n;
+       }
+
+     case 3:
+       {// read mpz_t
+         number n=nlRInit(0);
+         s_readmpz_S(s,n->z);
+         n->s=3; /*sub_type*/
+         #if SIZEOF_LONG == 8
+         n=nlShort3(n);
+         #endif
+         return n;
+       }
+     case 4:
+       {
+         long dd=s_readlong_S(s);
+         return INT_TO_SR(dd);
+       }
+     case 5:
+     case 6:
+       {// read raw mpz_t, mpz_t
+         number n=nlRInit(0);
+         mpz_init(n->n);
+         s_readmpz_base_S (s,n->z, SSI_BASE);
+         s_readmpz_base_S (s,n->n, SSI_BASE);
+         n->s=sub_type-5;
+         return n;
+       }
+     case 8:
+       {// read raw mpz_t
+         number n=nlRInit(0);
+         s_readmpz_base_S (s,n->z, SSI_BASE);
          n->s=sub_type=3; /*subtype-5*/
          #if SIZEOF_LONG == 8
          n=nlShort3(n);
@@ -3544,7 +3652,9 @@ BOOLEAN nlInitChar(coeffs r, void*p)
 
   // io via ssi
   r->cfWriteFd=nlWriteFd;
+  r->cfWriteFd_S=nlWriteFd_S;
   r->cfReadFd=nlReadFd;
+  r->cfReadFd_S=nlReadFd_S;
 
   //r->type = n_Q;
   r->ch = 0;

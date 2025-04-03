@@ -282,7 +282,9 @@ struct n_Procs_s
    nMapFunc (*cfSetMap)(const coeffs src, const coeffs dst);
 
    void    (*cfWriteFd)(number a, const ssiInfo *f, const coeffs r);
+   void    (*cfWriteFd_S)(number a, const coeffs r);
    number  (*cfReadFd)( const ssiInfo *f, const coeffs r);
+   number  (*cfReadFd_S)(char**s, const coeffs r);
 
    /// Inplace: a *= b
    void    (*cfInpMult)(number &a, number b, const coeffs r);
@@ -966,10 +968,14 @@ static FORCE_INLINE number n_Random(siRandProc p, number p1, number p2, const co
 /// io via ssi:
 static FORCE_INLINE void n_WriteFd(number a, const ssiInfo *f, const coeffs r)
 { assume(r != NULL); assume(r->cfWriteFd != NULL); return r->cfWriteFd(a, f, r); }
+static FORCE_INLINE void n_WriteFd_S(number a, const coeffs r)
+{ assume(r != NULL); assume(r->cfWriteFd_S != NULL); return r->cfWriteFd_S(a, r); }
 
 /// io via ssi:
 static FORCE_INLINE number n_ReadFd( const ssiInfo *f, const coeffs r)
 { assume(r != NULL); assume(r->cfReadFd != NULL); return r->cfReadFd(f, r); }
+static FORCE_INLINE number n_ReadFd_S(char**s, const coeffs r)
+{ assume(r != NULL); assume(r->cfReadFd_S != NULL); return r->cfReadFd_S(s, r); }
 
 
 static FORCE_INLINE number n_convFactoryNSingN( const CanonicalForm n, const coeffs r)
