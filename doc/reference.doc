@@ -1936,7 +1936,7 @@ list of ideals
 @item @strong{Purpose:}
 returns a list of ideals computed by the factorizing Groebner basis algorithm.
 @*The intersection of these ideals has the same zero-set as the input,
-i.e., the radical of the intersection coincides with the radical of the input
+i.e., the intersection of the radicals of the list entries coincides with the radical of the input
 ideal.
 In many (but not all!) cases this is already a decomposition of the radical
 of the ideal. (Note however that in general, no inclusion between the
