@@ -69,7 +69,7 @@ VAR link_list ssiToBeClosed=NULL;
 VAR volatile BOOLEAN ssiToBeClosed_inactive=TRUE;
 
 // forward declarations:
-static void ssiWritePoly_R(const ssiInfo *d, int typ, poly p, const ring r);
+static void ssiWritePoly_R(const ssiInfo *d, poly p, const ring r);
 static void ssiWritePoly_R_S(poly p, const ring r);
 static void ssiWriteIdeal_R(const ssiInfo *d, int typ,const ideal I, const ring r);
 static poly ssiReadPoly_R(const ssiInfo *D, const ring r);
@@ -184,12 +184,12 @@ static void ssiWriteNumber_CF(const ssiInfo *d, const number n, const coeffs cf)
   if (getCoeffType(cf)==n_transExt)
   {
     fraction f=(fraction)n;
-    ssiWritePoly_R(d,POLY_CMD,NUM(f),cf->extRing);
-    ssiWritePoly_R(d,POLY_CMD,DEN(f),cf->extRing);
+    ssiWritePoly_R(d,NUM(f),cf->extRing);
+    ssiWritePoly_R(d,DEN(f),cf->extRing);
   }
   else if (getCoeffType(cf)==n_algExt)
   {
-    ssiWritePoly_R(d,POLY_CMD,(poly)n,cf->extRing);
+    ssiWritePoly_R(d,(poly)n,cf->extRing);
   }
   else if (cf->cfWriteFd!=NULL)
   {
@@ -386,7 +386,7 @@ static void ssiWriteRing(ssiInfo *d,const ring r)
   }
   ssiWriteRing_R(d,r);
 }
-static void ssiWritePoly_R(const ssiInfo *d, int /*typ*/, poly p, const ring r)
+static void ssiWritePoly_R(const ssiInfo *d, poly p, const ring r)
 {
   fprintf(d->f_write,"%d ",pLength(p));//number of terms
 
@@ -421,9 +421,9 @@ static void ssiWritePoly_R_S(poly p, const ring r)
   }
 }
 
-static void ssiWritePoly(const ssiInfo *d, int typ, poly p)
+static void ssiWritePoly(const ssiInfo *d, poly p)
 {
-  ssiWritePoly_R(d,typ,p,d->r);
+  ssiWritePoly_R(d,p,d->r);
 }
 
 char* ssiWritePoly_S(poly p, const ring r)
@@ -450,16 +450,9 @@ static void ssiWriteIdeal_R(const ssiInfo *d, int typ,const ideal I, const ring 
      fprintf(d->f_write,"%d ",IDELEMS(I));
    }
 
-   int i;
-   int tt;
-   if ((typ==MODUL_CMD)||(typ==SMATRIX_CMD))
-     tt=VECTOR_CMD;
-   else
-     tt=POLY_CMD;
-
-   for(i=0;i<mn;i++)
+   for(int i=0;i<mn;i++)
    {
-     ssiWritePoly_R(d,tt,I->m[i],R);
+     ssiWritePoly_R(d,I->m[i],R);
    }
 }
 void ssiWriteIdeal(const ssiInfo *d, int typ,const ideal I)
@@ -1911,7 +1904,7 @@ BOOLEAN ssiWrite(si_link l, leftv data)
                             if (d->level<=1) fputc('\n',d->f_write);
                           }
                           fputs("6 ",d->f_write);
-                          ssiWritePoly(d,tt,sBucketPeek(b));
+                          ssiWritePoly(d,sBucketPeek(b));
                           break;
                         }
           case POLY_CMD:
@@ -1924,7 +1917,7 @@ BOOLEAN ssiWrite(si_link l, leftv data)
                         }
                         if(tt==POLY_CMD) fputs("6 ",d->f_write);
                         else             fputs("9 ",d->f_write);
-                        ssiWritePoly(d,tt,(poly)dd);
+                        ssiWritePoly(d,(poly)dd);
                         break;
           case IDEAL_CMD:
           case MODUL_CMD:
