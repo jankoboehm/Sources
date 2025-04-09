@@ -106,10 +106,6 @@
 
 #include "kernel/GBEngine/ringgb.h"
 
-#ifdef HAVE_F5
-#include "kernel/GBEngine/f5gb.h"
-#endif
-
 #ifdef HAVE_WALK
 #include "walk.h"
 #endif
@@ -2977,48 +2973,6 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
          return FALSE;
        }
       else
-  /*==================== F5 Implementation =================*/
-  #ifdef HAVE_F5
-      if (strcmp(sys_cmd, "f5")==0)
-      {
-        if (h->Typ()!=IDEAL_CMD)
-        {
-          WerrorS("ideal expected");
-          return TRUE;
-        }
-
-        ring r = currRing;
-        ideal G = (ideal) h->Data();
-        h = h->next;
-        int opt;
-        if(h != NULL) {
-          opt = (int) (long) h->Data();
-        }
-        else {
-          opt = 2;
-        }
-        h = h->next;
-        int plus;
-        if(h != NULL) {
-          plus = (int) (long) h->Data();
-        }
-        else {
-          plus = 0;
-        }
-        h = h->next;
-        int termination;
-        if(h != NULL) {
-          termination = (int) (long) h->Data();
-        }
-        else {
-          termination = 0;
-        }
-        res->rtyp=IDEAL_CMD;
-        res->data=(ideal) F5main(G,r,opt,plus,termination);
-        return FALSE;
-      }
-      else
-  #endif
   /*==================== Testing groebner basis =================*/
       if (strcmp(sys_cmd, "NF_ring")==0)
       {
