@@ -2962,17 +2962,6 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
         return(FALSE);
       }
       else
-  /*==================== Roune Hilb  =================*/
-       if (strcmp(sys_cmd, "hilbroune") == 0)
-       {
-         if ((h!=NULL) && (h->Typ()==IDEAL_CMD))
-         {
-           slicehilb((ideal)h->Data());
-         }
-         else return TRUE;
-         return FALSE;
-       }
-      else
   /*==================== Testing groebner basis =================*/
       if (strcmp(sys_cmd, "NF_ring")==0)
       {
