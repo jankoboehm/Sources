@@ -6987,6 +6987,7 @@ See
 @node sba, setring, rvar, Functions
 @subsection sba
 @cindex sba
+@cindex groebner basis computation
 @table @code
 @item @strong{Syntax:}
 @code{sba (} ideal_expression@code{)}
