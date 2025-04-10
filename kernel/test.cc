@@ -94,13 +94,6 @@
 #include "kernel/fglm/fglm.h"
 #include "kernel/fglm/fglmvec.h"
 
-////////#include "kernel/F5cData.h"
-#include "kernel/GBEngine/f5data.h"
-#include "kernel/GBEngine/f5gb.h"
-#include "kernel/GBEngine/f5lists.h"
-////////#include "kernel/F5cLists.h"
-
-
 #include "kernel/ideals.h"
 
 #include "kernel/spectrum/kmatrix.h"
