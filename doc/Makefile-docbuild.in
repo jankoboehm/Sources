@@ -19,7 +19,6 @@ EXEEXT          = @EXEEXT@
 ## needed programs
 ##
 MKINSTALLDIRS   = mkdir -p
-UUDECODE        = uudecode
 
 PERL            = perl
 TEX             = tex
@@ -90,9 +89,8 @@ MANUAL_FILES	= ${TEX_FILES} ${DOC2TEX_FILES}
 TUTOR_FILES	= \
 		tutor.tex examples.tex start.tex COPYING.texi
 
-IMAGES_UU	:= $(wildcard images/*.uu)
-IMAGES     := $(IMAGES_UU:images/%.uu=%)
-IMAGES_SRC := $(IMAGES:%=images/%)
+IMAGES     := $(wildcard images/*)
+IMAGES_SRC := $(IMAGES)
 IMAGES_HTML := $(IMAGES:%=${HTML_SUBDIR}/%)
 
 # prepend bindir to path so that programs from there are taken first.
@@ -237,16 +235,6 @@ ${HTML_SUBDIR}/${HTML_MANUAL_PREFIX}_cp.idx: ${HTML_SUBDIR}/${HTML_MANUAL_TOP}
 
 ${TMP_DIR}:
 	${MKINSTALLDIRS} ${TMP_DIR}
-
-# pattern rules for images - but not everybody has gnu-uudecode
-images/%.gif : images/%.gif.uu
-	cd images; ${UUDECODE} ../$< ;cd ..
-
-images/%.jpg : images/%.jpg.uu
-	cd images; ${UUDECODE} ../$< ;cd ..
-
-images/%.xbm : images/%.xbm.uu
-	cd images; ${UUDECODE} ../$< ;cd ..
 
 ${IMAGES_HTML} : ${IMAGES_SRC}
 	test -d ${HTML_SUBDIR} || mkdir ${HTML_SUBDIR}

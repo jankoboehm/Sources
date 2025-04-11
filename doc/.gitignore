@@ -12,9 +12,6 @@
 /d2t_singular
 /examples
 /html
-/images/*.gif
-/images/*.jpg
-/images/*.xbm
 /QEPCAD-*
 /qepcad*
 /*.dot*
