@@ -3082,7 +3082,8 @@ static BOOLEAN jjPRUNE_MAP(leftv res, leftv v, leftv ma)
       idhdl h=(idhdl)ma->data;
       idDelete(&IDIDEAL(h));
       IDIDEAL(h)=mat;
-      for(int i=0;i<v_id->rank;i++) Print("v[%d]:%d ",i+1,g[i]); PrintLn();
+      for(int i=0;i<v_id->rank;i++) Print("v[%d]:%d ",i+1,g[i]);
+      PrintLn();
       omFreeSize(g,v_id->rank*sizeof(int));
       return FALSE;
     }
@@ -3090,7 +3091,8 @@ static BOOLEAN jjPRUNE_MAP(leftv res, leftv v, leftv ma)
   ideal mat;
   int *g=(int*)omAlloc(v_id->rank*sizeof(int));
   res->data = (char *)idMinEmbedding_with_map_v(v_id,NULL,mat,g);
-  for(int i=0;i<v_id->rank;i++) Print("v[%d]:%d ",i+1,g[i]); PrintLn();
+  for(int i=0;i<v_id->rank;i++) Print("v[%d]:%d ",i+1,g[i]);
+  PrintLn();
   omFreeSize(g,v_id->rank*sizeof(int));
   idhdl h=(idhdl)ma->data;
   idDelete(&IDIDEAL(h));

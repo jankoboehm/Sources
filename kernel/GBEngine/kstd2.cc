@@ -2116,10 +2116,8 @@ int redHoney (LObject* h, kStrategy strat)
   if (strat->tl<0) return 1;
   //if (h->GetLmTailRing()==NULL) return 0; // HS: SHOULD NOT BE NEEDED!
   assume(h->FDeg == h->pFDeg());
-  int i,j,at,pass,ei, ii, h_d;
+  int j,at,pass,ei, ii, h_d;
   long reddeg,d;
-  int li;
-  BOOLEAN test_opt_length=TEST_OPT_LENGTH;
 
   pass = j = 0;
   d = reddeg = h->GetpFDeg() + h->ecart;

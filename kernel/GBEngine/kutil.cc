@@ -1178,7 +1178,7 @@ void deleteInS (int i,kStrategy strat)
 }
 
 #ifdef HAVE_SHIFTBBA
-static BOOLEAN is_shifted_p1(const poly p, const kStrategy strat)
+static BOOLEAN is_shifted_p1(const kStrategy strat)
 {
   if (rIsLPRing(currRing)
   && (strat->P.p1!=NULL))
@@ -1240,7 +1240,7 @@ void deleteInL (LSet set, int *length, int j,kStrategy strat)
     }
   }
   #ifdef HAVE_SHIFTBBA
-  if (is_shifted_p1(strat->P.p1,strat))
+  if (is_shifted_p1(/*strat->P.p1,*/strat))
   {
     // clean up strat->P.p1: may be shifted
     pLmDelete(strat->P.p1);

@@ -3558,7 +3558,7 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
   need_retry=0;
   int   red_result = 1;
   int   olddeg,reduc;
-  BOOLEAN withT = FALSE;
+  // BOOLEAN withT = FALSE;
   // BOOLEAN toReset=FALSE;
   kStrategy strat=new skStrategy;
   tHomog h;
@@ -3609,8 +3609,8 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
 #endif
 
   // redtailBBa against T for inhomogeneous input
-  if (!TEST_OPT_OLDSTD)
-    withT = ! strat->homog;
+  //if (!TEST_OPT_OLDSTD)
+  //  withT = ! strat->homog;
 
   // strat->posInT = posInT_pLength;
   kTest_TS(strat);
