@@ -455,9 +455,50 @@ static void ssiWriteIdeal_R(const ssiInfo *d, int typ,const ideal I, const ring 
      ssiWritePoly_R(d,I->m[i],R);
    }
 }
+static void ssiWriteIdeal_R_S(int typ,const ideal I, const ring R)
+{
+   // syntax: 7 # of elements <poly 1> <poly2>.....(ideal,module,smatrix)
+   // syntax: 8 <rows> <cols> <poly 1> <poly2>.....(matrix)
+   // syntax
+   matrix M=(matrix)I;
+   int mn;
+   if (typ==MATRIX_CMD)
+   {
+     mn=MATROWS(M)*MATCOLS(M);
+     StringAppend("%d %d ", MATROWS(M),MATCOLS(M));
+   }
+   else
+   {
+     mn=IDELEMS(I);
+     StringAppend("%d ",IDELEMS(I));
+   }
+
+   for(int i=0;i<mn;i++)
+   {
+     ssiWritePoly_R_S(I->m[i],R);
+   }
+}
 void ssiWriteIdeal(const ssiInfo *d, int typ,const ideal I)
 {
   ssiWriteIdeal_R(d,typ,I,d->r);
+}
+char* ssiWriteIdeal_S(const ideal I, const ring R)
+{
+  StringSetS("");
+  ssiWriteIdeal_R_S(IDEAL_CMD,I,R);
+  return StringEndS();
+}
+char* ssiWriteMatrix_S(const matrix M, const ring R)
+{
+  StringSetS("");
+  ssiWriteIdeal_R_S(MATRIX_CMD,(ideal)M,R);
+  return StringEndS();
+}
+char* ssiWriteModule_S(const ideal M, const ring R) /* also for smatrix*/
+{
+  StringSetS("");
+  ssiWriteIdeal_R_S(MODUL_CMD,M,R);
+  return StringEndS();
 }
 
 static void ssiWriteCommand(si_link l, command D)
@@ -870,10 +911,28 @@ static ideal ssiReadIdeal_R(const ssiInfo *d,const ring r)
   }
   return I;
 }
+static ideal ssiReadIdeal_R_S(char** s,const ring r)
+{
+// < # of terms> < term1> < .....
+  int n,i;
+  ideal I;
+  n=s_readint_S(s);
+  I=idInit(n,1); // will be fixed later for module/smatrix
+  for(i=0;i<IDELEMS(I);i++) // read n terms
+  {
+    I->m [i]=ssiReadPoly_R_S(s,r);
+  }
+  return I;
+}
 
 ideal ssiReadIdeal(ssiInfo *d)
 {
   return ssiReadIdeal_R(d,d->r);
+}
+
+ideal ssiReadIdeal_S(char *s, const ring R)
+{
+  return ssiReadIdeal_R_S(&s,R);
 }
 
 static matrix ssiReadMatrix(ssiInfo *d)
@@ -887,6 +946,21 @@ static matrix ssiReadMatrix(ssiInfo *d)
     for(int j=1;j<=MATCOLS(M);j++)
     {
       p=ssiReadPoly(d);
+      MATELEM(M,i,j)=p;
+    }
+  return M;
+}
+matrix ssiReadMatrix_S(char* s, const ring R)
+{
+  int n,m;
+  m=s_readint_S(&s);
+  n=s_readint_S(&s);
+  matrix M=mpNew(m,n);
+  poly p;
+  for(int i=1;i<=MATROWS(M);i++)
+    for(int j=1;j<=MATCOLS(M);j++)
+    {
+      p=ssiReadPoly_R_S(&s,R);
       MATELEM(M,i,j)=p;
     }
   return M;
@@ -1015,7 +1089,6 @@ static bigintmat* ssiReadBigintvec(const ssiInfo *d)
 
 static void ssiReadBlackbox(leftv res, si_link l)
 {
-  ssiInfo *d=(ssiInfo*)l->data;
   leftv lv=ssiRead1(l);
   char *name=(char*)lv->data;
   omFreeBin(lv,sleftv_bin);
@@ -1139,8 +1212,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("no sub-processes allowed");
           l->flags=0;
-	  l->data=NULL;
-	  omFreeSize(d,sizeof(ssiInfo));
+          l->data=NULL;
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         int pc[2];
@@ -1151,8 +1224,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           Werror("pipe failed with %d\n",errno);
           l->flags=0;
-	  l->data=NULL;
-	  omFreeSize(d,sizeof(ssiInfo));
+          l->data=NULL;
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         link_list n=(link_list)omAlloc(sizeof(link_struct));
@@ -1171,8 +1244,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("could not fork");
           l->flags=0;
-	  l->data=NULL;
-	  omFreeSize(d,sizeof(ssiInfo));
+          l->data=NULL;
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         if (pid==0) /*fork: child*/
@@ -1258,7 +1331,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           Werror("fork failed (%d)",errno);
           l->data=NULL;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
       }
@@ -1273,7 +1346,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           WerrorS("ERROR opening socket");
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         memset((char *) &serv_addr,0, sizeof(serv_addr));
@@ -1289,7 +1362,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
             WerrorS("ERROR on binding (no free port available?)");
             l->data=NULL;
             l->flags=0;
-	    omFreeSize(d,sizeof(ssiInfo));
+            omFreeSize(d,sizeof(ssiInfo));
             return TRUE;
           }
         }
@@ -1302,7 +1375,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           WerrorS("ERROR on accept");
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         PrintS("client accepted\n");
@@ -1319,7 +1392,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         Werror("invalid mode >>%s<< for ssi",mode);
         l->data=NULL;
         l->flags=0;
-	omFreeSize(d,sizeof(ssiInfo));
+        omFreeSize(d,sizeof(ssiInfo));
         return TRUE;
       }
     }
@@ -1337,7 +1410,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           WerrorS("ERROR opening socket");
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         memset((char *) &serv_addr,0, sizeof(serv_addr));
@@ -1353,7 +1426,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
             WerrorS("ERROR on binding (no free port available?)");
             l->data=NULL;
             l->flags=0;
-	    omFreeSize(d,sizeof(ssiInfo));
+            omFreeSize(d,sizeof(ssiInfo));
             return TRUE;
           }
         }
@@ -1368,7 +1441,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           WerrorS("ERROR: no host specified");
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           omFree(path);
           omFree(cli_host);
           return TRUE;
@@ -1399,7 +1472,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           Werror("ERROR running `%s` (%d)",ssh_command,re);
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         omFree(ssh_command);
@@ -1411,7 +1484,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           WerrorS("ERROR on accept");
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
         //PrintS("client accepted\n");
@@ -1446,8 +1519,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           {
             WerrorS("ERROR opening socket");
             l->flags=0;
-	    l->data=NULL;
-	    omFreeSize(d,sizeof(ssiInfo));
+            l->data=NULL;
+            omFreeSize(d,sizeof(ssiInfo));
             return TRUE;
           }
           server = gethostbyname(host);
@@ -1455,8 +1528,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           {
             WerrorS("ERROR, no such host");
             l->flags=0;
-	    l->data=NULL;
-	    omFreeSize(d,sizeof(ssiInfo));
+            l->data=NULL;
+            omFreeSize(d,sizeof(ssiInfo));
             return TRUE;
           }
           memset((char *) &serv_addr, 0, sizeof(serv_addr));
@@ -1469,8 +1542,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           {
             Werror("ERROR connecting(errno=%d)",errno);
             l->flags=0;
-	    l->data=NULL;
-	    omFreeSize(d,sizeof(ssiInfo));
+            l->data=NULL;
+            omFreeSize(d,sizeof(ssiInfo));
             return TRUE;
           }
           //PrintS("connected\n");mflush();
@@ -1485,7 +1558,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           l->data=NULL;
           l->flags=0;
-	  omFreeSize(d,sizeof(ssiInfo));
+          omFreeSize(d,sizeof(ssiInfo));
           return TRUE;
         }
       }
@@ -1539,6 +1612,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
 }
 
 //**************************************************************************/
+#if 0
 static BOOLEAN ssiPrepClose(si_link l)
 {
   if (l!=NULL)
@@ -1557,6 +1631,7 @@ static BOOLEAN ssiPrepClose(si_link l)
   }
   return FALSE;
 }
+#endif
 
 BOOLEAN ssiClose(si_link l)
 {
@@ -1821,6 +1896,155 @@ no_ring: WerrorS("no ring");
   omFreeBin(res,sleftv_bin);
   return NULL;
 }
+leftv ssiRead1_S(char*s, const ring R)
+{
+  leftv res=(leftv)omAlloc0Bin(sleftv_bin);
+  int t=0;
+  t=s_readint_S(&s);
+  //Print("got type %d\n",t);
+  switch(t)
+  {
+    #if 0
+    case 1:res->rtyp=INT_CMD;
+           res->data=(char *)(long)ssiReadInt(d);
+           break;
+    case 2:res->rtyp=STRING_CMD;
+           res->data=(char *)ssiReadString(d);
+           //Print("str: %s\n",(char*)res->data);
+           break;
+    #endif
+    case 3:res->rtyp=NUMBER_CMD;
+           res->data=(char *)ssiReadNumber_CF_S(&s,R->cf);
+           break;
+    #if 0
+    case 4:res->rtyp=BIGINT_CMD;
+           res->data=(char *)ssiReadBigInt(d);
+           //Print("bigint\n");
+           break;
+    case 15:
+    case 5:{
+           //Print("ring %d\n",t);
+             d->r=ssiReadRing(d);
+             if (errorreported) return NULL;
+             res->data=(char*)d->r;
+             if (d->r!=NULL) rIncRefCnt(d->r);
+             res->rtyp=RING_CMD;
+             if (t==15) // setring
+             {
+               if(ssiSetCurrRing(d->r)) { d->r=currRing; }
+               omFreeBin(res,sleftv_bin);
+               return ssiRead1(l);
+             }
+           }
+           break;
+    #endif
+    case 6:res->rtyp=POLY_CMD;
+           res->data=(char*)ssiReadPoly_S(s,R);
+           break;
+    case 7:res->rtyp=IDEAL_CMD;
+           res->data=(char*)ssiReadIdeal_S(s,R);
+           break;
+    case 8:res->rtyp=MATRIX_CMD;
+           res->data=(char*)ssiReadMatrix_S(s,R);
+           break;
+    case 9:res->rtyp=VECTOR_CMD;
+           res->data=(char*)ssiReadPoly_S(s,R);
+           break;
+    case 10:
+    case 22:if (t==22) res->rtyp=SMATRIX_CMD;
+           else        res->rtyp=MODUL_CMD;
+           {
+             int rk=s_readint_S(&s);
+             ideal M=ssiReadIdeal_S(s,R);
+             M->rank=rk;
+             res->data=(char*)M;
+           }
+           break;
+    #if 0
+    case 11:
+           {
+           //Print("cmd\n",t);
+             res->rtyp=COMMAND;
+             res->data=ssiReadCommand(l);
+             int nok=res->Eval();
+             if (nok) WerrorS("error in eval");
+             break;
+           }
+    case 12: /*DEF_CMD*/
+           {
+           //Print("def\n",t);
+             res->rtyp=0;
+             res->name=(char *)ssiReadString(d);
+             int nok=res->Eval();
+             if (nok) WerrorS("error in name lookup");
+             break;
+           }
+    case 13: res->rtyp=PROC_CMD;
+             res->data=ssiReadProc(d);
+             break;
+    case 14: res->rtyp=LIST_CMD;
+             res->data=ssiReadList(l);
+             break;
+    case 16: res->rtyp=NONE; res->data=NULL;
+             break;
+    case 17: res->rtyp=INTVEC_CMD;
+             res->data=ssiReadIntvec(d);
+             break;
+    case 18: res->rtyp=INTMAT_CMD;
+             res->data=ssiReadIntmat(d);
+             break;
+    case 19: res->rtyp=BIGINTMAT_CMD;
+             res->data=ssiReadBigintmat(d);
+             break;
+    case 20: ssiReadBlackbox(res,l);
+             break;
+    case 21: ssiReadAttrib(res,l);
+             break;
+    case 23: ssiReadRingProperties(l);
+             return ssiRead1(l);
+             break;
+    case 24: res->rtyp=BIGINTVEC_CMD;
+             res->data=ssiReadBigintvec(d);
+             break;
+    // ------------
+    case 98: // version
+             {
+                int n98_v,n98_m;
+                BITSET n98_o1,n98_o2;
+                n98_v=s_readint(d->f_read);
+                n98_m=s_readint(d->f_read);
+                n98_o1=s_readint(d->f_read);
+                n98_o2=s_readint(d->f_read);
+                if ((n98_v!=SSI_VERSION) ||(n98_m!=MAX_TOK))
+                {
+                  Print("incompatible versions of ssi: %d/%d vs %d/%d\n",
+                                  SSI_VERSION,MAX_TOK,n98_v,n98_m);
+                }
+                #ifndef SING_NDEBUG
+                if (TEST_OPT_DEBUG)
+                  Print("// opening ssi-%d, MAX_TOK=%d\n",n98_v,n98_m);
+                #endif
+                si_opt_1=n98_o1;
+                si_opt_2=n98_o2;
+                omFreeBin(res,sleftv_bin);
+                return ssiRead1(l);
+             }
+    case 99: omFreeBin(res,sleftv_bin); ssiClose(l); m2_end(-1);
+             break; /*to make compiler happy*/
+    case 0: if (s_iseof(d->f_read))
+            {
+              ssiClose(l);
+            }
+            res->rtyp=DEF_CMD;
+            break;
+   #endif
+    default: Werror("not implemented (t:%d)",t);
+             omFreeBin(res,sleftv_bin);
+             res=NULL;
+             break;
+  }
+  return res;
+}
 //**************************************************************************/
 static BOOLEAN ssiSetRing(si_link l, ring r, BOOLEAN send)
 {
@@ -1993,6 +2217,126 @@ BOOLEAN ssiWrite(si_link l, leftv data)
   }
   d->level--;
   return FALSE;
+}
+char *ssiWrite_S(leftv data,const ring R)
+{
+  int tt=data->Typ();
+  void *dd=data->Data();
+  switch(tt /*data->Typ()*/)
+  {
+    case 0: /*error*/
+    case NONE/* nothing*/:StringSetS("16 ");
+         break;
+    #if 0
+    case STRING_CMD: fputs("2 ",d->f_write);
+                           ssiWriteString(d,(char *)dd);
+                           break;
+    case INT_CMD: fputs("1 ",d->f_write);
+                        ssiWriteInt(d,(int)(long)dd);
+                        break;
+    case BIGINT_CMD:fputs("4 ",d->f_write);
+                        ssiWriteBigInt(d,(number)dd);
+                        break;
+    #endif
+    case NUMBER_CMD:
+      StringSetS("3 ");
+      ssiWriteNumber_CF_S((number)dd,R->cf);
+      break;
+    #if 0
+    case RING_CMD:fputs("5 ",d->f_write);
+                        ssiWriteRing(d,(ring)dd);
+                        break;
+    case BUCKET_CMD:
+                        {
+                          sBucket_pt b=(sBucket_pt)dd;
+                          if (d->r!=sBucketGetRing(b))
+                          {
+                            fputs("15 ",d->f_write);
+                            ssiWriteRing(d,sBucketGetRing(b));
+                            if (d->level<=1) fputc('\n',d->f_write);
+                          }
+                          fputs("6 ",d->f_write);
+                          ssiWritePoly(d,sBucketPeek(b));
+                          break;
+                        }
+    #endif
+    case POLY_CMD:
+    case VECTOR_CMD:
+      if(tt==POLY_CMD) StringSetS("6 ");
+      else             StringSetS("9 ");
+      ssiWritePoly_R_S((poly)dd,R);
+      break;
+    case IDEAL_CMD:
+    case MODUL_CMD:
+    case MATRIX_CMD:
+    case SMATRIX_CMD:
+      if(tt==IDEAL_CMD)       StringSetS("7 ");
+      else if(tt==MATRIX_CMD) StringSetS("8 ");
+      else /* tt==MODUL_CMD, SMATRIX_CMD*/
+      {
+        ideal M=(ideal)dd;
+        if (tt==MODUL_CMD)
+        {
+          StringSetS("10 ");StringAppend("%d ",(int)M->rank);
+        }
+        else /*(tt==SMATRIX_CMD)*/
+        {
+          StringSetS("22 ");StringAppend("%d ",(int)M->rank);
+        }
+      }
+      ssiWriteIdeal_R_S(tt,(ideal)dd,R);
+      break;
+    #if 0
+    case COMMAND:
+                   fputs("11 ",d->f_write);
+                   ssiWriteCommand(l,(command)dd);
+                   break;
+    case DEF_CMD: /* not evaluated stuff in quotes */
+                   fputs("12 ",d->f_write);
+                   ssiWriteString(d,data->Name());
+                   break;
+    case PROC_CMD:
+                   fputs("13 ",d->f_write);
+                   ssiWriteProc(d,(procinfov)dd);
+                   break;
+    case LIST_CMD:
+                   fputs("14 ",d->f_write);
+                   ssiWriteList(l,(lists)dd);
+                   break;
+    case INTVEC_CMD:
+                   fputs("17 ",d->f_write);
+                   ssiWriteIntvec(d,(intvec *)dd);
+                   break;
+    case INTMAT_CMD:
+                   fputs("18 ",d->f_write);
+                   ssiWriteIntmat(d,(intvec *)dd);
+                   break;
+    case BIGINTMAT_CMD:
+                   fputs("19 ",d->f_write);
+                   ssiWriteBigintmat(d,(bigintmat *)dd);
+                   break;
+    case BIGINTVEC_CMD:
+                   fputs("24 ",d->f_write);
+                   ssiWriteBigintvec(d,(bigintmat *)dd);
+                   break;
+    #endif
+    default:
+            #if 0
+            if (tt>MAX_TOK)
+            {
+              blackbox *b=getBlackboxStuff(tt);
+              fputs("20 ",d->f_write);
+              b->blackbox_serialize(b,dd,l);
+            }
+            else
+            #endif
+            {
+              Werror("not implemented (t:%d, rtyp:%d)",tt, data->rtyp);
+              return NULL;
+            }
+            break;
+  }
+  return StringEndS();
 }
 
 BOOLEAN ssiGetDump(si_link l);
@@ -2443,10 +2787,10 @@ si_link ssiCommandLink()
 /*---------------------------------------------------------------------*/
 void sig_chld_hdl(int)
 {
-  pid_t kidpid;
-  int status;
 
 #if 0
+  pid_t kidpid;
+  int status;
   loop
   {
     kidpid = si_waitpid(-1, &status, WNOHANG);

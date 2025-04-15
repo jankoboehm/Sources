@@ -4069,22 +4069,19 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
 /*==================== ssi =================*/
     if(strcmp(sys_cmd,"ssi")==0)
     {
-      if (h->Typ()==POLY_CMD)
-      {
-        poly p= (poly)h->Data();
-        res->rtyp=STRING_CMD;
-        res->data=(void*)ssiWritePoly_S(p, currRing);
-        return FALSE;
-      }
+      res->rtyp=STRING_CMD;
+      res->data=(void*)ssiWrite_S(h, currRing);
+      return res->data==NULL;
     }
     else
     if(strcmp(sys_cmd,"ssi-r")==0)
     {
       if (h->Typ()==STRING_CMD)
       {
-        char* s= (char*)h->Data();
-        res->rtyp=POLY_CMD;
-        res->data=(void*)ssiReadPoly_S(s, currRing);
+        leftv rr=ssiRead1_S((char*)h->Data(),currRing);
+        res->rtyp=rr->rtyp;
+        res->data=rr->data;
+	omFreeBin(rr,sleftv_bin);
         return FALSE;
       }
     }

@@ -34,4 +34,13 @@ void ssiWriteInt(const ssiInfo *d,const int i);
 // ssi via string
 char* ssiWritePoly_S(poly p, const ring r);
 poly ssiReadPoly_S(char *s, const ring r);
+char* ssiWriteIdeal_S(const ideal I, const ring R);
+ideal ssiReadIdeal_S(char *s, const ring R);
+char* ssiWriteMatrix_S(const matrix M, const ring R);
+matrix ssiReadMatrix_S(char *s, const ring R);
+char* ssiWriteModule_S(const ideal M, const ring R); /* also for smatrix*/
+
+
+leftv ssiRead1_S(char*s, const ring R);
+char *ssiWrite_S(leftv v,const ring R);
 #endif
