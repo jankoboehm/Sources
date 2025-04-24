@@ -156,18 +156,28 @@ static void ssiCheckCurrRing(const ring r)
 void ssiWriteInt(const ssiInfo *d,const int i)
 {
   fprintf(d->f_write,"%d ",i);
-  //if (d->f_debug!=NULL) fprintf(d->f_debug,"int: %d ",i);
+}
+void ssiWriteInt_S(const int i)
+{
+  StringAppend("%d ",i);
 }
 
 static void ssiWriteString(const ssiInfo *d,const char *s)
 {
   fprintf(d->f_write,"%d %s ",(int)strlen(s),s);
-  //if (d->f_debug!=NULL) fprintf(d->f_debug,"stringi: %d \"%s\" ",strlen(s),s);
+}
+static void ssiWriteString_S(const char *s)
+{
+  StringAppend("%d %s ",(int)strlen(s),s);
 }
 
 static void ssiWriteBigInt(const ssiInfo *d, const number n)
 {
- n_WriteFd(n,d,coeffs_BIGINT);
+  n_WriteFd(n,d,coeffs_BIGINT);
+}
+static void ssiWriteBigInt_S(const number n)
+{
+  n_WriteFd_S(n,coeffs_BIGINT);
 }
 
 static void ssiWriteNumber_CF(const ssiInfo *d, const number n, const coeffs cf)
@@ -535,6 +545,16 @@ static void ssiWriteList(si_link l,lists dd)
     ssiWrite(l,&(dd->m[i]));
   }
 }
+static void ssiWriteList_S(lists dd, const ring R)
+{
+  int Ll=dd->nr;
+  StringAppend("%d ",Ll+1);
+  int i;
+  for(i=0;i<=Ll;i++)
+  {
+    ssiWrite_S(&(dd->m[i]),R);
+  }
+}
 static void ssiWriteIntvec(const ssiInfo *d,intvec * v)
 {
   fprintf(d->f_write,"%d ",v->length());
@@ -544,6 +564,15 @@ static void ssiWriteIntvec(const ssiInfo *d,intvec * v)
     fprintf(d->f_write,"%d ",(*v)[i]);
   }
 }
+static void ssiWriteIntvec_S(intvec * v)
+{
+  StringAppend("%d ",v->length());
+  int i;
+  for(i=0;i<v->length();i++)
+  {
+    StringAppend("%d ",(*v)[i]);
+  }
+}
 static void ssiWriteIntmat(const ssiInfo *d,intvec * v)
 {
   fprintf(d->f_write,"%d %d ",v->rows(),v->cols());
@@ -551,6 +580,15 @@ static void ssiWriteIntmat(const ssiInfo *d,intvec * v)
   for(i=0;i<v->length();i++)
   {
     fprintf(d->f_write,"%d ",(*v)[i]);
+  }
+}
+static void ssiWriteIntmat_S(intvec * v)
+{
+  StringAppend("%d %d ",v->rows(),v->cols());
+  int i;
+  for(i=0;i<v->length();i++)
+  {
+    StringAppend("%d ",(*v)[i]);
   }
 }
 
@@ -563,6 +601,15 @@ static void ssiWriteBigintmat(const ssiInfo *d,bigintmat * v)
     ssiWriteBigInt(d,(*v)[i]);
   }
 }
+static void ssiWriteBigintmat_S(bigintmat * v)
+{
+  StringAppend("%d %d ",v->rows(),v->cols());
+  int i;
+  for(i=0;i<v->length();i++)
+  {
+    ssiWriteBigInt_S((*v)[i]);
+  }
+}
 
 static void ssiWriteBigintvec(const ssiInfo *d,bigintmat * v)
 {
@@ -571,6 +618,15 @@ static void ssiWriteBigintvec(const ssiInfo *d,bigintmat * v)
   for(i=0;i<v->length();i++)
   {
     ssiWriteBigInt(d,(*v)[i]);
+  }
+}
+static void ssiWriteBigintvec_S(bigintmat * v)
+{
+  StringAppend("%d ",v->cols());
+  int i;
+  for(i=0;i<v->length();i++)
+  {
+    ssiWriteBigInt_S((*v)[i]);
   }
 }
 
@@ -586,10 +642,25 @@ static char *ssiReadString(const ssiInfo *d)
   buf[l]='\0';
   return buf;
 }
+static char *ssiReadString_S(char** s)
+{
+  char *buf;
+  int l;
+  l=s_readint_S(s);
+  buf=(char*)omAlloc0(l+1);
+  (*s)++; /* skip ' '*/
+  for(int i=0;i<l;i++) { buf[i]=(**s); (*s)++; }
+  buf[l]='\0';
+  return buf;
+}
 
 int ssiReadInt(const ssiInfo *d)
 {
   return s_readint(d->f_read);
+}
+int ssiReadInt_S(char **s)
+{
+  return s_readint_S(s);
 }
 
 static number ssiReadNumber_CF(const ssiInfo *d, const coeffs cf)
@@ -643,6 +714,15 @@ static number ssiReadNumber_CF_S(char **s, const coeffs cf)
 static number ssiReadBigInt(const ssiInfo *d)
 {
   number n=ssiReadNumber_CF(d,coeffs_BIGINT);
+  if ((SR_HDL(n) & SR_INT)==0)
+  {
+    if (n->s!=3) Werror("invalid sub type in bigint:%d",n->s);
+  }
+  return n;
+}
+static number ssiReadBigInt_S(char**s)
+{
+  number n=ssiReadNumber_CF_S(s,coeffs_BIGINT);
   if ((SR_HDL(n) & SR_INT)==0)
   {
     if (n->s!=3) Werror("invalid sub type in bigint:%d",n->s);
@@ -950,20 +1030,24 @@ static matrix ssiReadMatrix(ssiInfo *d)
     }
   return M;
 }
-matrix ssiReadMatrix_S(char* s, const ring R)
+static matrix ssiReadMatrix_R_S(char** s, const ring R)
 {
   int n,m;
-  m=s_readint_S(&s);
-  n=s_readint_S(&s);
+  m=s_readint_S(s);
+  n=s_readint_S(s);
   matrix M=mpNew(m,n);
   poly p;
   for(int i=1;i<=MATROWS(M);i++)
     for(int j=1;j<=MATCOLS(M);j++)
     {
-      p=ssiReadPoly_R_S(&s,R);
+      p=ssiReadPoly_R_S(s,R);
       MATELEM(M,i,j)=p;
     }
   return M;
+}
+matrix ssiReadMatrix_R_S(char* s, const ring R)
+{
+  return ssiReadMatrix_R_S(&s,R);
 }
 
 static command ssiReadCommand(si_link l)
@@ -1040,6 +1124,23 @@ static lists ssiReadList(si_link l)
   }
   return L;
 }
+static lists ssiReadList_S(char**s, const ring R)
+{
+  int nr;
+  nr=s_readint_S(s);
+  lists L=(lists)omAlloc0Bin(slists_bin);
+  L->Init(nr);
+
+  int i;
+  leftv v;
+  for(i=0;i<=L->nr;i++)
+  {
+    v=ssiRead1_S(s,R);
+    memcpy(&(L->m[i]),v,sizeof(*v));
+    omFreeBin(v,sleftv_bin);
+  }
+  return L;
+}
 static intvec* ssiReadIntvec(const ssiInfo *d)
 {
   int nr;
@@ -1048,6 +1149,17 @@ static intvec* ssiReadIntvec(const ssiInfo *d)
   for(int i=0;i<nr;i++)
   {
     (*v)[i]=s_readint(d->f_read);
+  }
+  return v;
+}
+static intvec* ssiReadIntvec_S(char**s)
+{
+  int nr;
+  nr=s_readint_S(s);
+  intvec *v=new intvec(nr);
+  for(int i=0;i<nr;i++)
+  {
+    (*v)[i]=s_readint_S(s);
   }
   return v;
 }
@@ -1063,6 +1175,18 @@ static intvec* ssiReadIntmat(const ssiInfo *d)
   }
   return v;
 }
+static intvec* ssiReadIntmat_S(char**s)
+{
+  int r,c;
+  r=s_readint_S(s);
+  c=s_readint_S(s);
+  intvec *v=new intvec(r,c,0);
+  for(int i=0;i<r*c;i++)
+  {
+    (*v)[i]=s_readint_S(s);
+  }
+  return v;
+}
 static bigintmat* ssiReadBigintmat(const ssiInfo *d)
 {
   int r,c;
@@ -1075,6 +1199,18 @@ static bigintmat* ssiReadBigintmat(const ssiInfo *d)
   }
   return v;
 }
+static bigintmat* ssiReadBigintmat_S(char**s)
+{
+  int r,c;
+  r=s_readint_S(s);
+  c=s_readint_S(s);
+  bigintmat *v=new bigintmat(r,c,coeffs_BIGINT);
+  for(int i=0;i<r*c;i++)
+  {
+    (*v)[i]=ssiReadBigInt_S(s);
+  }
+  return v;
+}
 static bigintmat* ssiReadBigintvec(const ssiInfo *d)
 {
   int c;
@@ -1083,6 +1219,17 @@ static bigintmat* ssiReadBigintvec(const ssiInfo *d)
   for(int i=0;i<c;i++)
   {
     (*v)[i]=ssiReadBigInt(d);
+  }
+  return v;
+}
+static bigintmat* ssiReadBigintvec_S(char**s)
+{
+  int c;
+  c=s_readint_S(s);
+  bigintmat *v=new bigintmat(1,c,coeffs_BIGINT);
+  for(int i=0;i<c;i++)
+  {
+    (*v)[i]=ssiReadBigInt_S(s);
   }
   return v;
 }
@@ -1896,31 +2043,27 @@ no_ring: WerrorS("no ring");
   omFreeBin(res,sleftv_bin);
   return NULL;
 }
-leftv ssiRead1_S(char*s, const ring R)
+leftv ssiRead1_S(char**s, const ring R)
 {
   leftv res=(leftv)omAlloc0Bin(sleftv_bin);
   int t=0;
-  t=s_readint_S(&s);
-  //Print("got type %d\n",t);
+  t=s_readint_S(s);
   switch(t)
   {
-    #if 0
     case 1:res->rtyp=INT_CMD;
-           res->data=(char *)(long)ssiReadInt(d);
+           res->data=(char *)(long)ssiReadInt_S(s);
            break;
     case 2:res->rtyp=STRING_CMD;
-           res->data=(char *)ssiReadString(d);
-           //Print("str: %s\n",(char*)res->data);
+           res->data=(char *)ssiReadString_S(s);
            break;
-    #endif
     case 3:res->rtyp=NUMBER_CMD;
-           res->data=(char *)ssiReadNumber_CF_S(&s,R->cf);
+           res->data=(char *)ssiReadNumber_CF_S(s,R->cf);
            break;
-    #if 0
     case 4:res->rtyp=BIGINT_CMD;
-           res->data=(char *)ssiReadBigInt(d);
+           res->data=(char *)ssiReadBigInt_S(s);
            //Print("bigint\n");
            break;
+    #if 0
     case 15:
     case 5:{
            //Print("ring %d\n",t);
@@ -1939,23 +2082,23 @@ leftv ssiRead1_S(char*s, const ring R)
            break;
     #endif
     case 6:res->rtyp=POLY_CMD;
-           res->data=(char*)ssiReadPoly_S(s,R);
+           res->data=(char*)ssiReadPoly_R_S(s,R);
            break;
     case 7:res->rtyp=IDEAL_CMD;
-           res->data=(char*)ssiReadIdeal_S(s,R);
+           res->data=(char*)ssiReadIdeal_R_S(s,R);
            break;
     case 8:res->rtyp=MATRIX_CMD;
-           res->data=(char*)ssiReadMatrix_S(s,R);
+           res->data=(char*)ssiReadMatrix_R_S(s,R);
            break;
     case 9:res->rtyp=VECTOR_CMD;
-           res->data=(char*)ssiReadPoly_S(s,R);
+           res->data=(char*)ssiReadPoly_R_S(s,R);
            break;
     case 10:
     case 22:if (t==22) res->rtyp=SMATRIX_CMD;
            else        res->rtyp=MODUL_CMD;
            {
-             int rk=s_readint_S(&s);
-             ideal M=ssiReadIdeal_S(s,R);
+             int rk=s_readint_S(s);
+             ideal M=ssiReadIdeal_R_S(s,R);
              M->rank=rk;
              res->data=(char*)M;
            }
@@ -1982,20 +2125,22 @@ leftv ssiRead1_S(char*s, const ring R)
     case 13: res->rtyp=PROC_CMD;
              res->data=ssiReadProc(d);
              break;
+    #endif
     case 14: res->rtyp=LIST_CMD;
-             res->data=ssiReadList(l);
+             res->data=ssiReadList_S(s,R);
              break;
     case 16: res->rtyp=NONE; res->data=NULL;
              break;
     case 17: res->rtyp=INTVEC_CMD;
-             res->data=ssiReadIntvec(d);
+             res->data=ssiReadIntvec_S(s);
              break;
     case 18: res->rtyp=INTMAT_CMD;
-             res->data=ssiReadIntmat(d);
+             res->data=ssiReadIntmat_S(s);
              break;
     case 19: res->rtyp=BIGINTMAT_CMD;
-             res->data=ssiReadBigintmat(d);
+             res->data=ssiReadBigintmat_S(s);
              break;
+    #if 0
     case 20: ssiReadBlackbox(res,l);
              break;
     case 21: ssiReadAttrib(res,l);
@@ -2003,9 +2148,11 @@ leftv ssiRead1_S(char*s, const ring R)
     case 23: ssiReadRingProperties(l);
              return ssiRead1(l);
              break;
+    #endif
     case 24: res->rtyp=BIGINTVEC_CMD;
-             res->data=ssiReadBigintvec(d);
+             res->data=ssiReadBigintvec_S(s);
              break;
+    #if 0
     // ------------
     case 98: // version
              {
@@ -2037,12 +2184,14 @@ leftv ssiRead1_S(char*s, const ring R)
             }
             res->rtyp=DEF_CMD;
             break;
-   #endif
+    #endif
     default: Werror("not implemented (t:%d)",t);
              omFreeBin(res,sleftv_bin);
              res=NULL;
              break;
   }
+  while((**s!='\0') &&(**s<=' ')) (*s)++;
+  if (**s>' ') res->next=ssiRead1_S(s,R);
   return res;
 }
 //**************************************************************************/
@@ -2218,125 +2367,126 @@ BOOLEAN ssiWrite(si_link l, leftv data)
   d->level--;
   return FALSE;
 }
-char *ssiWrite_S(leftv data,const ring R)
+void ssiWrite_S(leftv data,const ring R)
 {
-  int tt=data->Typ();
-  void *dd=data->Data();
-  switch(tt /*data->Typ()*/)
+  while(data!=NULL)
   {
-    case 0: /*error*/
-    case NONE/* nothing*/:StringSetS("16 ");
-         break;
-    #if 0
-    case STRING_CMD: fputs("2 ",d->f_write);
-                           ssiWriteString(d,(char *)dd);
-                           break;
-    case INT_CMD: fputs("1 ",d->f_write);
-                        ssiWriteInt(d,(int)(long)dd);
-                        break;
-    case BIGINT_CMD:fputs("4 ",d->f_write);
-                        ssiWriteBigInt(d,(number)dd);
-                        break;
-    #endif
-    case NUMBER_CMD:
-      StringSetS("3 ");
-      ssiWriteNumber_CF_S((number)dd,R->cf);
-      break;
-    #if 0
-    case RING_CMD:fputs("5 ",d->f_write);
-                        ssiWriteRing(d,(ring)dd);
-                        break;
-    case BUCKET_CMD:
-                        {
-                          sBucket_pt b=(sBucket_pt)dd;
-                          if (d->r!=sBucketGetRing(b))
-                          {
-                            fputs("15 ",d->f_write);
-                            ssiWriteRing(d,sBucketGetRing(b));
-                            if (d->level<=1) fputc('\n',d->f_write);
-                          }
-                          fputs("6 ",d->f_write);
-                          ssiWritePoly(d,sBucketPeek(b));
+    int tt=data->Typ();
+    void *dd=data->Data();
+    switch(tt /*data->Typ()*/)
+    {
+      case 0: /*error*/
+      case NONE/* nothing*/:StringAppendS("16 ");
+           break;
+      case INT_CMD: StringAppendS("1 ");
+                          ssiWriteInt_S((int)(long)dd);
                           break;
-                        }
-    #endif
-    case POLY_CMD:
-    case VECTOR_CMD:
-      if(tt==POLY_CMD) StringSetS("6 ");
-      else             StringSetS("9 ");
-      ssiWritePoly_R_S((poly)dd,R);
-      break;
-    case IDEAL_CMD:
-    case MODUL_CMD:
-    case MATRIX_CMD:
-    case SMATRIX_CMD:
-      if(tt==IDEAL_CMD)       StringSetS("7 ");
-      else if(tt==MATRIX_CMD) StringSetS("8 ");
-      else /* tt==MODUL_CMD, SMATRIX_CMD*/
-      {
-        ideal M=(ideal)dd;
-        if (tt==MODUL_CMD)
+      case STRING_CMD: StringAppendS("2 ");
+                             ssiWriteString_S((char *)dd);
+                             break;
+      case BIGINT_CMD:StringAppendS("4 ");
+                          ssiWriteBigInt_S((number)dd);
+                          break;
+      case NUMBER_CMD:
+        StringAppendS("3 ");
+        ssiWriteNumber_CF_S((number)dd,R->cf);
+        break;
+      #if 0
+      case RING_CMD:fputs("5 ",d->f_write);
+                          ssiWriteRing(d,(ring)dd);
+                          break;
+      case BUCKET_CMD:
+                          {
+                            sBucket_pt b=(sBucket_pt)dd;
+                            if (d->r!=sBucketGetRing(b))
+                            {
+                              fputs("15 ",d->f_write);
+                              ssiWriteRing(d,sBucketGetRing(b));
+                              if (d->level<=1) fputc('\n',d->f_write);
+                            }
+                            fputs("6 ",d->f_write);
+                            ssiWritePoly(d,sBucketPeek(b));
+                            break;
+                          }
+      #endif
+      case POLY_CMD:
+      case VECTOR_CMD:
+        if(tt==POLY_CMD) StringAppendS("6 ");
+        else             StringAppendS("9 ");
+        ssiWritePoly_R_S((poly)dd,R);
+        break;
+      case IDEAL_CMD:
+      case MODUL_CMD:
+      case MATRIX_CMD:
+      case SMATRIX_CMD:
+        if(tt==IDEAL_CMD)       StringAppendS("7 ");
+        else if(tt==MATRIX_CMD) StringAppendS("8 ");
+        else /* tt==MODUL_CMD, SMATRIX_CMD*/
         {
-          StringSetS("10 ");StringAppend("%d ",(int)M->rank);
+          ideal M=(ideal)dd;
+          if (tt==MODUL_CMD)
+          {
+            StringAppendS("10 ");StringAppend("%d ",(int)M->rank);
+          }
+          else /*(tt==SMATRIX_CMD)*/
+          {
+            StringAppendS("22 ");StringAppend("%d ",(int)M->rank);
+          }
         }
-        else /*(tt==SMATRIX_CMD)*/
-        {
-          StringSetS("22 ");StringAppend("%d ",(int)M->rank);
-        }
-      }
-      ssiWriteIdeal_R_S(tt,(ideal)dd,R);
-      break;
-    #if 0
-    case COMMAND:
-                   fputs("11 ",d->f_write);
-                   ssiWriteCommand(l,(command)dd);
-                   break;
-    case DEF_CMD: /* not evaluated stuff in quotes */
-                   fputs("12 ",d->f_write);
-                   ssiWriteString(d,data->Name());
-                   break;
-    case PROC_CMD:
-                   fputs("13 ",d->f_write);
-                   ssiWriteProc(d,(procinfov)dd);
-                   break;
-    case LIST_CMD:
-                   fputs("14 ",d->f_write);
-                   ssiWriteList(l,(lists)dd);
-                   break;
-    case INTVEC_CMD:
-                   fputs("17 ",d->f_write);
-                   ssiWriteIntvec(d,(intvec *)dd);
-                   break;
-    case INTMAT_CMD:
-                   fputs("18 ",d->f_write);
-                   ssiWriteIntmat(d,(intvec *)dd);
-                   break;
-    case BIGINTMAT_CMD:
-                   fputs("19 ",d->f_write);
-                   ssiWriteBigintmat(d,(bigintmat *)dd);
-                   break;
-    case BIGINTVEC_CMD:
-                   fputs("24 ",d->f_write);
-                   ssiWriteBigintvec(d,(bigintmat *)dd);
-                   break;
-    #endif
-    default:
-            #if 0
-            if (tt>MAX_TOK)
-            {
-              blackbox *b=getBlackboxStuff(tt);
-              fputs("20 ",d->f_write);
-              b->blackbox_serialize(b,dd,l);
-            }
-            else
-            #endif
-            {
-              Werror("not implemented (t:%d, rtyp:%d)",tt, data->rtyp);
-              return NULL;
-            }
-            break;
+        ssiWriteIdeal_R_S(tt,(ideal)dd,R);
+        break;
+      #if 0
+      case COMMAND:
+                     fputs("11 ",d->f_write);
+                     ssiWriteCommand(l,(command)dd);
+                     break;
+      case DEF_CMD: /* not evaluated stuff in quotes */
+                     fputs("12 ",d->f_write);
+                     ssiWriteString(d,data->Name());
+                     break;
+      case PROC_CMD:
+                     fputs("13 ",d->f_write);
+                     ssiWriteProc(d,(procinfov)dd);
+                     break;
+      #endif
+      case LIST_CMD:
+                     StringAppendS("14 ");
+                     ssiWriteList_S((lists)dd,R);
+                     break;
+      case INTVEC_CMD:
+                     StringAppendS("17 ");
+                     ssiWriteIntvec_S((intvec *)dd);
+                     break;
+      case INTMAT_CMD:
+                     StringAppendS("18 ");
+                     ssiWriteIntmat_S((intvec *)dd);
+                     break;
+      case BIGINTMAT_CMD:
+                     StringAppendS("19 ");
+                     ssiWriteBigintmat_S((bigintmat *)dd);
+                     break;
+      case BIGINTVEC_CMD:
+                     StringAppendS("24 ");
+                     ssiWriteBigintvec_S((bigintmat *)dd);
+                     break;
+      default:
+              #if 0
+              if (tt>MAX_TOK)
+              {
+                blackbox *b=getBlackboxStuff(tt);
+                fputs("20 ",d->f_write);
+                b->blackbox_serialize(b,dd,l);
+              }
+              else
+              #endif
+              {
+                Werror("not implemented (t:%d, rtyp:%d)",tt, data->rtyp);
+                return;
+              }
+              break;
+    }
+    data=data->next;
   }
-  return StringEndS();
 }
 
 BOOLEAN ssiGetDump(si_link l);

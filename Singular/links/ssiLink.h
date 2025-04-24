@@ -41,6 +41,6 @@ matrix ssiReadMatrix_S(char *s, const ring R);
 char* ssiWriteModule_S(const ideal M, const ring R); /* also for smatrix*/
 
 
-leftv ssiRead1_S(char*s, const ring R);
-char *ssiWrite_S(leftv v,const ring R);
+leftv ssiRead1_S(char**s, const ring R);
+void ssiWrite_S(leftv v,const ring R);
 #endif

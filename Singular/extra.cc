@@ -4070,7 +4070,9 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     if(strcmp(sys_cmd,"ssi")==0)
     {
       res->rtyp=STRING_CMD;
-      res->data=(void*)ssiWrite_S(h, currRing);
+      StringSetS("");
+      ssiWrite_S(h, currRing);
+      res->data=(void*)StringEndS();
       return res->data==NULL;
     }
     else
@@ -4078,10 +4080,10 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     {
       if (h->Typ()==STRING_CMD)
       {
-        leftv rr=ssiRead1_S((char*)h->Data(),currRing);
-        res->rtyp=rr->rtyp;
-        res->data=rr->data;
-	omFreeBin(rr,sleftv_bin);
+        char *s=(char*)h->Data();
+        leftv rr=ssiRead1_S(&s,currRing);
+        memcpy(res,rr,sizeof(*rr));
+        omFreeBin(rr,sleftv_bin);
         return FALSE;
       }
     }
