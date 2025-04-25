@@ -533,6 +533,15 @@ static void ssiWriteProc(const ssiInfo *d,procinfov p)
   else
     ssiWriteString(d,"");
 }
+static void ssiWriteProc_S(procinfov p)
+{
+  if (p->data.s.body==NULL)
+    iiGetLibProcBuffer(p);
+  if (p->data.s.body!=NULL)
+    ssiWriteString_S(p->data.s.body);
+  else
+    ssiWriteString_S("");
+}
 
 static void ssiWriteList(si_link l,lists dd)
 {
@@ -1104,6 +1113,16 @@ static procinfov ssiReadProc(const ssiInfo *d)
   p->libname=omStrDup("");
   p->procname=omStrDup("");
   p->data.s.body=s;
+  return p;
+}
+static procinfov ssiReadProc_S(char**s)
+{
+  char *st=ssiReadString_S(s);
+  procinfov p=(procinfov)omAlloc0Bin(procinfo_bin);
+  p->language=LANG_SINGULAR;
+  p->libname=omStrDup("");
+  p->procname=omStrDup("");
+  p->data.s.body=st;
   return p;
 }
 static lists ssiReadList(si_link l)
@@ -2106,26 +2125,24 @@ leftv ssiRead1_S(char**s, const ring R)
     #if 0
     case 11:
            {
-           //Print("cmd\n",t);
              res->rtyp=COMMAND;
              res->data=ssiReadCommand(l);
              int nok=res->Eval();
              if (nok) WerrorS("error in eval");
              break;
            }
+    #endif
     case 12: /*DEF_CMD*/
            {
-           //Print("def\n",t);
              res->rtyp=0;
-             res->name=(char *)ssiReadString(d);
+             res->name=(char *)ssiReadString_S(s);
              int nok=res->Eval();
              if (nok) WerrorS("error in name lookup");
              break;
            }
     case 13: res->rtyp=PROC_CMD;
-             res->data=ssiReadProc(d);
+             res->data=ssiReadProc_S(s);
              break;
-    #endif
     case 14: res->rtyp=LIST_CMD;
              res->data=ssiReadList_S(s,R);
              break;
@@ -2152,39 +2169,28 @@ leftv ssiRead1_S(char**s, const ring R)
     case 24: res->rtyp=BIGINTVEC_CMD;
              res->data=ssiReadBigintvec_S(s);
              break;
-    #if 0
     // ------------
     case 98: // version
              {
                 int n98_v,n98_m;
                 BITSET n98_o1,n98_o2;
-                n98_v=s_readint(d->f_read);
-                n98_m=s_readint(d->f_read);
-                n98_o1=s_readint(d->f_read);
-                n98_o2=s_readint(d->f_read);
-                if ((n98_v!=SSI_VERSION) ||(n98_m!=MAX_TOK))
-                {
-                  Print("incompatible versions of ssi: %d/%d vs %d/%d\n",
-                                  SSI_VERSION,MAX_TOK,n98_v,n98_m);
-                }
-                #ifndef SING_NDEBUG
-                if (TEST_OPT_DEBUG)
-                  Print("// opening ssi-%d, MAX_TOK=%d\n",n98_v,n98_m);
-                #endif
+                n98_v=s_readint_S(s);
+                n98_m=s_readint_S(s);
+                n98_o1=s_readint_S(s);
+                n98_o2=s_readint_S(s);
+                Print("// version ssi-%d, MAX_TOK=%d\n",n98_v,n98_m);
                 si_opt_1=n98_o1;
                 si_opt_2=n98_o2;
                 omFreeBin(res,sleftv_bin);
-                return ssiRead1(l);
+                return ssiRead1_S(s,R);
              }
+    #if 0
     case 99: omFreeBin(res,sleftv_bin); ssiClose(l); m2_end(-1);
              break; /*to make compiler happy*/
-    case 0: if (s_iseof(d->f_read))
-            {
-              ssiClose(l);
-            }
-            res->rtyp=DEF_CMD;
-            break;
     #endif
+    case 0: res->rtyp=DEF_CMD;
+            **s='\0'; /* unkown char?*/
+            break;
     default: Werror("not implemented (t:%d)",t);
              omFreeBin(res,sleftv_bin);
              res=NULL;
@@ -2395,20 +2401,14 @@ void ssiWrite_S(leftv data,const ring R)
       case RING_CMD:fputs("5 ",d->f_write);
                           ssiWriteRing(d,(ring)dd);
                           break;
+      #endif
       case BUCKET_CMD:
                           {
                             sBucket_pt b=(sBucket_pt)dd;
-                            if (d->r!=sBucketGetRing(b))
-                            {
-                              fputs("15 ",d->f_write);
-                              ssiWriteRing(d,sBucketGetRing(b));
-                              if (d->level<=1) fputc('\n',d->f_write);
-                            }
-                            fputs("6 ",d->f_write);
-                            ssiWritePoly(d,sBucketPeek(b));
+                            StringAppendS("6 ");
+                            ssiWritePoly_R_S(sBucketPeek(b),R);
                             break;
                           }
-      #endif
       case POLY_CMD:
       case VECTOR_CMD:
         if(tt==POLY_CMD) StringAppendS("6 ");
@@ -2440,15 +2440,15 @@ void ssiWrite_S(leftv data,const ring R)
                      fputs("11 ",d->f_write);
                      ssiWriteCommand(l,(command)dd);
                      break;
+      #endif
       case DEF_CMD: /* not evaluated stuff in quotes */
-                     fputs("12 ",d->f_write);
-                     ssiWriteString(d,data->Name());
+                     StringAppendS("12 ");
+                     ssiWriteString_S(data->Name());
                      break;
       case PROC_CMD:
-                     fputs("13 ",d->f_write);
-                     ssiWriteProc(d,(procinfov)dd);
+                     StringAppendS("13 ");
+                     ssiWriteProc_S((procinfov)dd);
                      break;
-      #endif
       case LIST_CMD:
                      StringAppendS("14 ");
                      ssiWriteList_S((lists)dd,R);
