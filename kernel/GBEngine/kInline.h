@@ -618,15 +618,18 @@ KINLINE void sLObject::PrepareRed(BOOLEAN use_bucket)
   if (bucket == NULL)
   {
     unsigned l = GetpLength();
-    if (use_bucket && (l > 1))
+    if (use_bucket)
     {
-      poly tp = GetLmTailRing();
-      assume((int)l == ::pLength(tp));
       bucket = kBucketCreate(tailRing);
-      kBucketInit(bucket, pNext(tp), l-1);
-      pNext(tp) = NULL;
-      if (p != NULL) pNext(p) = NULL;
-      pLength = 0;
+      if (l>1)
+      {
+        poly tp = GetLmTailRing();
+        assume((int)l == ::pLength(tp));
+        kBucketInit(bucket, pNext(tp), l-1);
+        pNext(tp) = NULL;
+        if (p!=NULL) pNext(p) = NULL;
+        pLength = 0;
+      }
     }
   }
 }

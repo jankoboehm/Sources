@@ -2632,7 +2632,7 @@ ideal bba (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
   initHilbCrit(F,Q,&hilb,strat);
   initBba(strat);
   /*set enterS, spSpolyShort, reduce, red, initEcart, initEcartPair*/
-  /*Shdl=*/initBuchMora(F, Q,strat);
+  initBuchMora(F, Q,strat);
   if (strat->minim>0) strat->M=idInit(IDELEMS(F),F->rank);
   reduc = olddeg = 0;
 
@@ -2692,7 +2692,7 @@ ideal bba (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
       )
       {
         deleteInL(strat->L,&strat->Ll,strat->Ll,strat);
-	if(TEST_OPT_PROT) PrintS("D");
+        if(TEST_OPT_PROT) PrintS("D");
       }
       if (strat->Ll<0) break;
       else strat->noClearS=TRUE;
