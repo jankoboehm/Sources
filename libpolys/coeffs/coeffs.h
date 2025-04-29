@@ -282,9 +282,7 @@ struct n_Procs_s
    nMapFunc (*cfSetMap)(const coeffs src, const coeffs dst);
 
    void    (*cfWriteFd)(number a, const ssiInfo *f, const coeffs r);
-   void    (*cfWriteFd_S)(number a, const coeffs r);
    number  (*cfReadFd)( const ssiInfo *f, const coeffs r);
-   number  (*cfReadFd_S)(char**s, const coeffs r);
 
    /// Inplace: a *= b
    void    (*cfInpMult)(number &a, number b, const coeffs r);
@@ -418,6 +416,8 @@ struct n_Procs_s
   /*CF: for blackbox rings, contains data needed to define the ring.
    * contents depends on the actual example.*/
   void * data;
+  number  (*cfReadFd_S)(char**s, const coeffs r);
+  void    (*cfWriteFd_S)(number a, const coeffs r);
 #ifdef LDEBUG
    // must be last entry:
    /// Test: is "a" a correct number?
