@@ -3487,54 +3487,57 @@ ideal idSaturate_intern(ideal I, ideal J, int &k, BOOLEAN isIdeal, BOOLEAN isSB)
   //  return id_Sat_principal(I,J,currRing);
   //}
   //---------------------------------------------------
-  BOOLEAN only_vars=TRUE; // enabled for I:x_i
-  if (idElem(J)==1)
+  if (!rField_is_Ring(currRing))
   {
-    for(int j=IDELEMS(J)-1;j>=0;j--)
+    BOOLEAN only_vars=TRUE; // enabled for I:x_i
+    if (idElem(J)==1)
     {
-      poly p=J->m[j];
-      if (p!=NULL)
+      for(int j=IDELEMS(J)-1;j>=0;j--)
       {
-        if (pVar(p)==0)
+        poly p=J->m[j];
+        if (p!=NULL)
         {
-          only_vars=FALSE;
-          break;
+          if (pVar(p)==0)
+          {
+            only_vars=FALSE;
+            break;
+          }
         }
       }
     }
-  }
-  if (only_vars && isIdeal && rOrd_is_Totaldegree_Ordering(currRing)
-  && (idElem(J)==1))
-  {
-    ideal Iquot,Istd;
-    intvec *w=NULL;
-    Istd=id_Satstd(I,J,currRing);
-    si_opt_2|=Sy_bit(V_PURE_GB);
-    k=0;
-    loop
+    if (only_vars && isIdeal && rOrd_is_Totaldegree_Ordering(currRing)
+    && (idElem(J)==1))
     {
-      k++;
-      Iquot=idQuot(Istd,J,TRUE,isIdeal);
-      ideal tmp=kNF(Istd,currRing->qideal,Iquot,5);
-      int  elem=idElem(tmp);
-      id_Delete(&tmp,currRing);
-      id_Delete(&Istd,currRing);
-      Istd=Iquot;
-      w=NULL;
-      Istd=kStd2(Iquot,currRing->qideal,testHomog,&w,(bigintmat*)NULL);
-      if (w!=NULL) delete w;
-      id_Delete(&Iquot,currRing);
-      if (elem==0) break;
+      ideal Iquot,Istd;
+      intvec *w=NULL;
+      Istd=id_Satstd(I,J,currRing);
+      si_opt_2|=Sy_bit(V_PURE_GB);
+      k=0;
+      loop
+      {
+        k++;
+        Iquot=idQuot(Istd,J,TRUE,isIdeal);
+        ideal tmp=kNF(Istd,currRing->qideal,Iquot,5);
+        int  elem=idElem(tmp);
+        id_Delete(&tmp,currRing);
+        id_Delete(&Istd,currRing);
+        Istd=Iquot;
+        w=NULL;
+        Istd=kStd2(Iquot,currRing->qideal,testHomog,&w,(bigintmat*)NULL);
+        if (w!=NULL) delete w;
+        id_Delete(&Iquot,currRing);
+        if (elem==0) break;
+      }
+      k--;
+      idSkipZeroes(Istd);
+    //PrintS("\nSatstd:\n");
+    //iiWriteMatrix((matrix)I,"I",1,currRing,0); PrintLn();
+    //iiWriteMatrix((matrix)J,"J",1,currRing,0); PrintLn();
+    //iiWriteMatrix((matrix)Istd,"res",1,currRing,0);PrintLn();
+    //id_Delete(&Istd,currRing);
+      SI_RESTORE_OPT2(save_opt);
+      return Istd;
     }
-    k--;
-    idSkipZeroes(Istd);
-  //PrintS("\nSatstd:\n");
-  //iiWriteMatrix((matrix)I,"I",1,currRing,0); PrintLn();
-  //iiWriteMatrix((matrix)J,"J",1,currRing,0); PrintLn();
-  //iiWriteMatrix((matrix)Istd,"res",1,currRing,0);PrintLn();
-  //id_Delete(&Istd,currRing);
-    SI_RESTORE_OPT2(save_opt);
-    return Istd;
   }
   //--------------------------------------------------
   ideal Iquot,Istd;

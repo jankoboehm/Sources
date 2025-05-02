@@ -48,26 +48,27 @@ poly p_Divide(poly p, poly q, const ring r)
   { /* This means that q != 0 consists of at least two terms*/
     if(p_GetComp(p,r)==0)
     {
-      if((rFieldType(r)==n_transExt)
-      &&(convSingTrP(p,r))
-      &&(convSingTrP(q,r))
-      &&(!rIsNCRing(r)))
+      if (!rIsNCRing(r))
       {
-        poly res=singclap_pdivide(p, q, r);
-        p_Delete(&p,r);
-        p_Delete(&q,r);
-        return res;
+        if((rFieldType(r)==n_transExt)
+        &&(convSingTrP(p,r))
+        &&(convSingTrP(q,r)))
+        {
+          poly res=singclap_pdivide(p, q, r);
+	  p_Delete(&p,r);
+	  p_Delete(&q,r);
+          return res;
+        }
+        if ((rFieldType(r)==n_Q)
+        ||(rFieldType(r)==n_Zp))
+        {
+          poly res=singclap_pdivide(p, q, r);
+	  p_Delete(&p,r);
+	  p_Delete(&q,r);
+          return res;
+        }
       }
-      else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-      &&(!rField_is_Ring(r))
-      &&(!rIsNCRing(r)))
-      {
-        poly res=singclap_pdivide(p, q, r);
-        p_Delete(&p,r);
-        p_Delete(&q,r);
-        return res;
-      }
-      else
+      // generic division for poly
       {
         ideal vi=idInit(1,1); vi->m[0]=q;
         ideal ui=idInit(1,1); ui->m[0]=p;
@@ -80,9 +81,9 @@ poly p_Divide(poly p, poly q, const ring r)
         ideal m = idLift(vi,ui,&R, FALSE,TRUE,TRUE,&U);
         SI_RESTORE_OPT1(save_opt);
         if (r!=save_ring) rChangeCurrRing(save_ring);
-        p=m->m[0]; m->m[0]=NULL;
-        id_Delete(&m,r);
-        p_SetCompP(p,0,r);
+        matrix T = id_Module2formatedMatrix(m,1,1,r);
+        p=MATELEM(T,1,1); MATELEM(T,1,1)=NULL;
+        id_Delete((ideal *)&T,r);
         id_Delete((ideal *)&U,r);
         id_Delete(&R,r);
         //vi->m[0]=NULL; ui->m[0]=NULL;
@@ -121,8 +122,7 @@ poly p_Divide(poly p, poly q, const ring r)
           {
             h=singclap_pdivide(I->m[i],q,r);
           }
-          else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-          &&(!rField_is_Ring(r))
+          else if (((rFieldType(r)==n_Q)||(rFieldType(r)==n_Zp))
           &&(!rIsNCRing(r)))
             h=singclap_pdivide(I->m[i],q,r);
           else
@@ -187,22 +187,23 @@ poly pp_Divide(poly p, poly q, const ring r)
   { /* This means that q != 0 consists of at least two terms*/
     if(p_GetComp(p,r)==0)
     {
-      if((rFieldType(r)==n_transExt)
-      &&(convSingTrP(p,r))
-      &&(convSingTrP(q,r))
-      &&(!rIsNCRing(r)))
+      if (!rIsNCRing(r))
       {
-        poly res=singclap_pdivide(p, q, r);
-        return res;
+        if((rFieldType(r)==n_transExt)
+        &&(convSingTrP(p,r))
+        &&(convSingTrP(q,r)))
+        {
+          poly res=singclap_pdivide(p, q, r);
+          return res;
+        }
+        if ((rFieldType(r)==n_Q)
+        ||(rFieldType(r)==n_Zp))
+        {
+          poly res=singclap_pdivide(p, q, r);
+          return res;
+        }
       }
-      else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-      &&(!rField_is_Ring(r))
-      &&(!rIsNCRing(r)))
-      {
-        poly res=singclap_pdivide(p, q, r);
-        return res;
-      }
-      else
+      // generic division for poly
       {
         ideal vi=idInit(1,1); vi->m[0]=p_Copy(q,r);
         ideal ui=idInit(1,1); ui->m[0]=p_Copy(p,r);
@@ -251,17 +252,43 @@ poly pp_Divide(poly p, poly q, const ring r)
       {
         if (I->m[i]!=NULL)
         {
-          if((rFieldType(r)==n_transExt)
-          &&(convSingTrP(I->m[i],r))
-          &&(convSingTrP(q,r))
-          &&(!rIsNCRing(r)))
+          if(!rIsNCRing(r))
           {
-            h=singclap_pdivide(I->m[i],q,r);
+            if((rFieldType(r)==n_transExt)
+            &&(convSingTrP(I->m[i],r))
+            &&(convSingTrP(q,r)))
+            {
+              h=singclap_pdivide(I->m[i],q,r);
+            }
+            else if ((rFieldType(r)==n_Q)
+            ||(rFieldType(r)==n_Zp))
+              h=singclap_pdivide(I->m[i],q,r);
+            else
+            {
+              ideal vi=idInit(1,1); vi->m[0]=q;
+              ideal ui=idInit(1,1); ui->m[0]=I->m[i];
+              ideal R; matrix U;
+              ring save_ring=currRing;
+              if (r!=currRing) rChangeCurrRing(r);
+              BITSET save_opt;
+              SI_SAVE_OPT1(save_opt);
+              si_opt_1 &= ~(Sy_bit(OPT_PROT));
+              ideal m = idLift(vi,ui,&R, FALSE,TRUE,TRUE,&U);
+              SI_RESTORE_OPT1(save_opt);
+              if (r!=save_ring) rChangeCurrRing(save_ring);
+              if (idIs0(R))
+              {
+                matrix T = id_Module2formatedMatrix(m,1,1,r);
+                p=MATELEM(T,1,1); MATELEM(T,1,1)=NULL;
+                id_Delete((ideal *)&T,r);
+              }
+              id_Delete((ideal*)&U,r);
+              id_Delete(&R,r);
+              vi->m[0]=NULL; ui->m[0]=NULL;
+              id_Delete(&vi,r);
+              id_Delete(&ui,r);
+            }
           }
-          else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-          &&(!rField_is_Ring(r))
-          &&(!rIsNCRing(r)))
-            h=singclap_pdivide(I->m[i],q,r);
           else
           {
             ideal vi=idInit(1,1); vi->m[0]=q;
@@ -281,7 +308,6 @@ poly pp_Divide(poly p, poly q, const ring r)
               p=MATELEM(T,1,1); MATELEM(T,1,1)=NULL;
               id_Delete((ideal *)&T,r);
             }
-            else p=NULL;
             id_Delete((ideal*)&U,r);
             id_Delete(&R,r);
             vi->m[0]=NULL; ui->m[0]=NULL;
