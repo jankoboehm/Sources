@@ -11599,6 +11599,7 @@ void kDebugPrint(kStrategy strat)
     else if (currRing->pFDeg==p_WFirstTotalDegree) printf("pWFirstTotalDegree");
     else if (currRing->pFDeg==p_Deg) printf("p_Deg");
     else if (currRing->pFDeg==kHomModDeg) printf("kHomModDeg");
+    else if (currRing->pFDeg==kModDeg) printf("kModDeg");
     else if (currRing->pFDeg==totaldegreeWecart) printf("totaldegreeWecart");
     else if (currRing->pFDeg==p_WTotaldegree) printf("p_WTotaldegree");
     else printf("? (%lx)", (long)currRing->pFDeg);
