@@ -50,21 +50,22 @@ poly p_Divide(poly p, poly q, const ring r)
     {
       if (!rIsNCRing(r))
       {
+        if ((rFieldType(r)==n_Q)
+        ||(rFieldType(r)==n_Zp)
+        ||(rFieldType(r)==n_algExt))
+        {
+          poly res=singclap_pdivide(p, q, r);
+          p_Delete(&p,r);
+          p_Delete(&q,r);
+          return res;
+        }
         if((rFieldType(r)==n_transExt)
         &&(convSingTrP(p,r))
         &&(convSingTrP(q,r)))
         {
           poly res=singclap_pdivide(p, q, r);
-	  p_Delete(&p,r);
-	  p_Delete(&q,r);
-          return res;
-        }
-        if ((rFieldType(r)==n_Q)
-        ||(rFieldType(r)==n_Zp))
-        {
-          poly res=singclap_pdivide(p, q, r);
-	  p_Delete(&p,r);
-	  p_Delete(&q,r);
+          p_Delete(&p,r);
+          p_Delete(&q,r);
           return res;
         }
       }
@@ -122,7 +123,9 @@ poly p_Divide(poly p, poly q, const ring r)
           {
             h=singclap_pdivide(I->m[i],q,r);
           }
-          else if (((rFieldType(r)==n_Q)||(rFieldType(r)==n_Zp))
+          else if (((rFieldType(r)==n_Q)
+          ||(rFieldType(r)==n_Zp)
+          ||(rFieldType(r)==n_algExt))
           &&(!rIsNCRing(r)))
             h=singclap_pdivide(I->m[i],q,r);
           else
@@ -189,15 +192,16 @@ poly pp_Divide(poly p, poly q, const ring r)
     {
       if (!rIsNCRing(r))
       {
-        if((rFieldType(r)==n_transExt)
-        &&(convSingTrP(p,r))
-        &&(convSingTrP(q,r)))
+        if ((rFieldType(r)==n_Q)
+        ||(rFieldType(r)==n_Zp)
+        ||(rFieldType(r)==n_algExt))
         {
           poly res=singclap_pdivide(p, q, r);
           return res;
         }
-        if ((rFieldType(r)==n_Q)
-        ||(rFieldType(r)==n_Zp))
+        if((rFieldType(r)==n_transExt)
+        &&(convSingTrP(p,r))
+        &&(convSingTrP(q,r)))
         {
           poly res=singclap_pdivide(p, q, r);
           return res;

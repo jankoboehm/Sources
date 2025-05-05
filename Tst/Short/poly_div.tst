@@ -16,6 +16,17 @@ poly a=x^2 + 3x + 1;
 poly b= 2x + 4;
 (a*b)/a;
 
+ring r21=(QQ,t),x,lp;
+poly a=(1/t)*x^2 + 3x + 1;
+poly b= 2x + 4/t;
+(a*b)/a;
+
+ring r3=(QQ,t),x,lp;
+minpoly=t2+1;
+poly a=x^2 + 3x + 1;
+poly b= 2x + 4;
+(a*b)/a;
+
 // Issue #1269
 ring r = 0,x,dp;
 ring s = r,(u,v),dp;
