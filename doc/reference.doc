@@ -4426,7 +4426,7 @@ See
 @ref{ring}.
 @c ref
 @c ---------------------------------------
-@node  memory, min, maxideal, Functions
+@node memory, min, maxideal, Functions
 @subsection memory
 @cindex memory
 @cindex memory management
@@ -4584,7 +4584,7 @@ See
 @ref{det}.
 @c ref
 @c ---------------------------------------
-@node  minres, modulo, minor, Functions
+@node minres, modulo, minor, Functions
 @subsection minres
 @cindex minres
 @table @code
@@ -4830,7 +4830,7 @@ See
 @ref{uressolve}.
 @c ref
 @c ---------------------------------------
-@node  mres
+@node mres
 @subsection mres
 @cindex mres
 @table @code
@@ -4890,6 +4890,8 @@ is 0 (if the basering is not a qring).
 @item @strong{Note:}
 Accessing single elements of a resolution may require some partial
 computations to be finished and may therefore take some time.
+@item @strong{Note:}
+@code{mres} honours @code{degBound}.
 @item @strong{Example:}
 @smallexample
 @c example
@@ -4904,6 +4906,7 @@ computations to be finished and may therefore take some time.
 @end table
 @c ref
 See
+@ref{degBound};
 @ref{ideal};
 @ref{hres};
 @ref{lres};
@@ -4913,7 +4916,7 @@ See
 @ref{sres}.
 @c ref
 @c ---------------------------------------
-@node  mres_map
+@node mres_map
 @subsection mres_map
 @cindex mres_map
 @table @code
@@ -4999,7 +5002,7 @@ See
 @ref{sres}.
 @c ref
 @c ---------------------------------------
-@node  mstd
+@node mstd
 @subsection mstd
 @cindex mstd
 @cindex minimal generating set
@@ -5271,6 +5274,8 @@ module of  @code{L[1]}, etc.
 (${\tt L[i]}=M_i$
 @end tex
 in the notations from above).
+@item @strong{Note:}
+@code{nres} honours @code{degBound}.
 @item @strong{Example:}
 @smallexample
 @c example
@@ -5284,6 +5289,7 @@ in the notations from above).
 @end table
 @c ref
 See
+@ref{degBound};
 @ref{ideal};
 @ref{lres};
 @ref{hres};
@@ -6732,7 +6738,7 @@ See
 @ref{impart}.
 @c ref
 @c ---------------------------------------
-@node  res, reservedName, repart, Functions
+@node res, reservedName, repart, Functions
 @subsection res
 @cindex res
 @c lib standard.lib:res lib_fun lib_ex subsection
@@ -6770,7 +6776,7 @@ See
 @ref{string}.
 @c ref
 @c ---------------------------------------
-@node  resultant, ringlist, reservedName, Functions
+@node resultant, ringlist, reservedName, Functions
 @subsection resultant
 @cindex resultant
 @table @code
@@ -6797,7 +6803,7 @@ See
 @ref{ring}.
 @c ref
 @c ---------------------------------------
-@node  ringlist
+@node ringlist
 @subsection ringlist
 @cindex ringlist
 @table @code
@@ -6885,7 +6891,7 @@ See
 @ref{qring}.
 @c ref
 @c ---------------------------------------
-@node  ring_list
+@node ring_list
 @subsection ring_list
 @cindex ring_list
 @table @code
@@ -7370,6 +7376,7 @@ Groebner basis computations with inexact coefficients can not be trusted due to 
 
 @c ref
 See
+@ref{degBound};
 @ref{groebner};
 @ref{ideal};
 @ref{ring};
@@ -9651,7 +9658,8 @@ int
 @item @strong{Purpose:}
 The standard basis computation is stopped if the total
 (weighted) degree
-exceeds @code{degBound} - used in @code{std}, @code{slimgb}, @code{system("verifyGB",..)}
+exceeds @code{degBound} - used in @code{std}, @code{slimgb}, @code{system("verifyGB",..)},
+@code{mres},@code{nres}.
 @* @code{degBound} should not be used for a global ordering with inhomogeneous
 input, if the ordering is not @code{dp} or @code{Dp}.
 (Remark: elimination requires always an eliminiation ordering).
@@ -9674,8 +9682,11 @@ degBound = 0; //resets degree bound to infinity
 See
 @ref{deg};
 @ref{int};
+@ref{mres};
+@ref{nres};
 @ref{option};
 @ref{std};
+@ref{slimgb};
 @ref{system}.
 @c ref
 @c -----------------------------------------------------
