@@ -3,7 +3,7 @@ LIB "tst.lib"; tst_init();
   ideal i=a+b+c+d, ab+bc+cd+ae+de, abc+bcd+abe+ade+cde,
           abc+abce+abde+acde+bcde, abcde-1;
   int t=timer;
-  option(prot);
+  option(prot,pure_gb);
   ideal j1=stdfglm(i);
 //  timer-t;
   size(j1);   // size (no. of polys) in computed GB
@@ -14,6 +14,9 @@ LIB "tst.lib"; tst_init();
   // usual Groebner basis computation for lex ordering
   t=timer;
   ideal j0 =std(i);
-  option(noprot);
 //  timer-t;
+  t=timer;
+  option(nopure_gb);
+  ideal j3 =std(i);
+  option(noprot);
 tst_status(1);$

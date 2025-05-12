@@ -3,8 +3,6 @@ tst_init();
 
 LIB"primdec.lib";
 LIB"primdecint.lib";
-ideal i=x2+y2;
-primdecGTZ(i);
 ring r=(0,t),(x,y),dp;
 minpoly=t2+1;
 ideal i=x2+y2;

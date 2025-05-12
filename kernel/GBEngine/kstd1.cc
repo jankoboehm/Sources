@@ -2643,7 +2643,6 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
     }
     /* test hilbstd */
     if ( rHasGlobalOrdering(currRing)
-    && rField_is_Q(currRing)
     && (!TEST_OPT_RETURN_SB)
     && (!TEST_OPT_DEGBOUND)
     && (currRing->LexOrder

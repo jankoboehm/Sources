@@ -4,10 +4,14 @@ ring r= 0,(x,y),lp;
 poly f=x5+y11+xy9+x3y9;
 ideal i=jacob(f);
 i;
-
 option(prot, nosugarCrit);
 std(i);
-
+option(sugarCrit);
+std(i);
+// now pure_gb
+option(pure_gb);
+option(prot, nosugarCrit);
+std(i);
 option(sugarCrit);
 std(i);
 tst_status(1);$

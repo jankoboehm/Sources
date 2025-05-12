@@ -9,10 +9,14 @@
 #include "kernel/mod2.h"
 
 #include "coeffs/bigintmat.h"
+#include "coeffs/longrat.h"
 #include "misc/options.h"
 #include "misc/intvec.h"
 #include "reporter/si_signals.h"
 #include "kernel/polys.h"
+#define TRANSEXT_PRIVATES
+#include "polys/ext_fields/transext.h"
+#undef TRANSEXT_PRIVATES
 #include "kernel/GBEngine/kutil.h"
 #include "kernel/GBEngine/kstd1.h"
 #include "kernel/GBEngine/khstd.h"
@@ -87,6 +91,23 @@ poly kTryHC(ideal F, ideal Q)
 }
 
 // --------------------------------------------------------
+static number nMapQa2Zp(number a, const coeffs src, const coeffs dst)
+{
+  if (a==NULL) return a;
+  fraction f=(fraction)a;
+  poly p=NUM(f);
+  while(pNext(p)!=NULL) pIter(p);
+  return nlModP(pGetCoeff(p),src->extRing->cf,dst);
+}
+
+static number nMapZpa2Zp(number a, const coeffs src, const coeffs dst)
+{
+  if (a==NULL) return a;
+  fraction f=(fraction)a;
+  poly p=NUM(f);
+  while(pNext(p)!=NULL) pIter(p);
+  return pGetCoeff(p);
+}
 
 static ideal kTryHilbstd_homog(ideal F, ideal Q)
 {
@@ -94,11 +115,35 @@ static ideal kTryHilbstd_homog(ideal F, ideal Q)
   ring save_ring=currRing;
   BITSET save_opt;SI_SAVE_OPT1(save_opt);
   int prim=kFindLuckyPrime(F,Q);
+  //if(nCoeff_is_transExt(save_ring->cf)
+  //&&(nCoeff_is_Zp(save_ring->cf->extRing->cf)))
+  //  prim=save_ring->cf->extRing->cf->ch;
+  if(nCoeff_is_Zp(save_ring->cf))
+    prim=save_ring->cf->ch;
   coeffs cf=nInitChar(n_Zp, (void*)(long)prim);
   ring Zp_ring=rDefault(cf,save_ring->N,save_ring->names,ringorder_dp);
   // map data
   nMapFunc nMap=n_SetMap(save_ring->cf,Zp_ring->cf);
-  if (nMap==NULL) return NULL;
+  if (nMap==NULL)
+  {
+    if (nCoeff_is_transExt(save_ring->cf))
+    {
+      if (nCoeff_is_Q(save_ring->cf->extRing->cf))
+        nMap=nMapQa2Zp;
+      else if (nCoeff_is_Zp(save_ring->cf->extRing->cf))
+        nMap=nMapZpa2Zp;
+      else
+      {
+        SI_RESTORE_OPT1(save_opt);
+        return NULL;
+      }
+    }
+    else
+    {
+      SI_RESTORE_OPT1(save_opt);
+      return NULL;
+    }
+  }
   rChangeCurrRing(Zp_ring);
   ideal FF=id_PermIdeal(F,1,IDELEMS(F),NULL,save_ring,Zp_ring,nMap,NULL,0,0);
   ideal QQ=NULL;
@@ -106,7 +151,7 @@ static ideal kTryHilbstd_homog(ideal F, ideal Q)
   // compute GB in Zp_ring
   si_opt_1&= ~Sy_bit(OPT_REDSB);
   si_opt_1&= ~Sy_bit(OPT_REDTAIL);
-  if(TEST_OPT_PROT) PrintS("std in charp  ------------------\n");
+  if(TEST_OPT_PROT) Print("std in char. %d ------------------\n",prim);
   ideal GB=kStd_internal(FF,QQ,(tHomog)TRUE,NULL,NULL,0,0,NULL,NULL);
   // compute hilb
   bigintmat* hilb=hFirstSeries0b(GB,QQ,NULL,NULL,Zp_ring,coeffs_BIGINT);
@@ -128,11 +173,17 @@ static ideal kTryHilbstd_homog(ideal F, ideal Q)
 
 static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
 {
-  if(TEST_OPT_PROT) PrintS("std in charp, homogenized ------------------\n");
+  int prim=kFindLuckyPrime(F,Q);
+  //if(nCoeff_is_transExt(save_ring->cf)
+  //&&(nCoeff_is_Zp(save_ring->cf->extRing->cf)))
+  //  prim=save_ring->cf->extRing->cf->ch;
+  if(nCoeff_is_Zp(currRing->cf))
+    prim=currRing->cf->ch;
+  if(TEST_OPT_PROT) Print("std in char. %d, homogenized ------------------\n",prim);
   // create Zp_ring, need 1 more variable
   ring save_ring=currRing;
   BITSET save_opt;SI_SAVE_OPT1(save_opt);
-  coeffs cf=nInitChar(n_Zp, (void*)(long)32003);
+  coeffs cf=nInitChar(n_Zp, (void*)(long)prim);
   char **names=(char**)omAlloc0((currRing->N+1) * sizeof(char *));
   for(int i=0;i<currRing->N;i++)
   {
@@ -270,10 +321,14 @@ static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
 
 ideal kTryHilbstd(ideal F, ideal Q)
 {
+ if (rField_is_Ring(currRing)) return NULL;
  if(!TEST_V_PURE_GB)
  {
    tHomog h = (tHomog)id_HomIdealDP(F,Q,currRing);
    if (h==(tHomog)TRUE) return kTryHilbstd_homog(F,Q);
+   if((!rField_is_Q(currRing))
+   &&(!rField_is_Zp(currRing))
+   ) return NULL;
    if (h==(tHomog)FALSE) return kTryHilbstd_nonhomog(F,Q);
  }
  return NULL;

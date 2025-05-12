@@ -335,6 +335,14 @@ std_range(6,10, 32003, list("dp"));
 std_range(2,5, 0, global_orderings);
 
 std_range(6,10, 0,list("dp"));
+option(pure_gb); // --------------------------------------
+std_extended_range(2, 5, 32003, global_orderings);
+
+std_range(6,10, 32003, list("dp"));
+
+std_range(2,5, 0, global_orderings);
+
+std_range(6,10, 0,list("dp"));
 tst_status(1);$
 LIB "polylib.lib";
 killall();

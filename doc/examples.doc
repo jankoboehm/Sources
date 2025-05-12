@@ -901,6 +901,8 @@ basering with 6 variables (see @ref{Cyclic roots}). We set
 the performed computations (see @ref{option} for an interpretation of
 the displayed symbols). For long running computations, it is always
 recommended to set this option.
+The @code{option(pure_gb)} avoids the otherwise automatic swich to
+@code{stdhilb} in the @code{std} calls.
 
 
 @smallexample
@@ -908,7 +910,7 @@ recommended to set this option.
 LIB "polylib.lib";
 ring r=32003,(a,b,c,d,e,f),lp;
 ideal I=cyclic(6);
-option(prot);
+option(prot,pure_gb);
 int t=timer;
 system("--ticks-per-sec", 100);         // give time in 1/100 sec
 ideal sI=std(I);
@@ -918,6 +920,8 @@ t=timer;
 sI=groebner(I);
 timer-t;                                // used time (in 1/100 secs)
 size(sI);
+option(nopure_gb);
+sI=std(I);
 option(noprot);
 @c example
 @end smallexample
@@ -967,6 +971,8 @@ algorithm is accessible via the @code{stdhilb} command (see also @ref{std}).
 
 For the ideal below, @code{stdfglm} is more than 100 times
 and @code{stdhilb} about 10 times faster than @code{std}.
+The @code{option(pure_gb)} avoids the otherwise automatic swich to
+@code{stdhilb} in the @code{std} calls.
 
 @smallexample
 @c example
@@ -974,7 +980,7 @@ and @code{stdhilb} about 10 times faster than @code{std}.
   ideal i=a+b+c+d, ab+bc+cd+ae+de, abc+bcd+abe+ade+cde,
           abc+abce+abde+acde+bcde, abcde-1;
   int t=timer;
-  option(prot);
+  option(prot,pure_gb);
   ideal j1=stdfglm(i);
   timer-t;
   size(j1);   // size (no. of polys) in computed GB
@@ -985,8 +991,12 @@ and @code{stdhilb} about 10 times faster than @code{std}.
   // usual Groebner basis computation for lex ordering
   t=timer;
   ideal j0 =std(i);
-  option(noprot);
   timer-t;
+  option(nopure_gb);
+  t=timer;
+  ideal j0 =std(i);
+  timer-t;
+  option(noprot);
 @c example
 @end smallexample
 
