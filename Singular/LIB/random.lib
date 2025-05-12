@@ -391,7 +391,7 @@ EXAMPLE: example randomLast; shows an example
 "
 {
   ideal i=maxideal(1);
-  int k=size(i);
+  int k=nvars(basering);
   if (k<=1) { return(i);}
   i[k]=0;
   i=randomid(i,size(i),b);
