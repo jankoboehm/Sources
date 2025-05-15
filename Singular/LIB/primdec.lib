@@ -4271,6 +4271,7 @@ RETURN:  ideal, the annihilator of coker(M)
 NOTE:    The output is the ideal of all elements a of the basering R such that
          a * R^m is contained in M  (m=number of rows of M).
 EXAMPLE: example Ann; shows an example
+KEYWORDS: annihilator of a module
 "
 {
   M=prune(M);  //to obtain a small embedding
