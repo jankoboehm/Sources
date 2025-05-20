@@ -756,13 +756,10 @@ char * showOption()
 
 /* version strings */
 #ifdef HAVE_FLINT
-extern "C"
-{
 #ifndef __GMP_BITS_PER_MP_LIMB
 #define __GMP_BITS_PER_MP_LIMB GMP_LIMB_BITS
 #endif
 #include <flint/flint.h>
-}
 #endif
 
 #ifndef MAKE_DISTRIBUTION

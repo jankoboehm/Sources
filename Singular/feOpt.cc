@@ -23,9 +23,7 @@
 #include "fehelp.h"
 
 #ifdef HAVE_FLINT
-extern "C" {
 #include <flint/flint.h>
-}
 #endif
 
 const char SHORT_OPTS_STRING[] = "bdhpqstvxec:r:u:";
