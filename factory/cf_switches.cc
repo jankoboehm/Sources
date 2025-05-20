@@ -18,7 +18,9 @@
 #include "cf_switches.h"
 
 #ifdef HAVE_FLINT
+extern "C" {
 #include <flint/flint.h>
+}
 #endif
 
 /** CFSwitches::CFSwitches ()

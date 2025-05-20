@@ -25,10 +25,11 @@
  **/
 
 #ifdef HAVE_FLINT
-#include <flint/flint.h>
 
 #include "polys/matpol.h"
 #include "coeffs/bigintmat.h"
+extern "C" {
+#include <flint/flint.h>
 #include <flint/fmpz.h>
 #include <flint/fmpq.h>
 #include <flint/fmpq_mat.h>
@@ -46,6 +47,7 @@
 #include <flint/nmod_mat.h>
 #include <flint/fmpz_mat.h>
 #endif
+}
 
 int convFlintISingI (fmpz_t f);
 void convSingIFlintI(fmpz_t f, int p);
