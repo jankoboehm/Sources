@@ -530,7 +530,7 @@ static int DumpRhs(FILE *fd, idhdl h)
       if (DumpRhs(fd, (idhdl) &(l->m[i])) == EOF) return EOF;
       fputs(",",fd);
     }
-    if (nl > 0)
+    if (nl >= 0)
     {
       if (DumpRhs(fd, (idhdl) &(l->m[nl])) == EOF) return EOF;
     }
