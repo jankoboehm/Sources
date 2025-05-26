@@ -584,7 +584,7 @@ int exprlist_length(leftv v)
   return rc;
 }
 
-BOOLEAN iiWRITE(leftv,leftv v)
+BOOLEAN iiWRITE(leftv res,leftv v)
 {
   sleftv vf;
   if (iiConvert(v->Typ(),LINK_CMD,iiTestConvert(v->Typ(),LINK_CMD),v,&vf))
@@ -599,7 +599,11 @@ BOOLEAN iiWRITE(leftv,leftv v)
     return TRUE;
   }
 
-  BOOLEAN b=slWrite(l,vf.next); /* iiConvert preserves next */
+  BOOLEAN b;
+  if (strcmp(l->mode,"string")==0)
+    b=ssiWrite2(l,res,vf.next);
+  else
+   b=slWrite(l,vf.next); /* iiConvert preserves next */
   if (b)
   {
     const char *s;
@@ -6661,4 +6665,4 @@ int siSetCpus(int cpu)
   feSetOptValue(FE_OPT_CPUS,cpu);
   return old;
 }
-  
+

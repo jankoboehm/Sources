@@ -12,6 +12,7 @@
 
 BOOLEAN ssiOpen(si_link l, short flag, leftv u);
 BOOLEAN ssiWrite(si_link l, leftv v);
+BOOLEAN ssiWrite2(si_link l, leftv res, leftv v);
 leftv ssiRead1(si_link l);
 leftv ssiRead2(si_link l, leftv key);
 BOOLEAN ssiClose(si_link l);

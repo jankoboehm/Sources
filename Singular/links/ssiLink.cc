@@ -1349,9 +1349,21 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
     const char *mode;
     if (flag & SI_LINK_OPEN)
     {
-      if (l->mode[0] != '\0' && (strcmp(l->mode, "r") == 0))
+      if (strcmp(l->mode, "r") == 0)
         flag = SI_LINK_READ;
+      else if (strcmp(l->mode,"string")==0)
+      {
+        SI_LINK_SET_RW_OPEN_P(l);
+	return FALSE;
+      }
       else flag = SI_LINK_WRITE;
+    }
+    if (((flag == SI_LINK_READ)
+      || (flag == SI_LINK_WRITE))
+    && (strcmp(l->mode,"string")==0))
+    {
+      SI_LINK_SET_RW_OPEN_P(l);
+      return FALSE;
     }
 
     if (flag == SI_LINK_READ) mode = "r";
@@ -1553,6 +1565,10 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         si_close(sockfd);
       }
       // no ssi-Link on stdin or stdout
+      else if (strcmp(mode,"string")==0)
+      {
+        SI_LINK_SET_RW_OPEN_P(l);
+      }
       else
       {
         Werror("invalid mode >>%s<< for ssi",mode);
@@ -2224,6 +2240,7 @@ BOOLEAN ssiWrite(si_link l, leftv data)
 {
   if(SI_LINK_W_OPEN_P(l)==0)
      if (slOpen(l,SI_LINK_OPEN|SI_LINK_WRITE,NULL)) return TRUE;
+  if (strcmp(l->mode,"string")==0) return TRUE;
   ssiInfo *d = (ssiInfo *)l->data;
   d->level++;
   //FILE *fich=d->f;
@@ -2498,7 +2515,7 @@ si_link_extension slInitSsiExtension(si_link_extension s)
   s->Close=ssiClose;
   s->Kill=ssiClose;
   s->Read=ssiRead1;
-  s->Read2=(slRead2Proc)NULL;
+  s->Read2=ssiRead2;
   s->Write=ssiWrite;
   s->Dump=ssiDump;
   s->GetDump=ssiGetDump;
@@ -2511,9 +2528,23 @@ si_link_extension slInitSsiExtension(si_link_extension s)
 
 const char* slStatusSsi(si_link l, const char* request)
 {
+  if (strcmp(l->mode,"string")==0)
+  {
+    if (strcmp(request, "read") == 0)
+    {
+      if (SI_LINK_R_OPEN_P(l)) return "yes";
+      else return "no";
+    }
+    if (strcmp(request, "write") == 0)
+    {
+      if (SI_LINK_W_OPEN_P(l)) return "yes";
+      else return "no";
+    }
+    return "inavlid";
+  }
   ssiInfo *d=(ssiInfo*)l->data;
   if (d==NULL)
-    return "not open";
+    return "no";
   if (((strcmp(l->mode,"fork")==0)
   ||(strcmp(l->mode,"tcp")==0)
   ||(strcmp(l->mode,"connect")==0))
@@ -3133,6 +3164,30 @@ void singular_close_links()
     hh=(link_list)hh->next;
   }
   ssiToBeClosed=NULL;
+}
+
+BOOLEAN ssiWrite2(si_link l, leftv res, leftv u)
+{
+  if((strcmp(l->mode,"string")==0)
+  &&(u->Typ()==STRING_CMD))
+  {
+    StringSetS("");
+    ssiWrite_S(u, currRing);
+    res->data=(void*)StringEndS();
+    res->rtyp=STRING_CMD;
+    return res->data==NULL;
+  }
+  return TRUE;
+}
+leftv ssiRead2(si_link l, leftv u)
+{
+  if((strcmp(l->mode,"string")==0)
+  &&(u->Typ()==STRING_CMD))
+  {
+    char *s=(char*)u->Data();
+    return ssiRead1_S(&s,currRing);
+  }
+ return NULL;
 }
 // ----------------------------------------------------------------
 // format

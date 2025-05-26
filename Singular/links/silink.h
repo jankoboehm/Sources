@@ -129,4 +129,5 @@ typedef link_struct* link_list;
 
 EXTERN_VAR link_list ssiToBeClosed;
 EXTERN_VAR volatile BOOLEAN ssiToBeClosed_inactive;
+BOOLEAN ssiWrite2(si_link l, leftv res, leftv v);
 #endif // SILINK_H
