@@ -6533,6 +6533,7 @@ file is returned as a string. If the ASCII link is the empty string,
 @code{read} reads from standard input.
 @*For ssi links, one expression is read
 from the link and returned after evaluation. See @ref{Ssi links}.
+@*For @code{ssi:string} links, @code{read} reads data from the second argument.
 @*For ssi links the @code{read} command blocks as long as there is no
 data to be read from the link. The @code{status} command can be used to
 check whether or not there is data to be read.
@@ -8872,7 +8873,7 @@ See
 @*@code{write (} link@code{,} string_expression@code{,} string_expression @code{)}
 @*@code{write (} link@code{,} string_expression @code{)}
 @item @strong{Type:}
-none
+none or string
 @item @strong{Purpose:}
 writes data to a link.
 @*If the link is of type @code{ASCII}, all expressions are converted to
@@ -8885,6 +8886,7 @@ description. To prevent an evaluation of the expression before it is
 written, the @code{quote} command (possibly together with @code{eval})
 can be used. A @code{write} blocks (i.e., does not return to the prompt),
 as long as a ssi link is not ready for writing.
+@*For @code{ssi:string} links the converted data are return as @code{string}.
 @*For DBM links, @code{write} with three arguments inserts the first
 string as key and the second string as value into the dbm data
 base.
@@ -8905,8 +8907,8 @@ link l=":a outfile"; l;
 // mode : a
 // name : outfile
 // open : no
-// read : not ready
-// write: not ready
+// read : no
+// write: no
 write(l," that was f,i");
 // saving and retrieving data (ASCII format):
 ring r=32003,(x,y,z),dp;
