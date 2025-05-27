@@ -110,7 +110,7 @@ void luDecomp(const matrix aMat, matrix &pMat, matrix &lMat, matrix &uMat,
 
   /* we use an int array to store all row permutations;
      note that we only make use of the entries [1..rr] */
-  int* permut = new int[rr + 1];
+  int* permut = (int*)omAlloc((rr + 1)*sizeof(int));
   for (int i = 1; i <= rr; i++) permut[i] = i;
 
   /* fill lMat with the (rr x rr) unit matrix */
@@ -187,7 +187,7 @@ void luDecomp(const matrix aMat, matrix &pMat, matrix &lMat, matrix &uMat,
   /* building the permutation matrix from 'permut' */
   for (int r = 1; r <= rr; r++)
     MATELEM(pMat, r, permut[r]) = p_One(R);
-  delete[] permut;
+  omFreeSize(permut,(rr + 1)*sizeof(int));
 
   return;
 }
@@ -438,7 +438,7 @@ bool luSolveViaLUDecomp(const matrix pMat, const matrix lMat,
       for (nonZeroC = 1; nonZeroC <= n; nonZeroC++)
         if (MATELEM(uMat, r, nonZeroC) != NULL) break;
 
-      for (int w = lastNonZeroC - 1; w >= nonZeroC + 1; w--)
+      for (int w = lastNonZeroC - 1; w > nonZeroC; w--)
       {
         /* this loop will only be done when the given linear system has
            more than one, i.e., infinitely many solutions */
@@ -500,6 +500,7 @@ bool luSolveViaLUDecomp(const matrix pMat, const matrix lMat,
   return isSolvable;
 }
 
+#if 0
 /* for debugging:
    for printing numbers to the console
    DELETE LATER */
@@ -515,7 +516,9 @@ void printNumber(const number z)
     pDelete(&p);
   }
 }
+#endif
 
+#if 0
 /* for debugging:
    for printing matrices to the console
    DELETE LATER */
@@ -531,6 +534,7 @@ void printMatrix(const matrix m)
   }
   printf("-------------\n");
 }
+#endif
 
 /**
  * Creates a new complex number from real and imaginary parts given
@@ -538,7 +542,7 @@ void printMatrix(const matrix m)
  *
  * @return the new complex number
  **/
-number complexNumber(const double r, const double i)
+static inline number complexNumber(const double r, const double i)
 {
   gmp_complex* n= new gmp_complex(r, i);
   return (number)n;
@@ -569,6 +573,7 @@ number tenToTheMinus(
   return result;
 }
 
+#if 0
 /* for debugging:
    for printing numbers to the console
    DELETE LATER */
@@ -597,6 +602,7 @@ void printSolutions(const int a, const int b, const int c)
   printf("------\n");
   pDelete(&p);
 }
+#endif
 
 bool realSqrt(const number n, const number tolerance, number &root)
 {
@@ -613,7 +619,10 @@ bool realSqrt(const number n, const number tolerance, number &root)
   {
     nDelete(&nOld);
     nOld = root;
-    root = nAdd(nMult(oneHalf, nOld), nDiv(nHalf, nOld));
+    number t1=nMult(oneHalf, nOld);
+    number t2=nDiv(nHalf, nOld);
+    root = nAdd(t1, t2);
+    nDelete(&t1);nDelete(&t2);
     nDelete(&nDiff);
     nDiff = nSub(nOld, root);
     if (!nGreaterZero(nDiff)) nDiff = nInpNeg(nDiff);

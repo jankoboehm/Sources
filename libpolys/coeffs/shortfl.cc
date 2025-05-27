@@ -242,14 +242,14 @@ static void nrWrite (number a, const coeffs r)
   //#endif
   if (ch[0] == '-')
   {
-    char* chbr = new char[n+3];
+    char* chbr = (char*)omAlloc(n+3);
     memcpy(&chbr[2],&ch[1],n-1);
     chbr[0] = '-';
     chbr[1] = '(';
     chbr[n+1] = ')';
     chbr[n+2] = '\0';
     StringAppendS(chbr);
-    delete[] chbr;
+    omFreeSize(chbr,n+3);
   }
   else
     StringAppend("(%s)",ch);
