@@ -240,10 +240,13 @@ which includes instructions adapted for debian and fedora based systems.
 @cindex instructions, Windows installation
 @cindex howto, install on Windows
 
-Singular relies on Cygwin as its environment under Windows.
-There is a 32bit and a 64bit version of Cygwin.
-
+One possiblity is the use of Cygwin:
 @url{https://www.singular.uni-kl.de/index.php/singular-download/install-windows.html}
+
+Another spoosiblity:
+Microsoft Windows 10 and later includes the "Windows Subsystem for Linux",
+which allows users to install Ubuntu Linux and to install and
+run Singular under it (via @code{apt install singular}).
 
 @c ----------------------------------------------------------
 @node Macintosh installation instructions
