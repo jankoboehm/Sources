@@ -1354,7 +1354,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
       else if (strcmp(l->mode,"string")==0)
       {
         SI_LINK_SET_RW_OPEN_P(l);
-	return FALSE;
+        return FALSE;
       }
       else flag = SI_LINK_WRITE;
     }
@@ -3115,6 +3115,11 @@ static BOOLEAN ssiDumpIter(si_link l, idhdl h)
 }
 BOOLEAN ssiDump(si_link l)
 {
+  if (strcmp(l->mode,"string")==0)
+  {
+    WerrorS("no dump for ssi:string");
+    return TRUE;
+  }
   idhdl h = IDROOT, rh = currRingHdl;
   BOOLEAN status = ssiDumpIter(l, h);
 
@@ -3127,6 +3132,11 @@ BOOLEAN ssiDump(si_link l)
 }
 BOOLEAN ssiGetDump(si_link l)
 {
+  if (strcmp(l->mode,"string")==0)
+  {
+    WerrorS("no dump for ssi:string");
+    return TRUE;
+  }
   ssiInfo *d=(ssiInfo*)l->data;
   loop
   {
