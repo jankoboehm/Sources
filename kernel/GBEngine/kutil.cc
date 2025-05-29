@@ -7457,7 +7457,7 @@ poly redtailBba_Ring (LObject* L, int end_pos, kStrategy strat )
 /*2
 *checks the change degree and write progress report
 */
-void message (int i,int* reduc,int* olddeg,kStrategy strat, int red_result)
+void message (int i,int* olddeg,int* reduc,kStrategy strat, int red_result)
 {
   if (i != *olddeg)
   {
