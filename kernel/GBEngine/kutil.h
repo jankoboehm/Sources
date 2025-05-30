@@ -524,7 +524,7 @@ void enterpairs (poly h, int k, int ec, int pos,kStrategy strat, int atR = -1);
 void entersets (LObject h);
 void pairs ();
 BOOLEAN sbaCheckGcdPair (LObject* h,kStrategy strat);
-void message (int i,int* reduc,int* olddeg,kStrategy strat,int red_result);
+void message (int i,int* olddeg,int* reduc,kStrategy strat,int red_result);
 void messageStat (int hilbcount,kStrategy strat);
 void messageStatSBA (int hilbcount,kStrategy strat);
 #ifdef KDEBUG
