@@ -6230,7 +6230,7 @@ static BOOLEAN jjHILBERT3(leftv res, leftv u, leftv v, leftv w)
   WerrorS(feNotImplemented);
   return TRUE;
 }
-static BOOLEAN jjHILBERT3Qt(leftv res, leftv u, leftv v, leftv w)
+static BOOLEAN jjHILBERT3Qt(leftv, leftv u, leftv v, leftv w)
 {
   if (rField_is_Z(currRing))
   {
