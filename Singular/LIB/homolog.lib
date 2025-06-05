@@ -435,6 +435,30 @@ example
   printlevel = p;
 }
 ///////////////////////////////////////////////////////////////////////////////
+static proc get_weight(vector t, intvec shifts)
+{
+  int n = nrows(t);
+  for (int i = 1; i <= n; i++)
+  {
+    if (t[i] != 0)
+    {
+      return( deg(t[i]) + shifts[i]);
+    }
+  }
+  return(-1);
+}
+
+static proc get_list_of_weights(module M)
+{
+  int r = ncols(M);
+  intvec shifts = attrib(M, "isHomog");
+  intvec weights = 0:r;
+  for (int i = 1; i <= r; i++)
+  {
+    weights[i] = get_weight(M[i], shifts);
+  }
+  return(weights);
+}
 
 proc Ext_R (intvec v, module M, list #)
 "USAGE:   Ext_R(v,M[,p]);  v int resp. intvec , M module, p int
@@ -606,7 +630,14 @@ EXAMPLE: example Ext_R; shows an example
       if ((typeof(attrib(m2t,"isHomog"))!="string" ) && (withWeight))
       {
         // ------------- compute weights for dual -----------------------------
-        weightR=attrib(m2t,"isHomog");
+        if (k == 0)
+        {
+          weightR = attrib(m2t, "isHomog");
+        }
+        else
+        {
+          weightR = get_list_of_weights(resl[k]);
+        }
         // --------------------------------------------------------------------
         // *** set correct weights (at this writing, shift in resolution
         // *** is not considered when defining the weights for the
@@ -663,7 +694,14 @@ EXAMPLE: example Ext_R; shows an example
         m1 = transpose(resl[k]);
         if ((typeof(attrib(m1t,"isHomog"))!="string" ) && (withWeight)) {
         // ------------- compute weights for dual -----------------------------
-          weightR=attrib(resl[k],"isHomog");
+          if (k == 1)
+          {
+            weightR = attrib(resl[k], "isHomog");
+          }
+          else
+          {
+            weightR = get_list_of_weights(resl[k - 1]);
+          }
           // ------------------------------------------------------------------
           // *** set correct weights (at this writing, shift in resolution
           // *** is not considered when defining the weights for the
