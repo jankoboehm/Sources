@@ -1,5 +1,5 @@
 //// Singular library normaliz.lib
-version="version normaliz.lib 4.3.1.0 June_2022 "; // $Id$
+version="version normaliz.lib 4.4.1.1 June_2025 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY: normaliz.lib  Provides an interface for the use of Normaliz 3.10.0 or
@@ -1184,7 +1184,8 @@ example
   nmz_number_extreme_rays;
   nmz_rank;
   nmz_number_support_hyperplanes;
-  nmz_multiplicity;
+  if (defined(nmz_multiplicity)) {nmz_multiplicity;}
+  else {nmz_multiplicity_num;}
   nmz_primary;
 }
 
