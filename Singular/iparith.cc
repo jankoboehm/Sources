@@ -6424,7 +6424,7 @@ static BOOLEAN jjMINOR_M(leftv res, leftv v)
   const int mk = (int)(long)u->Data();
   bool noIdeal = true; bool noK = true; bool noAlgorithm = true;
   bool noCacheMinors = true; bool noCacheMonomials = true;
-  ideal IasSB; int k; char* algorithm; int cacheMinors; int cacheMonomials;
+  ideal IasSB; int k=0; char* algorithm; int cacheMinors; int cacheMonomials;
 
   /* here come the different cases of correct argument sets */
   if ((u->next != NULL) && (u->next->Typ() == IDEAL_CMD))
