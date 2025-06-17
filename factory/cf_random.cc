@@ -188,7 +188,7 @@ void factoryseed ( int s )
     ranGen.seed( s );
 
 #ifdef HAVE_FLINT
-#if (__FLINT_RELEASE>=30000)
+#if (__FLINT_RELEASE>=30300)
     flint_rand_init(FLINTrandom);
 #else
     flint_randinit(FLINTrandom);
