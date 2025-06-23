@@ -21,6 +21,20 @@
 
 @heading News for version @value{VERSION}
 
+Changed libraries:
+@itemize
+@item @code{homolog.lib}: handling of module weights (@nref{Ext_R})
+@end itemize
+
+Changes in the kernel/build system:
+@itemize
+@item changes for gcc 15
+@item changes for FLINT 3.3
+@item changes for normaliz 3.10.5
+@end itemize
+
+@heading News for version 4-4-1
+
 New libraries:
 @itemize
 @item @code{arnold.lib}: Classification of isolated singularities with a nondegenerate Newton Boundary (@nref{arnold_lib})
