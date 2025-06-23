@@ -3795,7 +3795,6 @@ BOOLEAN rComplete(ring r, int force)
 
       case ringorder_IS:
       {
-
         assume( r->block0[i] == r->block1[i] );
         const int s = r->block0[i];
         assume( -2 < s && s < 2);

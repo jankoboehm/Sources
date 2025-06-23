@@ -3158,6 +3158,7 @@ static BOOLEAN jjREDUCE_ID(leftv res, leftv u, leftv v)
 }
 static BOOLEAN jjRES(leftv res, leftv u, leftv v)
 {
+// handles hres,kres,lres,mres,nres,sres
   int maxl=(int)(long)v->Data();
   if (maxl<0)
   {
@@ -3170,7 +3171,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
   ideal u_id=(ideal)u->Data();
 
   maxl--;
-  if (/*(*/ maxl==-1 /*)*/) /*&& (iiOp!=MRES_CMD)*/
+  if (maxl==-1)
   {
     maxl = currRing->N-1+2*(iiOp==MRES_CMD);
     if (currRing->qideal!=NULL)
@@ -3212,8 +3213,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
     if((currRing->qideal!=NULL)||
     (!idHomIdeal (u_id,NULL)))
     {
-       WerrorS
-       ("`lres` not implemented for inhomogeneous input or qring");
+       WerrorS("`lres` not implemented for inhomogeneous input or qring");
        return TRUE;
     }
     if(currRing->N == 1)
