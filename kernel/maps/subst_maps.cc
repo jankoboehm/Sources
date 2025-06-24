@@ -30,9 +30,16 @@ static poly p_SubstMon(poly p, int var, poly image, const ring preimage_r, const
     else
       h=p_One(image_r);
   }
-  p_Setm(q,image_r);
-  h=p_Mult_mm(h,q,image_r);
-  p_LmDelete(q,image_r);
+  if (LIKELY(q!=NULL))
+  {
+    p_Setm(q,image_r);
+    h=p_Mult_mm(h,q,image_r);
+    p_LmDelete(q,image_r);
+  }
+  else
+  {
+    p_Delete(&h,image_r);
+  }
   return h;
 }
 

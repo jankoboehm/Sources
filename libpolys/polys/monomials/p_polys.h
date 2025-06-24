@@ -1032,7 +1032,7 @@ static inline BOOLEAN p_LmIsConstant(const poly p, const ring r)
 // returns Copy(p)*m, does neither destroy p nor m
 static inline poly pp_Mult_mm(poly p, poly m, const ring r)
 {
-  if (p==NULL) return NULL;
+  if ((p==NULL)||(m==NULL)) return NULL;
   if (p_LmIsConstant(m, r))
     return __pp_Mult_nn(p, pGetCoeff(m), r);
   else
@@ -1042,7 +1042,7 @@ static inline poly pp_Mult_mm(poly p, poly m, const ring r)
 // returns m*Copy(p), does neither destroy p nor m
 static inline poly pp_mm_Mult(poly p, poly m, const ring r)
 {
-  if (p==NULL) return NULL;
+  if ((p==NULL)||(m==NULL)) return NULL;
   if (p_LmIsConstant(m, r))
     return __pp_Mult_nn(p, pGetCoeff(m), r);
   else
@@ -1053,6 +1053,11 @@ static inline poly pp_mm_Mult(poly p, poly m, const ring r)
 static inline poly p_Mult_mm(poly p, poly m, const ring r)
 {
   if (p==NULL) return NULL;
+  if (UNLIKELY(m==NULL)) /* && (p!=NULL) */
+  {
+    r->p_Procs->p_Delete(&p, r);
+    return NULL;
+  }
   if (p_LmIsConstant(m, r))
     return __p_Mult_nn(p, pGetCoeff(m), r);
   else
