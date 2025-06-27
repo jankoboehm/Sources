@@ -869,7 +869,7 @@ resolvente sySchreyerResolvente(ideal arg, int maxlength, int * length,
     return NULL;
   }
   *length = 4;
-  resolvente res = (resolvente)omAlloc0(4*sizeof(ideal)),newres;
+  resolvente res = (resolvente)omAlloc0((*length)*sizeof(ideal)),newres;
   res[0] = idCopy(arg);
 
   while ((!idIs0(res[syzIndex])) && ((maxlength==-1) || (syzIndex<maxlength)))
