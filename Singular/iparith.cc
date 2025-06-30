@@ -3173,7 +3173,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
   maxl--;
   if (maxl==-1)
   {
-    if ((iiOp!=MRES_CMD) && (iiOp!=RES_CMD))
+    if ((iiOp!=MRES_CMD) && (iiOp!=RES_CMD)&&(iiOp!=SRES_CMD))
       maxl = currRing->N-1;
     if (currRing->qideal!=NULL)
     {

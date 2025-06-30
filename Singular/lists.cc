@@ -241,10 +241,16 @@ lists liMakeResolv(resolvente r, int length, int reallen,
 {
   // re-uses r, weights[i]
   lists L=(lists)omAlloc0Bin(slists_bin);
-  if (length<=0)
+  if (length<0)
   {
     // handle "empty" resolutions
     L->Init(0);
+  }
+  else if (length==0)
+  {
+    L->Init(1);
+    L->m[0].rtyp=typ0;
+    L->m[0].data=(void*)idInit(1,1);
   }
   else
   {

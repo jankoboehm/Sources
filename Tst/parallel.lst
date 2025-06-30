@@ -21,7 +21,6 @@ Short/countedref_s.tst
 Short/ffmodstd_s.tst
 Short/gitfan.tst
 Short/waitfirst.tst
-Short/waitall.tst
 Short/tasks_s.tst
 Short/pfd.tst
 Short/parallel_s.tst

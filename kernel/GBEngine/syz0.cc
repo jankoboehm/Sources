@@ -1018,6 +1018,8 @@ resolvente sySchreyerResolvente(ideal arg, int maxlength, int * length,
 syStrategy sySchreyer(ideal arg, int maxlength)
 {
   int rl;
+  BOOLEAN inf_length=(maxlength==0);
+  if (inf_length) maxlength=rVar(currRing)+2;
   resolvente fr = sySchreyerResolvente(arg,maxlength,&(rl));
   if (fr==NULL) return NULL;
 
@@ -1067,6 +1069,29 @@ syStrategy sySchreyer(ideal arg, int maxlength)
       idDelete(&result->fullres[rl-1]);
     }
   }
+  if (inf_length)
+  {
+    int i=0;
+    loop
+    {
+      if(result->fullres[i]!=NULL)
+      {
+        if(idIs0(result->fullres[i])) // delete everything else
+        {
+          for(int j=i+1;j<=rl;j++)
+          {
+            if(result->fullres[j]!=NULL) idDelete(&result->fullres[j]);
+          }
+          rl=i;
+          break;
+        }
+      }
+      i++;
+      if (i>rl) break;
+    }
+    result->length=rl;
+  }
+
   omFreeSize((ADDRESS)fr,(rl /*result->length*/)*sizeof(ideal));
   return result;
 }

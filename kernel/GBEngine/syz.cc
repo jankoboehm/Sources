@@ -385,11 +385,13 @@ void syMinimizeResolvente(resolvente res, int length, int first)
     syMinStep(res[syzIndex-1],res[syzIndex]);
   if (!idIs0(res[0]))
     idMinEmbedding(res[0],TRUE);
+  if((length>0) && (res[length]!=NULL) && idIs0(res[length]))
+    idDelete(&res[length]);
 }
 
 /*2
 * resolution of ideal/module arg, <=maxlength steps, (r[0..maxlength])
-*   no limitation in length if maxlength==0
+*   no limitation in length if maxlength==-1
 * input:arg
 *       minim: TRUE means mres cmd, FALSE nres cmd.
 *       if *len!=0: module weights: weights[0]
