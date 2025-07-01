@@ -3174,7 +3174,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
   if (maxl==-1)
   {
     if ((iiOp!=MRES_CMD) && (iiOp!=RES_CMD)&&(iiOp!=SRES_CMD))
-      maxl = currRing->N-1;
+      maxl = currRing->N;
     if (currRing->qideal!=NULL)
     {
       maxl = currRing->N-1+2*(iiOp==MRES_CMD);
@@ -3250,15 +3250,18 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
     idDelete(&u_id_copy);
   }
   if (r==NULL) return TRUE;
-  if (r->list_length>wmaxl)
+  if (wmaxl>0)
   {
-    for(int i=wmaxl-1;i>=r->list_length;i--)
+    if (r->list_length>wmaxl)
     {
-      if (r->fullres[i]!=NULL) id_Delete(&r->fullres[i],currRing);
-      if (r->minres[i]!=NULL) id_Delete(&r->minres[i],currRing);
+      for(int i=wmaxl-1;i>=r->list_length;i--)
+      {
+        if (r->fullres[i]!=NULL) id_Delete(&r->fullres[i],currRing);
+        if (r->minres[i]!=NULL) id_Delete(&r->minres[i],currRing);
+      }
     }
+    r->list_length=wmaxl;
   }
-  r->list_length=wmaxl;
   res->data=(void *)r;
   if ((weights!=NULL) && (ww!=NULL)) { delete ww; ww=NULL; }
   if ((r->weights!=NULL) && (r->weights[0]!=NULL))

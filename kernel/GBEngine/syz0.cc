@@ -1076,7 +1076,7 @@ syStrategy sySchreyer(ideal arg, int maxlength)
     {
       if(result->fullres[i]!=NULL)
       {
-        if(idIs0(result->fullres[i])) // delete everything else
+        if(idIs0(result->fullres[i])) // delete everything after pos i
         {
           for(int j=i+1;j<=rl;j++)
           {
@@ -1090,6 +1090,14 @@ syStrategy sySchreyer(ideal arg, int maxlength)
       if (i>rl) break;
     }
     result->length=rl;
+    if (!idIs0(result->fullres[rl])) // add trailing 0-ideal
+    {
+      if(result->fullres[rl+1]==NULL)
+      {
+        result->fullres[rl+1]=idInit(1,1);
+        result->length=rl+1;
+      }
+    }
   }
 
   omFreeSize((ADDRESS)fr,(rl /*result->length*/)*sizeof(ideal));
