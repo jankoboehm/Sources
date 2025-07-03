@@ -1,5 +1,5 @@
 //// Singular library normaliz.lib
-version="version normaliz.lib 4.4.1.1 June_2025 "; // $Id$
+version="version normaliz.lib 4.4.1.2 July_2025 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY: normaliz.lib  Provides an interface for the use of Normaliz 3.10.0 or
@@ -434,6 +434,41 @@ static proc getInt(string s, int p)
 {
     string nst;
     int i,j,en,sn;
+
+    for(;p<=size(s);p++)
+    {
+
+        if(digit(s[p]))
+        {
+            sn=p; break;
+        }
+    }
+    if(not(sn))
+    {
+        return(0,-1); // -1 indicates: no number found
+    }
+    p++;
+    for(;p<=size(s);p++)
+    {
+        if(!digit(s[p]))
+        {
+            en=p-1; break;
+        }
+    }
+    if(p>size(s))
+    {
+        en=size(s);
+    }
+    nst="i="+s[sn,en-sn+1];
+    execute(nst);
+    return(i,p);
+}
+
+static proc getBigInt(string s, int p)
+{
+    string nst;
+    int j,en,sn;
+    bigint i;
 
     for(;p<=size(s);p++)
     {
@@ -982,6 +1017,7 @@ static proc runNormaliz(list #)
     }
 
     Num_Invs=getNuminvs();
+
     int gens_computed = 0;
     for( int i = 1; i <= size(Num_Invs); i = i+1){
         if(Num_Invs[i][1] == "hilbert_basis_elements"){
@@ -1018,6 +1054,12 @@ RETURN:   The function applies Normaliz to the matrix input_mat ofe type nmz_typ
           The function returns the intmat defined by the file ith suffix gen, provided it has been computed. Otherwise it returns the input_mat.
 NOTE:     You will find procedures for many applications of Normaliz in this
           library, so the explicit call of this procedure may not be necessary.
+
+          The function reads the numerical invariants computed by normaliz. The integers among
+          them are converted to the Singular type int. It may to bee too small for
+          the Hilbert function or the multiplicity, especially if computed for a non-standard grading.
+          To prevent a disaster set the predefined global variable BigNumInvs = 1. Returnung to
+          BigNumInvs = 0 switches this feature off.
 SEE ALSO: intclToricRing, normalToricRing, ehrhartRing, intclMonIdeal,
           torusInvariants, diagInvariants, finiteDiagInvariants, intersectionValRings,
              intersectionValRingIdeals
@@ -1048,8 +1090,10 @@ static proc getNuminvs()
     string s;
     list num_invs;
     int p,sw,v_length,i,dummy_int;
+    bigint DummyInt;
     intvec dummy_vec;
     string type_inv,name_inv,dummy_bool;
+    int make_big_int;
 
     link in_f=":r "+ getNmzFile() + "."+"inv";
     s=read(in_f);
@@ -1072,23 +1116,46 @@ static proc getNuminvs()
             {
                 name_inv="h_vector";
             }
+            make_big_int = 0;
+            if(name_inv == "hilbert_series_num" || name_inv == "hilbert_series_cyclo_num"){
+                if(BigNumInvs){
+                    make_big_int = 1;
+                }
+            }
+              if(defined(DummyMat)==voice){
+                kill(DummyMat);
+            }
+            bigintmat DummyMat[1][v_length];
             if(name_inv!="hilbert_polynomial"
               && name_inv!="hilbert_quasipolynomial")
             {
                 for(i=1;i<=v_length;i++)
                 {
-                    if(i==1)
+                    if(i==1 && !make_big_int)
                     {
-                        (dummy_int,p)=getInt(s,p);
-                        dummy_vec=dummy_int;
+                        if(!make_big_int){
+                            (dummy_int,p)=getInt(s,p);
+                            dummy_vec=dummy_int;
+                        }
                     }
                     else
                     {
-                        (dummy_int,p)=getInt(s,p);
-                        dummy_vec=dummy_vec,dummy_int;
+                        if(!make_big_int){
+                            (dummy_int,p)=getInt(s,p);
+                            dummy_vec=dummy_vec,dummy_int;
+                        }
+                        else{
+                            (DummyInt,p) = getBigInt(s,p);
+                            DummyMat[1,i] = DummyInt;
+                        }
                     }
                 }
-                num_invs=num_invs+list(list(name_inv,dummy_vec,"intvec"));
+                if(!make_big_int){
+                    num_invs=num_invs+list(list(name_inv,dummy_vec,"intvec"));
+                }
+                else{
+                    num_invs=num_invs+list(list(name_inv,DummyMat,"bigintvec", v_length));
+                }
             }
             else
             {
@@ -1100,8 +1167,14 @@ static proc getNuminvs()
             (sw,p)=nextWord(s,p);
             name_inv=s[sw..p-1];
             if (name_inv!="hilbert_quasipolynomial_denom") {
-              (dummy_int,p)=getInt(s,p);
-              num_invs=num_invs+list(list(name_inv,dummy_int,"int"));
+                if(!BigNumInvs || (name_inv != "multiplicity" && name_inv != "multiplicity_num" && name_inv != "multiplicity_denom")){
+                   (dummy_int,p)=getInt(s,p);
+                    num_invs=num_invs+list(list(name_inv,dummy_int,"int"));
+                }
+                else {
+                    (DummyInt,p)=getBigInt(s,p);
+                    num_invs=num_invs+list(list(name_inv,dummy_int,"bigint"));
+                }
             }
         }
         if(type_inv=="boolean")
@@ -1121,6 +1194,7 @@ static proc getNuminvs()
     }
     return(num_invs);
 }
+
 
 proc showNuminvs()
 "USAGE:   showNuminvs();
@@ -1168,7 +1242,15 @@ EXAMPLE:  example exportNuminvs; shows an example
     for(i=1;i<=size(Num_Invs);i++)
     {
         dummy=Num_Invs[i];
-        s=dummy[3]+" nmz_" + dummy[1] + "=dummy[2]; exportto(Top," + "nmz_" + dummy[1] + ");";
+        if(dummy[3] != "bigintvec"){
+            s=dummy[3]+" nmz_" + dummy[1] + "=dummy[2]; exportto(Top," + "nmz_" + dummy[1] + ");";
+        }
+        else{
+            s = "bigintmat " + "nmz_" + dummy[1] + "[1][";
+            s = s + string(dummy[4]) + "]";
+            s = s + " = dummy[2];  exportto(Top," + "nmz_" + dummy[1] + ");";
+        }
+
         execute(s);
     }
     Exported_Num_Invs = Num_Invs;
@@ -1184,8 +1266,7 @@ example
   nmz_number_extreme_rays;
   nmz_rank;
   nmz_number_support_hyperplanes;
-  if (defined(nmz_multiplicity)) {nmz_multiplicity;}
-  else {nmz_multiplicity_num;}
+  nmz_multiplicity;
   nmz_primary;
 }
 
@@ -1593,7 +1674,7 @@ RETURN:   The toric ring S is the subalgebra of the basering generated by the
           leading monomials of the elements of I (considered as a list of
           polynomials). The function computes the computes the definig binomial
           ideal J of S with respect to the generators and returns it, together with
-          J. See eample.
+          J. DSee eample.
 NOTE:     A mathematical remark: the toric ring depends on the list of
           monomials given, and not only on the ideal they generate!
           This function requires the previous setting of an NmzFilename.
@@ -2093,13 +2174,13 @@ static proc mod_init()
   // int GenGen=1; export GenGen; // indicates whether "gen" is generated // no longer used
   list Num_Invs; export Num_Invs;
   list Exported_Num_Invs; export Exported_Num_Invs;
-// running normaliz (with options)
 
+// options for running normaliz
+//
 // component 1 is name of option
 // 2 is default value
 // 3 is command line option to be passed to Normaliz
-// 4 indicates whether file "gen" is generated
-// value 2 of 4 indicates "no influence"
+// 4 is a potential comment pointing to better use
 
   list nmz_options=
         list("supp",0,"-s"),
@@ -2138,4 +2219,7 @@ static proc mod_init()
     export nmz_options;
     list default_options = nmz_options;
     export default_options;
+
+    int BigNumInvs = 0;
+    exportto(Top, BigNumInvs);
 }
