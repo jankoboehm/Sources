@@ -1266,7 +1266,8 @@ example
   nmz_number_extreme_rays;
   nmz_rank;
   nmz_number_support_hyperplanes;
-  nmz_multiplicity;
+  if (defined(nmz_multiplicity)) {nmz_multiplicity;}
+  else {nmz_multiplicity_num;}
   nmz_primary;
 }
 
