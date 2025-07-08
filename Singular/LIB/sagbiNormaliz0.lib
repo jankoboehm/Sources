@@ -1,9 +1,9 @@
 //// Singular library normaliz.lib
-version="version sagbiNormaliz.lib 4.4.0.6 Okt_2024 "; // $Id$
+version="version sagbiNormaliz0.lib 4.4.0.6 Okt_2024 "; // $Id$
 category="Commutative Algebra";
 info="
-LIBRARY: sagbiNormaliz.lib  Provides an interface for the computation of Sagbi bases.
-It uses normaliz.lib (version 4... or higher) for combinatorial computations.
+LIBRARY: sagbiNormaliz0.lib  Provides an interface for the computation of Sagbi bases.
+It uses normaliz (version 3.10.1 or higher) for combinatorial computations.
 
 AUTHORS: Winfried Bruns, wbruns@uos.de
 
