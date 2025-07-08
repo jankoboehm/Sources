@@ -716,7 +716,7 @@ void * sleftv::CopyD(int t)
   if (Sy_inset(FLAG_OTHER_RING,flag))
   {
      flag&=~Sy_bit(FLAG_OTHER_RING);
-     WerrorS("object from another ring");
+     Werror("object(of type %s) from another ring",Tok2Cmdname(t));
      return NULL;
   }
 
@@ -1196,7 +1196,7 @@ void * sleftv::Data()
   if (Sy_inset(FLAG_OTHER_RING,flag))
   {
      flag&=~Sy_bit(FLAG_OTHER_RING);
-     WerrorS("object from another ring");
+     Werror("object(of type %s) from another ring",Tok2Cmdname(rtyp));
      return NULL;
   }
   if (e==NULL)
