@@ -63,7 +63,6 @@ sagbiDefIdealByDegree(ideal Q, int Sagbi_degree_bound,[,int sorting, int verb]) 
 
 ";
 
-LIB "normaliz.lib";
 LIB "finvar.lib";
 
 // ------------------------------------------------
@@ -1586,6 +1585,7 @@ static proc mod_init()
   { LIB"sagbiNormaliz0.lib";
     ERROR("normaliz 3.10.5 or newwer required");
   }
+  LIB "normaliz.lib";
     int swallow;
     addNmzOption("MRK","MarkovBasis");
     addNmzOption("REP","Representations");

@@ -55,7 +55,7 @@ PROCEDURES:
  gcdTest(I);
  zero_decomp(I,..); list of primary ideals and their radicals (I zero dimensional)
 
-SEE ALSO: primdecint_lib
+SEE ALSO: primdecint_lib; modprimdec_lib
 KEYWORDS: primary decomposition
 ";
 
@@ -5625,6 +5625,7 @@ NOTE:    - Algorithm of Gianni/Trager/Zacharias.
          - For local and mixed orderings, the decomposition in the
            corresponding global ring is returned if the string 'global'
            is specified as second argument
+SEE ALSO: modPrimdecGTZ
 EXAMPLE: example primdecGTZE; shows an example
 "
 {

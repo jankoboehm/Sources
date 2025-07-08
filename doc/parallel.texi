@@ -25,10 +25,10 @@ Via modular methods, requires QQ as coefficient field:
 @item farey: @ref{farey}
 @item locNormal: @ref{locNormal}
 @item modNormal: @ref{modNormal}
-@item modPrimdecGTZ: @ref{modPrimdecGTZ}, sequentiell: @ref{primdecGTZ}
-@item modQuotient: @ref{modQuotient}, sequentiell: @ref{quotient}
-@item modSat: @ref{modSat}, sequentiell: @ref{sat}
-@item modStd: @ref{modStd}, sequentiell: @ref{std}, see also: @ref{groebner}
+@item modPrimdecGTZ: @ref{modPrimdecGTZ}, see also: @ref{primdecGTZ}
+@item modQuotient: @ref{modQuotient}, see also: @ref{quotient}
+@item modSat: @ref{modSat}, see also: @ref{sat}
+@item modStd: @ref{modStd}, see also: @ref{std}, @ref{groebner}
 @item pdf: @ref{pfd}
 @item syModStd: @ref{syModStd}
 @item system("verifyGB",I): @ref{system}
