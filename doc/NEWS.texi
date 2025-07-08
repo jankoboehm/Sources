@@ -24,6 +24,9 @@
 Changed libraries:
 @itemize
 @item @code{homolog.lib}: handling of module weights (@nref{Ext_R})
+@item @code{normaliz.lib}: new version (@nref{normaliz_lib})
+@item @code{sagbiNormaliz.lib}: new version for normaliz 3.10.5 (@nref{sagbiNormaliz_lib})
+@item @code{sagbiNormaliz0.lib}: version for normaliz <=3.10.1 (@nref{sagbiNormaliz0_lib})
 @end itemize
 
 Changes in the kernel/build system:
