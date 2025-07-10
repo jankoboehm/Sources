@@ -10426,9 +10426,15 @@ BOOLEAN newHEdge(kStrategy strat)
   newNoether = pLmInit(strat->kNoether);
   pSetCoeff0(newNoether,nInit(1));
   j = p_FDeg(newNoether,currRing);
-  for (i=1; i<=(currRing->N); i++)
+  // newNoether is now the new highest edge (on the boundary)
+  // now find the highest inner monomial,
+  pIncrExp(newNoether,currRing->N);
+  for (i=currRing->N;i>0; i--)
   {
-    if (pGetExp(newNoether, i) > 0) pDecrExp(newNoether,i);
+    if (pGetExp(newNoether, i) > 0)
+    {
+      pDecrExp(newNoether,i);
+    }
   }
   pSetm(newNoether);
   if (j < HCord) /*- statistics -*/
