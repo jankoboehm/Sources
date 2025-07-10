@@ -27,7 +27,7 @@ SLIB0 = absfact.lib ainvar.lib aksaka.lib alexpoly.lib algebra.lib \
 	resgraph.lib resjung.lib resolve.lib \
 	reszeta.lib ring.lib ringgb.lib rinvar.lib rootsmr.lib rootsur.lib \
 	sagbi.lib sheafcoh.lib sing.lib sing4ti2.lib signcond.lib \
-	sagbiNormaliz.lib sagbiNormaliz0.lib\
+	sagbiNormaliz.lib\
 	solve.lib spcurve.lib spectrum.lib standard.lib stanleyreisner.lib stratify.lib \
 	surf.lib surf_jupyter.lib surfacesignature.lib surfex.lib \
 	teachstd.lib toric.lib triang.lib \
@@ -58,6 +58,7 @@ SLIB1 = arr.lib arnold.lib arnoldclassify.lib \
 	puiseuxexpansions.lib \
 	realizationMatroids.lib resources.lib \
 	rootisolation.lib rwalk.lib rstandard.lib \
+	sagbiNormaliz0.lib\
 	schreyer.lib sets.lib SingularityDBM.lib symodstd.lib schubert.lib swalk.lib \
 	ssi.lib \
 	tateProdCplxNegGrad.lib tasks.lib tropical.lib \

@@ -1506,6 +1506,7 @@ example
     "defining ideal";
     Result.defIdeal;
     "retract";
+    if(defined(Result.r_retract)){ def s=Result.r_retract;setring s;}
     Result.retract;
 }
 
@@ -1572,6 +1573,7 @@ example
     "defining ideal";
     Result.defIdeal;
     "retract";
+    if(defined(Result.r_retract)) {def s=Result.r_retract;setring s;}
     Result.retract;
 }
 // ------------------------------------------------
@@ -1581,17 +1583,13 @@ example
 static proc mod_init()
 {
   string ver=read("|: normaliz --version");
-  if (ver<"Normaliz 3.10.5")
-  { LIB"sagbiNormaliz0.lib";
-    ERROR("normaliz 3.10.5 or newwer required");
-  }
-  LIB "normaliz.lib";
+  if(!defined(Normaliz)) { LIB "normaliz.lib";}
     int swallow;
     addNmzOption("MRK","MarkovBasis");
     addNmzOption("REP","Representations");
     addNmzOption("BPK","BinomialsPacked");
     addNmzOption("cyclo","OnlyCyclotomicHilbSer");
-    swallow =addNmzOption("noquasi","NoQuasiPolynomial");
+    addNmzOption("noquasi","NoQuasiPolynomial");
     swallow = setNmzOption("BPK", 1);
     swallow = setNmzOption("MRK",0);
     swallow =setNmzOption("REP",0);
@@ -1611,5 +1609,10 @@ static proc mod_init()
     newstruct("sagbiResult","int success, ideal sagbiBasis, ideal defIdeal, ideal retract");
     int Cyclotomic = 0;
     export(Cyclotomic);
+  if (ver<"Normaliz 3.10.5")
+  { option(noredefine);LIB"sagbiNormaliz0.lib";option(redefine);
+    "*****  normaliz 3.10.5 or newer required";
+    "*****  loading sagbiNormaliz0.lib instead";
+  }
 }
 
