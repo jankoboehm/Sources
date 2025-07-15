@@ -1602,6 +1602,7 @@ BOOLEAN iiCheckRing(int i)
   return FALSE;
 }
 
+/// the smallest monomial not in R/I
 poly    iiHighCorner(ideal I, int ak)
 {
   int i;
@@ -1613,9 +1614,10 @@ poly    iiHighCorner(ideal I, int ak)
     if (po!=NULL)
     {
       pGetCoeff(po)=nInit(1);
-      for (i=rVar(currRing); i>0; i--)
+      for (i=rVar(currRing)-1; i>0; i--)
       {
-        if (pGetExp(po, i) > 0) pDecrExp(po,i);
+        int e;
+        if ((e=pGetExp(po, i)) > 0) pSetExp(po,i,e-1);
       }
       pSetComp(po,ak);
       pSetm(po);
@@ -3983,7 +3985,8 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
 
     for( i=rVar(currRing); i>0; i-- )
     {
-      if( pGetExp( hc,i )>0 ) pDecrExp( hc,i );
+      int e;
+      if( (e=pGetExp( hc,i ))>0 ) pSetExp( hc,i,e-1 );
     }
     pSetm( hc );
   }

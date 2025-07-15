@@ -7916,8 +7916,8 @@ Gauss-Manin system: for gmspoly.lib, gmssing.lib
 @c ..........................
 @item @code{system("HC")}
 @cindex system, HC
-returns the degree of the "highest corner" from the last
-std computation (or 0).
+returns the degree of the "highest corner" (smallest monomial not in R/I) 
+from the last std computation (or 0).
 @c ..........................
 @item @code{system("hessenberg",} matrix @code{)}
 @cindex system, hessenberg

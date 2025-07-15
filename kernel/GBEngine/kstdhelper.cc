@@ -76,7 +76,8 @@ poly kTryHC(ideal F, ideal Q)
     //p_IncrExp(HC,Zp_ring->N,Zp_ring);
     for (int i=rVar(Zp_ring)-1; i>0; i--)
     {
-      if (pGetExp(HC, i) > 0) pDecrExp(HC,i);
+      int e;
+      if ((e=pGetExp(HC, i)) > 0) pSetExp(HC,i,e-1);
     }
     p_Setm(HC,Zp_ring);
     if (TEST_OPT_PROT) Print("HC(%ld) found\n",pTotaldegree(HC));

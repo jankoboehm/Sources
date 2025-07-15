@@ -10431,9 +10431,11 @@ BOOLEAN newHEdge(kStrategy strat)
   //pIncrExp(newNoether,currRing->N);
   for (i=currRing->N-1;i>0; i--)
   {
-    if (pGetExp(newNoether, i) > 0)
+    int e;
+    if ((e=pGetExp(newNoether, i)) > 0)
     {
-      pDecrExp(newNoether,i);
+      e--;
+      pSetExp(newNoether,i,e);
     }
   }
   pSetm(newNoether);
