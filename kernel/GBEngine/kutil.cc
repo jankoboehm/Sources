@@ -10427,8 +10427,8 @@ BOOLEAN newHEdge(kStrategy strat)
   pSetCoeff0(newNoether,nInit(1));
   j = p_FDeg(newNoether,currRing);
   // newNoether is now the new highest edge (on the boundary)
-  // now find the highest monomial in R/I
-  //pIncrExp(newNoether,currRing->N);
+  // now find the next monomial after highest monomial in R/I
+  // (the smallest monomial not in R/I)
   for (i=currRing->N-1;i>0; i--)
   {
     int e;

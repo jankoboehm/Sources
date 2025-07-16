@@ -36,6 +36,7 @@ Changes in the kernel/build system:
 @item changes for normaliz 3.10.5
 @item @code{nres},@code{mres},@code{prune_map}: allow rings as coefficients
 (@nref{nres},@nref{mres},@nref{prune_map})
+@item @code{read},@code{write} support a link (@code{"ssi:string"}) to read/write data encoded as strings (@nref{read},@nref{write})
 @end itemize
 
 @heading News for version 4-4-1
