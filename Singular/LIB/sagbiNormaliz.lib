@@ -1582,7 +1582,8 @@ example
 
 static proc mod_init()
 {
-  string ver=read("|: normaliz --version");
+  if(size(system("executable","normaliz"))>0)
+  {string @ver=read("|: normaliz --version");}
   if(!defined(Normaliz)) { LIB "normaliz.lib";}
     int swallow;
     addNmzOption("MRK","MarkovBasis");
@@ -1609,10 +1610,13 @@ static proc mod_init()
     newstruct("sagbiResult","int success, ideal sagbiBasis, ideal defIdeal, ideal retract");
     int Cyclotomic = 0;
     export(Cyclotomic);
-  if (ver<"Normaliz 3.10.5")
-  { option(noredefine);LIB"sagbiNormaliz0.lib";option(redefine);
-    "*****  normaliz 3.10.5 or newer required";
-    "*****  loading sagbiNormaliz0.lib instead";
+  if(defined(@ver))
+  {
+    if (ver<"Normaliz 3.10.5")
+    { option(noredefine);LIB"sagbiNormaliz0.lib";option(redefine);
+      "*****  normaliz 3.10.5 or newer required";
+      "*****  loading sagbiNormaliz0.lib instead";
+    }
   }
 }
 
