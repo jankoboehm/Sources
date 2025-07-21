@@ -1612,7 +1612,7 @@ static proc mod_init()
     export(Cyclotomic);
   if(defined(@ver))
   {
-    if (ver<"Normaliz 3.10.5")
+    if (@ver<"Normaliz 3.10.5")
     { option(noredefine);LIB"sagbiNormaliz0.lib";option(redefine);
       "*****  normaliz 3.10.5 or newer required";
       "*****  loading sagbiNormaliz0.lib instead";
