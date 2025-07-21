@@ -411,7 +411,6 @@ resolvente syResolvente(ideal arg, int maxlength, int * length,
   int i,k,syzIndex = 0,j,rk_arg=si_max(1,(int)id_RankFreeModule(arg,currRing));
   int Kstd1_OldDeg=Kstd1_deg;
   BOOLEAN completeMinim;
-  BOOLEAN oldDegBound=TEST_OPT_DEGBOUND;
   BOOLEAN setRegularity=TRUE;
   int wlength=*length;
 
@@ -600,8 +599,6 @@ resolvente syResolvente(ideal arg, int maxlength, int * length,
   if (w !=NULL) delete w;
 
   Kstd1_deg=Kstd1_OldDeg;
-  if (!oldDegBound)
-    si_opt_1 &= ~Sy_bit(OPT_DEGBOUND);
 
   for (i=1; i<=syzIndex; i++)
   {
