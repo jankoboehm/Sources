@@ -118,20 +118,22 @@ ideal maMapIdeal(const ideal map_id, const ring preimage_r,const ideal image_id,
     && (map_id->nrows==1) /* i.e. only for ideal/map */
     && (map_id->rank==1))
     {
-      int sz=IDELEMS(map_id);
+      int sz=IDELEMS(image_id);
       int sz_l=0;
-      int sz_more=0;
-      int t,i;
-      for(i=sz-1;i>=0;i--)
+      int i;
+      int sz_source=0;
+      for(i=IDELEMS(map_id)-1;i>=0;i--)
       {
-        sz_l+=pLength(map_id->m[i]);
+        sz_source+=pLength(map_id->m[i]);
       }
       for(i=IDELEMS(image_id)-1;i>=0;i--)
       {
-        t=pLength(image_id->m[i]);
-        if ((t==0) || (t>1)) sz_more++;
+        sz_l+=pLength(image_id->m[i]);
       }
-      if (((sz_l > sz*2) && (sz_more != 1))||(sz<5))
+      // few, but complex terms: sz_l/sz large, or few variables,
+      // or sz_source small
+      //printf("avg term len map:%d,N=%d, avg.image len:%d, im.len:%d\n",sz_l/sz,sz,sz_source/IDELEMS(image_id),sz_source);
+      if ((sz_l > sz*5)||(sz<5)||(sz_source<100))
       {
         if (TEST_OPT_PROT) PrintS("map via common subexpressions\n");
         return fast_map_common_subexp(map_id, preimage_r, image_id, image_r);
