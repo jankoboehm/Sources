@@ -16,6 +16,8 @@
 #include "polys/simpleideals.h"
 #include "polys/prCopy.h"
 #include "polys/monomials/maps.h"
+#include "polys/sbuckets.h"
+
 
 #ifdef HAVE_PLURAL
 #include "polys/nc/nc.h"
@@ -129,27 +131,17 @@ poly maEval(map theMap, poly p,ring preimage_r,nMapFunc nMap, ideal s, const rin
 //  }
   if (p!=NULL)
   {
-    int l = pLength(p)-1;
-    poly* monoms;
-    if (l>0)
-    {
-      monoms = (poly*) omAlloc(l*sizeof(poly));
+    sBucket_pt b=sBucketCreate(dst_r);
+    int l;
 
-      for (i=0; i<l; i++)
-      {
-        monoms[i]=maEvalMonom(theMap,p,preimage_r,s, nMap, dst_r);
-        pIter(p);
-      }
-    }
-    result=maEvalMonom(theMap,p,preimage_r,s, nMap, dst_r);
-    if (l>0)
+    while(p!=NULL)
     {
-      for(i = l-1; i>=0; i--)
-      {
-        result=p_Add_q(result, monoms[i], dst_r);
-      }
-      omFreeSize((ADDRESS)monoms,l*sizeof(poly));
+      poly h=maEvalMonom(theMap,p,preimage_r,s, nMap, dst_r);
+      l=pLength(h);
+      sBucket_Add_p(b,h,l);
+      pIter(p);
     }
+    sBucketDestroyAdd(b,&result,&l);
 
     assume(dst_r != NULL);
     assume(dst_r->cf != NULL);
