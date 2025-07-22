@@ -5659,6 +5659,7 @@ NOTE:    - Algorithm of Gianni/Trager/Zacharias.
          - For local and mixed orderings, the decomposition in the
            corresponding global ring is returned if the string 'global'
            is specified as second argument
+SEE ALSO: modPrimdecGTZ
 EXAMPLE: example primdecGTZ; shows an example
 "
 {
