@@ -18,6 +18,7 @@ ASSUME(0, size( pdec[1][2] )==0 );
 
 I = 8*x;
 pdec = primdecZ(I);
+pdec;
 
 
 tst_status(1); $
