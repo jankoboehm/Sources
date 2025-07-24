@@ -1109,7 +1109,7 @@ EXAMPLE: example primdecGTZ_wrapper; shows an example
 
    if(minpoly!=0)
    {
-      return(algeDeco(i,0));
+      return(Primdec::algeDeco(i,0));
    }
   return(Primdec::convList(decomp_parallel(i, exactness, mod_only)));
 }
