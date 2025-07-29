@@ -215,7 +215,7 @@ BOOLEAN kVerify2(ideal F, ideal Q)
   if (cpus>=vspace::internals::MAX_PROCESS)
     cpus=vspace::internals::MAX_PROCESS-1;
   /* start no more than MAX_PROCESS-1 children */
-  if (cpus>strat->Ll) cpus=strat->Ll;
+  if (cpus>strat->Ll+1) cpus=strat->Ll+1;
   /* start no more children than elements in L */
   int parent_pid=getpid();
   using namespace vspace;
@@ -245,6 +245,7 @@ BOOLEAN kVerify2(ideal F, ideal Q)
     si_set_signal(SIGTERM,sig_term_hdl_child);
     singular_close_links();
     feSetOptValue(FE_OPT_CPUS,0);
+    si_opt_1&=~OPT_PROT;
     loop
     {
       int ind=queue->dequeue();
