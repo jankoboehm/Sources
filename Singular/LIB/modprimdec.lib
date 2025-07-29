@@ -1107,6 +1107,24 @@ EXAMPLE: example primdecGTZ_wrapper; shows an example
       return(li);
    }
 
+   i=simplify(i,2); // erase 0-generators
+   if ((i[1]==0)||(i[1]==1))
+   {
+     list L = list(ideal(i[1]), ideal(i[1]) );
+     return(list(L));
+   }
+   if((ncols(i)==1)&&(attrib(basering,"ring_cf")==0)) // handle principal ideal
+   {
+     list @fac=factorize(i[1],2);
+     list result;
+     for(int @i=size(@fac[1]);@i>0;@i--)
+     {
+       result[@i]=list(ideal(@fac[1][@i]^@fac[2][@i]),
+                        ideal(@fac[1][@i]));
+     }
+     return(result);
+   }
+
    if(minpoly!=0)
    {
       return(Primdec::algeDeco(i,0));
