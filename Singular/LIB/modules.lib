@@ -486,18 +486,26 @@ matrix a=R.reso[1];
 R.dd[1]=makeMatrix(a);
 if(!(R.dd[1].ishomogeneous)){
   R.isgraded=0;
-  for(int i=2;i<=(size(R.reso)+1);i++){
-    a=R.reso[i];
-    R.dd[i]=nongradedMatrix(a);
+  for(int i=2;i<=(size(R.reso)+1);i++)
+  {
+    if(size(module(a))>0)
+    {
+      a=R.reso[i];
+      R.dd[i]=nongradedMatrix(a);
+    }
   }
 
 }
 else{
   R.isgraded=1;
-  for(int i=2;i<=(size(R.reso));i++){
+  for(int i=2;i<=(size(R.reso));i++)
+  {
     a=R.reso[i];
-    mydeg=R.dd[i-1].source.grading;
-    R.dd[i]=resMatrix(a,mydeg,R.dd[i-1].source);
+    if(size(module(a))>0)
+    {
+      mydeg=R.dd[i-1].source.grading;
+      R.dd[i]=resMatrix(a,mydeg,R.dd[i-1].source);
+    }
   }
 }
 R.over=M.over;

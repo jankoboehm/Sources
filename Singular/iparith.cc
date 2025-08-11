@@ -2320,9 +2320,10 @@ static BOOLEAN jjFRES3(leftv res, leftv u, leftv v, leftv w)
   }
   if (max_length == 0)
   {
-    max_length = currRing->N+1;
+    max_length = currRing->N+4;
     if (currRing->qideal != NULL)
     {
+      max_length = currRing->N+1;
       Warn("full resolution in a qring may be infinite, "
            "setting max length to %d", max_length);
     }
@@ -2341,6 +2342,7 @@ static BOOLEAN jjFRES3(leftv res, leftv u, leftv v, leftv w)
   }
   syStrategy r = syFrank(id, max_length, method);
   assume(r->fullres != NULL);
+  syFix(r);
   res->data = (void *)r;
   return FALSE;
 }
@@ -3165,6 +3167,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
     WerrorS("length for res must not be negative");
     return TRUE;
   }
+  BOOLEAN complete=(maxl==0) && (currRing->qideal==NULL);
   syStrategy r;
   intvec *weights=NULL;
   int wmaxl=maxl;
@@ -3235,7 +3238,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
     r=syKosz(u_id,&dummy);
   }
   else
-  {
+  { // HRES
     int dummy;
     if((currRing->qideal!=NULL)||
     (!idHomIdeal (u_id,NULL)))
@@ -3254,7 +3257,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
   {
     if (r->list_length>wmaxl)
     {
-      for(int i=wmaxl-1;i>=r->list_length;i--)
+      for(int i=wmaxl-1;i<=r->list_length;i++)
       {
         if (r->fullres[i]!=NULL) id_Delete(&r->fullres[i],currRing);
         if (r->minres[i]!=NULL) id_Delete(&r->minres[i],currRing);
@@ -3287,6 +3290,7 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
   else
     assume( (r->orderedRes != NULL) || (r->res != NULL) ); // analog for hres...
 
+  if(complete) syFix(r);
   si_opt_1=save_opt;
   return FALSE;
 }

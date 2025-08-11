@@ -1226,3 +1226,66 @@ syStrategy syMinimizeCopy(syStrategy org)
   result=syMinimize(result);
   return result;
 }
+
+void syFix(syStrategy r)
+{
+  if (r->fullres==NULL)
+  {
+    if(r->minres==NULL)
+    {
+      return;
+    }
+  }
+  int found=-1;
+  for(int i=1;i<r->length;i++)
+  {
+    // search (0)
+    if((r->fullres!=NULL) && (r->fullres[i]!=NULL))
+    {
+      if (idIs0(r->fullres[i])) {found=i;break;}
+    }
+    if((r->fullres!=NULL) && (r->fullres[i]==NULL)) 
+      break;
+    if((r->minres!=NULL) && (r->minres[i]!=NULL))
+    {
+      if (idIs0(r->minres[i])) {found=i;break;}
+    }
+    if((r->minres!=NULL) && (r->minres[i]==NULL))
+      break;
+  }
+  if (found>0) // delete trailing stuff
+  {
+    for(int i=found+1;i<r->length;i++)
+    {
+      if ((r->fullres!=NULL) && (r->fullres[i]!=NULL))
+        id_Delete(&r->fullres[i],currRing);
+      if ((r->minres!=NULL) && (r->minres[i]!=NULL))
+        id_Delete(&r->minres[i],currRing);
+    }
+    r->list_length=found;
+  }
+  else
+  {
+    // append (0)
+    for(int i=1;i<r->length;i++)
+    {
+      if ((r->fullres!=NULL) && (r->fullres[i]==NULL))
+      {
+        r->fullres[i]=idInit(1,IDELEMS(r->fullres[i-1]));
+        if ((r->minres!=NULL) && (r->minres[i-1]==NULL))
+	{
+	  r->minres[i]=idInit(1,IDELEMS(r->minres[i-1]));
+	}
+	break;
+      }
+      else
+      {
+        if ((r->minres!=NULL) && (r->minres[i]==NULL))
+	{
+	  r->minres[i]=idInit(1,IDELEMS(r->minres[i-1]));
+	  break;
+	}
+      }
+    }
+  }
+}
