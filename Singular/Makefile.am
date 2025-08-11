@@ -38,6 +38,7 @@ SOURCES = \
    fglm.cc\
    gms.cc\
    grammar.cc\
+   htable.cc\
    iparith.cc\
    ipassign.cc\
    ipconv.cc\
@@ -88,6 +89,7 @@ SingularHEADERS = \
    fglm.h \
    gms.h \
    grammar.h \
+   htable.h \
    idrec.h \
    iparith.inc \
    ipconv.h \
