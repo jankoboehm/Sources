@@ -187,7 +187,7 @@
 // operation: print (list)  ->  string
 // operation: print (def)  ->  string
 // operation: proc (proc)  ->  proc
-// operation: prune (module)  ->  module, field coeffs
+// operation: prune (module)  ->  module
 // operation: qhweight (ideal)  ->  intvec
 // operation: qhweight (module)  ->  intvec
 // operation: rank (matrix)  ->  int, field coeffs
@@ -597,8 +597,8 @@
 // operation: monitor (link, string)  ->  nothing
 // operation: mpresmat (ideal, int)  ->  module, only commutative rings, field coeffs
 // operation: newstruct (string, string)  ->  nothing
-// operation: mres (ideal, int)  ->  resolution, field coeffs
-// operation: mres (module, int)  ->  resolution, field coeffs
+// operation: mres (ideal, int)  ->  resolution
+// operation: mres (module, int)  ->  resolution
 // operation: primefactors (bigint, int)  ->  list
 // operation: primefactors (number, int)  ->  list
 // operation: ncalgebra (poly, poly)  ->  nothing, only commutative rings, field coeffs
@@ -625,8 +625,8 @@
 // operation: reduce (ideal, ideal)  ->  ideal
 // operation: reduce (module, ideal)  ->  module
 // operation: reduce (module, module)  ->  module
-// operation: nres (ideal, int)  ->  resolution, field coeffs
-// operation: nres (module, int)  ->  resolution, field coeffs
+// operation: nres (ideal, int)  ->  resolution
+// operation: nres (module, int)  ->  resolution
 // operation: sba (ideal, int)  ->  ideal
 // operation: sba (module, int)  ->  module
 // operation: simplify (poly, int)  ->  poly
@@ -725,8 +725,8 @@
 // operation: modulo (ideal, ideal, string)  ->  module
 // operation: modulo (module, module, matrix)  ->  module
 // operation: modulo (module, module, string)  ->  module
-// operation: mres_map (ideal, int, smatrix)  ->  resolution, field coeffs
-// operation: mres_map (module, int, smatrix)  ->  resolution, field coeffs
+// operation: mres_map (ideal, int, smatrix)  ->  resolution
+// operation: mres_map (module, int, smatrix)  ->  resolution
 // operation: smatrix (module, int, int)  ->  smatrix
 // operation: smatrix (smatrix, int, int)  ->  smatrix
 // operation: newstruct (string, string, string)  ->  nothing
@@ -763,7 +763,7 @@
 // operation: ( (...)  ->  any_type ( number of arguments >0 )
 // operation: [ (...)  ->  ring ( number of arguments >0 )
 // operation: bigintvec (...)  ->  bigintvec ( 1 arguments )
-// operation: bigintvec (...)  ->  bigintvec ( number of arguments >0 )
+// operation: bigintvec (...)  ->  bigintvec ( any number of arguments )
 // operation: breakpoint (...)  ->  nothing ( 0 arguments )
 // operation: breakpoint (...)  ->  nothing ( number of arguments >0 )
 // operation: branchTo (...)  ->  nothing ( number of arguments >0 )
@@ -785,7 +785,7 @@
 // operation: intersect (...)  ->  ideal ( 3 arguments )
 // operation: intersect (...)  ->  ideal ( number of arguments >0 )
 // operation: intvec (...)  ->  intvec ( 1 arguments )
-// operation: intvec (...)  ->  intvec ( number of arguments >0 )
+// operation: intvec (...)  ->  intvec ( any number of arguments )
 // operation: jet (...)  ->  poly ( 2 arguments )
 // operation: jet (...)  ->  poly ( 3 arguments )
 // operation: jet (...)  ->  poly ( 4 arguments )
