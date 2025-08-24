@@ -27,7 +27,8 @@ PROCEDURES:
 ////////////////////////////////////////////////////////////////////////
 // Dispatcher with optional third argument: arc(I,J) or arc(I,J,optList)
 proc arc(list #)
-"USAGE:\n  arc(I, J);\n  arc(I, J, optList);\n\n  I:       ideal defining the scheme\n  J:       ideal defining the fat point\n  optList: list of integers (optional), indices of coefficients to skip\n\nRETURN:\n  A ring containing the ideal arcideal in the variables of T."
+"USAGE:  arc(I, J);  arc(I, J, optList);  I: ideal defining the scheme,  J: ideal defining the fat point, optList: list of integers (optional) indices of coefficients to skip
+RETURN:  A ring containing the ideal arcideal in the variables of T."
 {
     option(noredefine);
     int argc = size(#);
@@ -83,6 +84,30 @@ EXAMPLE:
 ==> A[2]=4*a1^3*a3+3*a2^2*a4
 ==> A[3]=4*a1^3*a5+3*a2^2*a6
 ==> A[4]=12*a1^2*a3*a5+4*a1^3*a7+6*a2*a4*a6+3*a2^2*a8
+
+EXAMPLE 2:
+ring R = 0,(x,y),dp;
+ideal I = x^4 + y^3;
+ideal J = x^2,y^2;
+def S = arc(I, J);
+setring S;
+ideal A = arcideal;
+A;
+==> A[1]=a1^4+a2^3
+==> A[2]=4*a1^3*a3+3*a2^2*a4
+==> A[3]=4*a1^3*a5+3*a2^2*a6
+==> A[4]=12*a1^2*a3*a5+4*a1^3*a7+6*a2*a4*a6+3*a2^2*a8
+
+EXAMPLE 3:
+ring R = 0,(x,y),dp;
+ideal I = x^4 + y^3;
+ideal J = x^2,y^2;
+list L = 1,2;
+def S = arc(I, J, L);
+setring S;
+ideal A = arcideal;
+A;
+==>A[1]=0
 
 RETURN: ring containing ideal arcideal in the variables of T"
 {
