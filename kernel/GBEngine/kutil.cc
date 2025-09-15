@@ -7726,6 +7726,7 @@ void initSL (ideal F, ideal Q,kStrategy strat)
           strat->enterS(h,pos,strat,-1);
           strat->fromQ[pos]=1;
         }
+        if(errorreported) return;
       }
     }
   }
@@ -7752,6 +7753,7 @@ void initSL (ideal F, ideal Q,kStrategy strat)
           {
             h.pNorm();
           }
+          if(errorreported) return;
           strat->initEcart(&h);
           if (strat->Ll==-1)
             pos =0;
@@ -9807,6 +9809,7 @@ void initBuchMora (ideal F,ideal Q,kStrategy strat)
       /*Shdl=*/initSL(F, Q,strat); /*sets also S, ecartS, fromQ */
       // /*Shdl=*/initS(F, Q,strat); /*sets also S, ecartS, fromQ */
     }
+    if(errorreported) return;
   }
   strat->fromT = FALSE;
   strat->noTailReduction = !TEST_OPT_REDTAIL;
