@@ -28,7 +28,8 @@ PROCEDURES:
 // Dispatcher with optional third argument: arc(I,J) or arc(I,J,optList)
 proc arc(list #)
 "USAGE:  arc(I, J);  arc(I, J, optList);  I: ideal defining the scheme,  J: ideal defining the fat point, optList: list of integers (optional) indices of coefficients to skip
-RETURN:  A ring containing the ideal arcideal in the variables of T."
+RETURN:  A ring containing the ideal arcideal in the variables of T.
+"
 {
     option(noredefine);
     int argc = size(#);
@@ -50,8 +51,9 @@ RETURN:  A ring containing the ideal arcideal in the variables of T."
         return( arc_internal(I, J, optList, useOptList_int) );
     }
     print("Usage: arc(I,J) or arc(I,J,optList)");
-    return;
+    
 }
+
 
 // Backward-compatible explicit arity entry point
 proc arc_with_options(ideal I, ideal J, list optList)
@@ -65,49 +67,7 @@ proc arc_with_options(ideal I, ideal J, list optList)
 RETURN:
   A ring containing the ideal arcideal in the variables of T (minus the original variables in Vars).
 
-EXAMPLE:
-  ring R = 0, (x,y), dp;
-  ideal I = x^4 + y^3;
-  ideal J = x^2,y^2;       // fat point at origin
-  list L;                 //  optional skips
-  def S = arc(I, J, L);  // same as def S = arc(I,J);
-  setring S;
-  ideal A = arcideal;
-  S;
-==> // coefficients: QQ considered as a field
-==> // number of vars : 8
-==> //        block   1 : ordering dp
-==> //                  : names    a1 a2 a3 a4 a5 a6 a7 a8
-==> //        block   2 : ordering C
-  A; 
-==> A[1]=a1^4+a2^3
-==> A[2]=4*a1^3*a3+3*a2^2*a4
-==> A[3]=4*a1^3*a5+3*a2^2*a6
-==> A[4]=12*a1^2*a3*a5+4*a1^3*a7+6*a2*a4*a6+3*a2^2*a8
 
-EXAMPLE 2:
-ring R = 0,(x,y),dp;
-ideal I = x^4 + y^3;
-ideal J = x^2,y^2;
-def S = arc(I, J);
-setring S;
-ideal A = arcideal;
-A;
-==> A[1]=a1^4+a2^3
-==> A[2]=4*a1^3*a3+3*a2^2*a4
-==> A[3]=4*a1^3*a5+3*a2^2*a6
-==> A[4]=12*a1^2*a3*a5+4*a1^3*a7+6*a2*a4*a6+3*a2^2*a8
-
-EXAMPLE 3:
-ring R = 0,(x,y),dp;
-ideal I = x^4 + y^3;
-ideal J = x^2,y^2;
-list L = 1,2;
-def S = arc(I, J, L);
-setring S;
-ideal A = arcideal;
-A;
-==>A[1]=0
 
 RETURN: ring containing ideal arcideal in the variables of T"
 {
@@ -153,14 +113,14 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
     }
 
     // Create helper ring with identical names, then import
-    string command1 = sprintf("ring Rhelp = 0, (%s), dp;", ambientVarsCSV);
+    string command1 = "ring Rhelp = 0, ("+ambientVarsCSV+"), dp;";
     execute(command1);
     setring Rhelp;
     ideal Ihelp = imap(sourceRing, I);
     ideal Jhelp = imap(sourceRing, J);
     
     // Check fat point is not trivial
-    if (Jhelp == 0) { print("Error: The ideal Jhelp is the zero ideal. Terminating."); return; }
+    if (Jhelp == 0) { ERROR("The ideal Jhelp is the zero ideal. Terminating."); }
      
     ///////////
     // Step 2: identify fat point variables
@@ -198,14 +158,14 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
     ///////////
     // Step 4: new ring F
     ///////////
-    if (size(fatVars) == 0) { print("Warning: fatVars empty."); return; }
+    if (size(fatVars) == 0) { ERROR("fatVars empty."); }
     string varsString = string(fatVars[1]);
     for (int fatVarIndex = 2; fatVarIndex <= size(fatVars); fatVarIndex++) {
         varsString = varsString + "," + string(fatVars[fatVarIndex]);
     }
-    string command2 = sprintf("ring F = 0, (%s), dp;", varsString);
+    string command2 = "ring F = 0, ("+varsString+"), dp;";
     execute(command2);
-    execute("setring F;");
+    setring F;
     option(noredefine);
     ideal J_F = imap(Rhelp, Jhelp);
 
@@ -224,13 +184,13 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
     // Step 8: new ring T
     ///////////
     int totalCoeffCount = numbVars * len_JF;
-    if (totalCoeffCount <= 0) { print("Error: fat point length < 2."); return; }
+    if (totalCoeffCount <= 0) { ERROR("fat point length < 2."); }
     for (int coeffIndex = 1; coeffIndex <= totalCoeffCount; coeffIndex++) {
         T_vars = T_vars + ",a" + string(coeffIndex);
     }
-    string command3 = sprintf("ring T = 0, (%s), dp;", T_vars);
+    string command3 = "ring T = 0, ("+T_vars+"), dp;";
     execute(command3);
-    execute("setring T;");
+    setring T;
 
     // map ideals to new, larger ring
     ideal I_T        = imap(Rhelp, Ihelp);
@@ -238,7 +198,7 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
     ideal basis_JF_T = imap(F, basis_JF_F);
     if (basis_JF_T[len_JF] != 1)
     {
-        print("Error: last basis_JF_T != 1."); return;
+        ERROR("last basis_JF_T != 1.");
     }
 
     ///////////
@@ -413,8 +373,7 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
     ///////////
     poly currentGenerator;
     ideal simplifiedFinal = 0;
-    int shouldKeep, arcGenIndex;
-    string varToFind, termStr;
+    // reuse existing variables: shouldKeep, arcGenIndex, varToFind, termStr
 
     for (arcGenIndex = 1; arcGenIndex <= size(arcideal); arcGenIndex++)
     {
@@ -461,7 +420,7 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
      ///////////
     // Reverse order for better output
     ///////////
-    ideal arcideal = 0;
+    arcideal = 0;
     for (int reverseIndex = size(simplifiedFinal); reverseIndex >= 1; reverseIndex--) {
     arcideal = arcideal + simplifiedFinal[reverseIndex];
     }
@@ -556,14 +515,12 @@ proc arc_internal(ideal I, ideal J, list optList, int useOptList)
     }
     // output a ring with arcideal stored
     setring sourceRing;
-    string command4 = sprintf("ring S_coeff = 0, (%s), dp;", coeff_vars);
+    string command4 = "ring S_coeff = 0, ("+coeff_vars+"), dp;";
     execute(command4);
-    string rCmd = sprintf("setring %s;", "S_coeff");
-    execute(rCmd);
+    setring S_coeff;
     string cmdArcIdeal = sprintf("ideal arcideal = %s;", arcideal_str);
     execute(cmdArcIdeal);
-    string finCmd = sprintf("export %s;", "arcideal");
-    execute(finCmd);
+    export arcideal;
 
     def retRing = basering;
     keepring retRing;
