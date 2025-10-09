@@ -9905,7 +9905,6 @@ void initSbaPos (kStrategy strat)
       }
     }
   }
-  if (strat->minim>0) strat->posInL =posInLSpecial;
   // for further tests only
   if (BTEST1(11))
     strat->posInT = posInT11;
