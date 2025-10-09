@@ -9863,11 +9863,6 @@ void initSbaPos (kStrategy strat)
   {
     if (strat->honey)
     {
-      strat->posInL = posInL15;
-      // ok -- here is the deal: from my experiments for Singular-2-0
-      // I conclude that that posInT_EcartpLength is the best of
-      // posInT15, posInT_EcartFDegpLength, posInT_FDegLength, posInT_pLength
-      // see the table at the end of this file
       if (TEST_OPT_OLDSTD)
         strat->posInT = posInT15;
       else
@@ -9875,23 +9870,19 @@ void initSbaPos (kStrategy strat)
     }
     else if (currRing->pLexOrder && !TEST_OPT_INTSTRATEGY)
     {
-      strat->posInL = posInL11;
       strat->posInT = posInT11;
     }
     else if (TEST_OPT_INTSTRATEGY)
     {
-      strat->posInL = posInL11;
       strat->posInT = posInT11;
     }
     else
     {
-      strat->posInL = posInL0;
       strat->posInT = posInT0;
     }
     //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
-      strat->posInL = posInL110;
       strat->posInT = posInT110;
     }
   }
@@ -9899,7 +9890,6 @@ void initSbaPos (kStrategy strat)
   {
     if (strat->homog)
     {
-      strat->posInL = posInL11;
       strat->posInT = posInT11;
     }
     else
@@ -9907,26 +9897,16 @@ void initSbaPos (kStrategy strat)
       if ((currRing->order[0]==ringorder_c)
       ||(currRing->order[0]==ringorder_C))
       {
-        strat->posInL = posInL17_c;
         strat->posInT = posInT17_c;
       }
       else
       {
-        strat->posInL = posInL17;
         strat->posInT = posInT17;
       }
     }
   }
   if (strat->minim>0) strat->posInL =posInLSpecial;
   // for further tests only
-  if ((BTEST1(11)) || (BTEST1(12)))
-    strat->posInL = posInL11;
-  else if ((BTEST1(13)) || (BTEST1(14)))
-    strat->posInL = posInL13;
-  else if ((BTEST1(15)) || (BTEST1(16)))
-    strat->posInL = posInL15;
-  else if ((BTEST1(17)) || (BTEST1(18)))
-    strat->posInL = posInL17;
   if (BTEST1(11))
     strat->posInT = posInT11;
   else if (BTEST1(13))
@@ -9941,14 +9921,10 @@ void initSbaPos (kStrategy strat)
     strat->posInT = posInT1;
   if (rField_is_Ring(currRing))
   {
-    strat->posInL = posInL11Ring;
-    if(rHasLocalOrMixedOrdering(currRing) && currRing->pLexOrder == TRUE)
-      strat->posInL = posInL11Ringls;
     strat->posInT = posInT11;
   }
   strat->posInLDependsOnLength = FALSE;
   strat->posInLSba  = posInLSig;
-  //strat->posInL     = posInLSig;
   strat->posInL     = posInLF5C;
   /*
   if (rField_is_Ring(currRing))

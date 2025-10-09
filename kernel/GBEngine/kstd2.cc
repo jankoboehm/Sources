@@ -79,10 +79,6 @@ VAR long sba_interreduction_operations;
 #include "polys/shiftop.h"
 #endif
 
-  VAR int (*test_PosInT)(const TSet T,const int tl,LObject &h);
-  VAR int (*test_PosInL)(const LSet set, const int length,
-                LObject* L,const kStrategy strat);
-
 #ifdef STDZ_EXCHANGE_DURING_REDUCTION
 int kFindSameLMInT_Z(const kStrategy strat, const LObject* L, const int start)
 {
@@ -2654,13 +2650,6 @@ ideal bba (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
   if(!idIs0(F) &&(!rField_is_Ring(currRing)))  // create strong gcd poly computes with tailring and S[i] ->to be fixed
     kStratInitChangeTailRing(strat);
 #endif
-  if (BVERBOSE(23))
-  {
-    if (test_PosInT!=NULL) strat->posInT=test_PosInT;
-    if (test_PosInL!=NULL) strat->posInL=test_PosInL;
-    kDebugPrint(strat);
-  }
-
 
 #ifdef KDEBUG
   //kDebugPrint(strat);
@@ -3150,12 +3139,6 @@ ideal sba (ideal F0, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
   if(!idIs0(F) &&(!rField_is_Ring(currRing)))  // create strong gcd poly computes with tailring and S[i] ->to be fixed
     kStratInitChangeTailRing(strat);
 #endif
-  if (BVERBOSE(23))
-  {
-    if (test_PosInT!=NULL) strat->posInT=test_PosInT;
-    if (test_PosInL!=NULL) strat->posInL=test_PosInL;
-    kDebugPrint(strat);
-  }
   // We add the elements directly in S from the previous loop
   if(rField_is_Ring(currRing) && strat->sbaEnterS >= 0)
   {
@@ -4628,12 +4611,6 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
   //   kStratInitChangeTailRing(strat);
   strat->tailRing=currRing;
 #endif
-  if (BVERBOSE(23))
-  {
-    if (test_PosInT!=NULL) strat->posInT=test_PosInT;
-    if (test_PosInL!=NULL) strat->posInL=test_PosInL;
-    kDebugPrint(strat);
-  }
 
 #ifdef KDEBUG
   //kDebugPrint(strat);
