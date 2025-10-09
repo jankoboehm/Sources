@@ -5784,6 +5784,7 @@ int posInSyz (const kStrategy strat, poly sig)
 * critical pairs to strat->L only behind all other critical pairs which are
 * still in strat->L!
 */
+// dummy, unused
 int posInLF5C (const LSet /*set*/, const int /*length*/,
                LObject* /*p*/,const kStrategy strat)
 {
@@ -9929,7 +9930,6 @@ void initSbaPos (kStrategy strat)
   if (rField_is_Ring(currRing))
   {
     strat->posInLSba  = posInLSigRing;
-    strat->posInL     = posInL11Ring;
   }*/
   //strat->posInT     = posInTSig;
 }
