@@ -9604,7 +9604,6 @@ void initBuchMoraPos (kStrategy strat)
       strat->posInL = posInL0;
       strat->posInT = posInT0;
     }
-    //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
       strat->posInL = posInL110;
@@ -9689,7 +9688,6 @@ void initBuchMoraPosRing (kStrategy strat)
       strat->posInL = posInL0Ring;
       strat->posInT = posInT0;
     }
-    //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
       strat->posInL = posInL110Ring;
@@ -9881,7 +9879,6 @@ void initSbaPos (kStrategy strat)
     {
       strat->posInT = posInT0;
     }
-    //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
       strat->posInT = posInT110;
