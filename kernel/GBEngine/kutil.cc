@@ -1927,7 +1927,7 @@ static BOOLEAN enterOneStrongPolySig (int i,poly p,poly sig,int /*ecart*/, int /
   if (strat->Ll==-1)
     posx =0;
   else
-    posx = strat->posInLSba(strat->L,strat->Ll,&h,strat);
+    posx = strat->posInL(strat->L,strat->Ll,&h,strat);
   enterL(&strat->L,&strat->Ll,&strat->Lmax,h,posx);
   return TRUE;
 }
@@ -2678,7 +2678,7 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
         nDelete(&(Lp.p->coef));
     }
 
-    l = strat->posInLSba(strat->B,strat->Bl,&Lp,strat);
+    l = strat->posInL(strat->B,strat->Bl,&Lp,strat);
     enterL(&strat->B,&strat->Bl,&strat->Bmax,Lp,l);
   }
 }
@@ -3080,7 +3080,7 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
         return;
       }
     }
-    l = strat->posInLSba(strat->L,strat->Ll,&Lp,strat);
+    l = strat->posInL(strat->L,strat->Ll,&Lp,strat);
     enterL(&strat->L,&strat->Ll,&strat->Lmax,Lp,l);
   }
 }
@@ -3191,7 +3191,7 @@ void kMergeBintoLSba(kStrategy strat)
   int i;
   for (i=strat->Bl; i>=0; i--)
   {
-    j = strat->posInLSba(strat->L,j,&(strat->B[i]),strat);
+    j = strat->posInL(strat->L,j,&(strat->B[i]),strat);
     enterL(&strat->L,&strat->Ll,&strat->Lmax,strat->B[i],j);
   }
   strat->Bl = -1;
@@ -4408,7 +4408,7 @@ void enterExtendedSpolySig(poly h,poly hSig,kStrategy strat)
         if (strat->Ll==-1)
           posx =0;
         else
-          posx = strat->posInLSba(strat->L,strat->Ll,&Lp,strat);
+          posx = strat->posInL(strat->L,strat->Ll,&Lp,strat);
         Lp.sev = pGetShortExpVector(Lp.p);
         if (strat->tailRing != currRing)
         {
@@ -5785,11 +5785,13 @@ int posInSyz (const kStrategy strat, poly sig)
 * still in strat->L!
 */
 // dummy, unused
+#if 0
 int posInLF5C (const LSet /*set*/, const int /*length*/,
                LObject* /*p*/,const kStrategy strat)
 {
   return strat->Ll+1;
 }
+#endif
 
 /*2
 * looks up the position of polynomial p in set
@@ -7884,7 +7886,7 @@ void initSLSba (ideal F, ideal Q,kStrategy strat)
           if (strat->Ll==-1)
             pos =0;
           else
-            pos = strat->posInLSba(strat->L,strat->Ll,&h,strat);
+            pos = strat->posInL(strat->L,strat->Ll,&h,strat);
           h.sev = pGetShortExpVector(h.p);
           enterL(&strat->L,&strat->Ll,&strat->Lmax,h,pos);
         }
@@ -9921,14 +9923,12 @@ void initSbaPos (kStrategy strat)
     strat->posInT = posInT11;
   }
   strat->posInLDependsOnLength = FALSE;
-  strat->posInLSba  = posInLSig;
-  strat->posInL     = posInLF5C;
+  strat->posInL     = posInLSig;
   /*
   if (rField_is_Ring(currRing))
   {
-    strat->posInLSba  = posInLSigRing;
+    strat->posInL = posInLSigRing;
   }*/
-  //strat->posInT     = posInTSig;
 }
 
 void initSbaBuchMora (ideal F,ideal Q,kStrategy strat)
