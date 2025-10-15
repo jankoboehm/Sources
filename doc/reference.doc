@@ -8994,9 +8994,9 @@ if ( i>j )
 @cindex apply
 @table @code
 @item @strong{Syntax:}
-@code{apply(} expression @code{,} function @code{);}
+@code{apply(} expression @code{,} function_name @code{);}
 @item @strong{Purpose:}
-applies the function to all elements of the first argument.
+applies the function (given by its name) to all elements of the first argument.
 The first argument must be of type
 @code{intvec},
 @code{intmat},
