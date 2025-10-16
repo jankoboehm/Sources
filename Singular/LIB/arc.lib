@@ -2,7 +2,7 @@
 // arc.lib - Generalized arc space construction for Singular
 //////////////////////////////////////////////////////////////////////
 
-version = "arc.lib 1.0.0 Sep_2025";
+version = "version arc.lib 1.0.0 Sep_2025 ";
 category = "Algebraic geometry";
 
 info = "
@@ -17,8 +17,6 @@ PROCEDURES:
   arc(I, J, optList); creates ring containing the ideal arcideal in the variables of T (excluding the original variables), optList is optional argument.
 ";
 
-// LIB "arc.lib";
-
 ////////////////////////////////////////////////////////////////////////
 // Main user-facing entry point with 2 or 3 parameters
 ////////////////////////////////////////////////////////////////////////
@@ -28,7 +26,6 @@ proc arc(list #)
 RETURN:  A ring containing the ideal arcideal in the variables of T.
 "
 {
-    option(noredefine);
     int argc = size(#);
     if (argc == 2)
     {
@@ -48,6 +45,7 @@ RETURN:  A ring containing the ideal arcideal in the variables of T.
         return( arc_internal(I, J, optList, useOptList_int) );
     }
     print("Usage: arc(I,J) or arc(I,J,optList)");
+}
 example
 { "EXAMPLE:"; echo = 2;
   ring R = 0, (x,y), dp;
@@ -59,7 +57,6 @@ example
   ideal A = arcideal;
   S;
   A;
-}
 }
 
 // Backward-compatible explicit arity entry point
@@ -76,8 +73,6 @@ RETURN:
 
 RETURN: ring containing ideal arcideal in the variables of T"
 {
-    option(noredefine);
-
     ///////////
     // Determine whether to use the optional skip list
     ///////////
