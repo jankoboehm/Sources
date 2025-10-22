@@ -732,7 +732,7 @@ int redRing_Z (LObject* h,kStrategy strat)
   assume(h->pFDeg() == h->FDeg);
   long reddeg = h->GetpFDeg();
 
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   loop
   {
     /* check if a reducer of the lead term exists */
@@ -886,7 +886,7 @@ static int redRing_Z_S (LObject* h,kStrategy strat)
 // TODO warum SetpFDeg notwendig?
   h->SetpFDeg();
   assume(h->pFDeg() == h->FDeg);
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   int max_ind=strat->sl;
 
   loop
@@ -996,12 +996,11 @@ int redRing (LObject* h,kStrategy strat)
   int pass = 0;
   // poly zeroPoly = NULL;
 
-// TODO warum SetpFDeg notwendig?
   h->SetpFDeg();
   assume(h->pFDeg() == h->FDeg);
   long reddeg = h->GetpFDeg();
 
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   loop
   {
     j = kFindDivisibleByInT(strat, h);
@@ -1100,7 +1099,7 @@ static int redRing_S (LObject* h,kStrategy strat)
   assume(h->pFDeg() == h->FDeg);
   int max_ind;
 
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   loop
   {
     max_ind=strat->sl;
@@ -1161,7 +1160,7 @@ int redHomog (LObject* h,kStrategy strat)
 
   pass = j = 0;
   cnt = RED_CANONICALIZE;
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   h_p = h->GetLmTailRing();
   h->PrepareRed(strat->use_buckets);
   loop
@@ -1393,7 +1392,7 @@ int redSig (LObject* h,kStrategy strat)
   int li;
 
   pass = j = 0;
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   h_p = h->GetLmTailRing();
   not_sev = ~ h->sev;
   loop
@@ -1544,6 +1543,8 @@ int redSigRing (LObject* h,kStrategy strat)
   {
     h->sev = pGetShortExpVector(h->p);
   }
+  #else
+  h->SetShortExpVector();
   #endif
   poly beforeredsig;
   beforeredsig = pCopy(h->sig);
@@ -1573,7 +1574,6 @@ int redSigRing (LObject* h,kStrategy strat)
   BOOLEAN test_opt_length=TEST_OPT_LENGTH;
 
   pass = j = 0;
-  h->SetShortExpVector();
   h_p = h->GetLmTailRing();
   not_sev = ~ h->sev;
   loop
@@ -1914,7 +1914,7 @@ int redLazy (LObject* h,kStrategy strat)
   long d;
   BOOLEAN test_opt_length=TEST_OPT_LENGTH;
 
-  h->SetShortExpVector();
+  if (h->sev==0) h->SetShortExpVector();
   poly h_p = h->GetLmTailRing();
   h->PrepareRed(strat->use_buckets);
   loop
@@ -2856,6 +2856,7 @@ ideal bba (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
           // we are called AFTER enterS, i.e. if we change P
           // we have to add it also to S/T
           // and add pairs
+          strat->P.SetShortExpVector();
           int pos=posInS(strat,strat->sl,strat->P.p,strat->P.ecart);
           enterT(strat->P, strat);
           if (rField_is_Ring(currRing))
@@ -3146,6 +3147,7 @@ ideal sba (ideal F0, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
     {
       //Update: now the element is at the correct place
       //i+1 because on the 0 position is the sigdrop element
+      strat->L[strat->Ll-(i)].SetShortExpVector();
       enterT(strat->L[strat->Ll-(i)],strat);
       strat->enterS(strat->L[strat->Ll-(i)], strat->sl+1, strat, strat->tl);
     }

@@ -30,6 +30,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h> /* LONG_BIT*/
 
 #ifdef KDEBUG
 #undef KDEBUG
@@ -1927,7 +1928,7 @@ static BOOLEAN enterOneStrongPolySig (int i,poly p,poly sig,int /*ecart*/, int /
   if (strat->Ll==-1)
     posx =0;
   else
-    posx = strat->posInL(strat->L,strat->Ll,&h,strat);
+    posx = strat->posInLSba(strat->L,strat->Ll,&h,strat);
   enterL(&strat->L,&strat->Ll,&strat->Lmax,h,posx);
   return TRUE;
 }
@@ -2678,7 +2679,7 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
         nDelete(&(Lp.p->coef));
     }
 
-    l = strat->posInL(strat->B,strat->Bl,&Lp,strat);
+    l = strat->posInLSba(strat->B,strat->Bl,&Lp,strat);
     enterL(&strat->B,&strat->Bl,&strat->Bmax,Lp,l);
   }
 }
@@ -3080,7 +3081,7 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
         return;
       }
     }
-    l = strat->posInL(strat->L,strat->Ll,&Lp,strat);
+    l = strat->posInLSba(strat->L,strat->Ll,&Lp,strat);
     enterL(&strat->L,&strat->Ll,&strat->Lmax,Lp,l);
   }
 }
@@ -3191,7 +3192,7 @@ void kMergeBintoLSba(kStrategy strat)
   int i;
   for (i=strat->Bl; i>=0; i--)
   {
-    j = strat->posInL(strat->L,j,&(strat->B[i]),strat);
+    j = strat->posInLSba(strat->L,j,&(strat->B[i]),strat);
     enterL(&strat->L,&strat->Ll,&strat->Lmax,strat->B[i],j);
   }
   strat->Bl = -1;
@@ -4408,7 +4409,7 @@ void enterExtendedSpolySig(poly h,poly hSig,kStrategy strat)
         if (strat->Ll==-1)
           posx =0;
         else
-          posx = strat->posInL(strat->L,strat->Ll,&Lp,strat);
+          posx = strat->posInLSba(strat->L,strat->Ll,&Lp,strat);
         Lp.sev = pGetShortExpVector(Lp.p);
         if (strat->tailRing != currRing)
         {
@@ -5562,7 +5563,7 @@ int posInT19 (const TSet set,const int length,LObject &p)
 /*2
 *looks up the position of polynomial p in set
 *set[length] is the smallest element in set with respect
-*to the ordering-procedure pFDeg, p1 == NULL, pComp
+*to the ordering-procedure pComp
 */
 int posInLSpecial (const LSet set, const int length,
                    LObject *p,const kStrategy)
@@ -5575,7 +5576,7 @@ int posInLSpecial (const LSet set, const int length,
 
   if ((op > d)
   || ((op == d) && (p->p1!=NULL)&&(set[length].p1==NULL))
-  || ((op == d) && ((p->p1==NULL) == (set[length].p1==NULL)) && (pLmCmp(set[length].p,p->p) == cmp_int)))
+  || (pLmCmp(set[length].p,p->p)== cmp_int))
      return length+1;
 
   int i;
@@ -5588,7 +5589,7 @@ int posInLSpecial (const LSet set, const int length,
       op=set[an].GetpFDeg();
       if ((op > d)
       || ((op == d) && (p->p1!=NULL) && (set[an].p1==NULL))
-      || ((op == d) && ((p->p1==NULL) == (set[an].p1==NULL)) && (pLmCmp(set[an].p,p->p) == cmp_int)))
+      || (pLmCmp(set[an].p,p->p)== cmp_int))
          return en;
       return an;
     }
@@ -5596,7 +5597,7 @@ int posInLSpecial (const LSet set, const int length,
     op=set[i].GetpFDeg();
     if ((op>d)
     || ((op==d) && (p->p1!=NULL) && (set[i].p1==NULL))
-    || ((op==d) && ((p->p1==NULL) == (set[i].p1==NULL)) && (pLmCmp(set[i].p,p->p) == cmp_int)))
+    || (pLmCmp(set[i].p,p->p) == cmp_int))
       an=i;
     else
       en=i;
@@ -5784,14 +5785,11 @@ int posInSyz (const kStrategy strat, poly sig)
 * critical pairs to strat->L only behind all other critical pairs which are
 * still in strat->L!
 */
-// dummy, unused
-#if 0
 int posInLF5C (const LSet /*set*/, const int /*length*/,
                LObject* /*p*/,const kStrategy strat)
 {
   return strat->Ll+1;
 }
-#endif
 
 /*2
 * looks up the position of polynomial p in set
@@ -7886,7 +7884,7 @@ void initSLSba (ideal F, ideal Q,kStrategy strat)
           if (strat->Ll==-1)
             pos =0;
           else
-            pos = strat->posInL(strat->L,strat->Ll,&h,strat);
+            pos = strat->posInLSba(strat->L,strat->Ll,&h,strat);
           h.sev = pGetShortExpVector(h.p);
           enterL(&strat->L,&strat->Ll,&strat->Lmax,h,pos);
         }
@@ -8877,11 +8875,17 @@ void enterSBba (LObject &p,int atS,kStrategy strat, int atR)
   /*- save result -*/
   poly pp=p.p;
   strat->S[atS] = pp;
-  if (strat->honey) strat->ecartS[atS] = p.ecart;
-  if (p.sev == 0)
+  #if 0
+  if ((p.sev == 0)
+  &&(!p_LmIsConstantComp(p.p,currRing))
+  &&(currRing->N<=LONG_BIT))
+  {
+    printf("no sev in enterSBba\n");
     p.sev = pGetShortExpVector(pp);
-  else
-    assume(p.sev == pGetShortExpVector(pp));
+  }
+  #else
+  assume((p.sev!=0) || p_LmIsConstantComp(p.p,currRing) || (currRing->N>LONG_BIT));
+  #endif
   strat->sevS[atS] = p.sev;
   strat->ecartS[atS] = p.ecart;
   strat->S_2_R[atS] = atR;
@@ -8902,6 +8906,7 @@ void enterSBbaShift (LObject &p,int atS,kStrategy strat, int atR)
     p_mLPshift(qq.p, i, strat->tailRing);
     qq.shift = i;
     strat->initEcart(&qq); // initEcartBBA sets length, pLength, FDeg and ecart
+    qq.SetShortExpVector();
     int atS = posInS(strat, strat->sl, qq.p, qq.ecart); // S needs to stay sorted because this is for example assumed when searching S later
     enterSBba(qq, atS, strat, -1);
   }
@@ -9016,11 +9021,17 @@ void enterSSba (LObject &p,int atS,kStrategy strat, int atR)
   /*- save result -*/
   strat->S[atS] = p.p;
   strat->sig[atS] = p.sig; // TODO: get the correct signature in here!
-  if (strat->honey) strat->ecartS[atS] = p.ecart;
-  if (p.sev == 0)
+  #if 0
+  if ((p.sev == 0)
+  &&(!p_LmIsConstantComp(p.p,currRing))
+  &&(currRing->N<=LONG_BIT))
+  {
+    printf("no sev in enterSSba\n");
     p.sev = pGetShortExpVector(p.p);
-  else
-    assume(p.sev == pGetShortExpVector(p.p));
+  }
+  #else
+  assume((p.sev!=0) || p_LmIsConstantComp(p.p,currRing) || (currRing->N>LONG_BIT));
+  #endif
   strat->sevS[atS] = p.sev;
   // during the interreduction process of a signature-based algorithm we do not
   // compute the signature at this point, but when the whole interreduction
@@ -9606,6 +9617,7 @@ void initBuchMoraPos (kStrategy strat)
       strat->posInL = posInL0;
       strat->posInT = posInT0;
     }
+    //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
       strat->posInL = posInL110;
@@ -9690,6 +9702,7 @@ void initBuchMoraPosRing (kStrategy strat)
       strat->posInL = posInL0Ring;
       strat->posInT = posInT0;
     }
+    //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
       strat->posInL = posInL110Ring;
@@ -9881,6 +9894,7 @@ void initSbaPos (kStrategy strat)
     {
       strat->posInT = posInT0;
     }
+    //if (strat->minim>0) strat->posInL =posInLSpecial;
     if (strat->homog)
     {
       strat->posInT = posInT110;
@@ -9905,6 +9919,7 @@ void initSbaPos (kStrategy strat)
       }
     }
   }
+  if (strat->minim>0) strat->posInL =posInLSpecial;
   // for further tests only
   if (BTEST1(11))
     strat->posInT = posInT11;
@@ -9923,12 +9938,15 @@ void initSbaPos (kStrategy strat)
     strat->posInT = posInT11;
   }
   strat->posInLDependsOnLength = FALSE;
-  strat->posInL     = posInLSig;
+  strat->posInLSba  = posInLSig;
+  strat->posInL     = posInLF5C;
   /*
   if (rField_is_Ring(currRing))
   {
-    strat->posInL = posInLSigRing;
+    strat->posInLSba  = posInLSigRing;
+    strat->posInL     = posInL11Ring;
   }*/
+  //strat->posInT     = posInTSig;
 }
 
 void initSbaBuchMora (ideal F,ideal Q,kStrategy strat)

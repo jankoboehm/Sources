@@ -280,6 +280,8 @@ public:
   int (*red2)(LObject * L,kStrategy strat);
   void (*initEcart)(TObject * L);
   int (*posInT)(const TSet T,const int tl,LObject &h);
+  int (*posInLSba)(const LSet set, const int length,
+                LObject* L,const kStrategy strat);
   int (*posInL)(const LSet set, const int length,
                 LObject* L,const kStrategy strat);
   void (*enterS)(LObject &h, int pos,kStrategy strat, int atR/* =-1*/ );
@@ -451,8 +453,8 @@ int posInT_pLength(const TSet set,const int length,LObject &p);
 
 
 void reorderS (int* suc,kStrategy strat);
-//int posInLF5C (const LSet set, const int length,
-//               LObject* L,const kStrategy strat);
+int posInLF5C (const LSet set, const int length,
+               LObject* L,const kStrategy strat);
 int posInLSig (const LSet set, const int length,
                LObject* L,const kStrategy strat);
 int posInLSigRing (const LSet set, const int length,
