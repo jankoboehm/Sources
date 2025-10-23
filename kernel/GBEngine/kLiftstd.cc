@@ -182,7 +182,7 @@ int redLiftstd (LObject* h, kStrategy strat)
 
   pass = j = 0;
   d = reddeg = h->GetpFDeg() + h->ecart;
-  if (h->sev==0) h->SetShortExpVector();
+  h->SetShortExpVector();
   int li;
   h_p = h->GetLmTailRing();
   not_sev = ~ h->sev;

@@ -351,7 +351,6 @@ static void completeReduceFac (kStrategy strat, ideal_list FL)
         pWrite(n->P.p);
       }
       enterpairs(n->P.p,n->sl,n->P.ecart,pos,n);
-      n->P.SetShortExpVector();
       enterT(n->P,n);
       n->enterS(n->P,pos,n, n->tl);
 
@@ -623,7 +622,6 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec* /*w*/,kStrategy strat, ideal_list FL)
           PrintLn();
         }
         enterpairs(n->P.p,n->sl,n->P.ecart,pos,n);
-        n->P.SetShortExpVector();
         enterT(n->P,n);
         n->enterS(n->P,pos,n, n->tl);
         {
@@ -678,7 +676,7 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec* /*w*/,kStrategy strat, ideal_list FL)
             if (n->D->m[j]!=NULL)
             {
               poly r=kNF(n->Shdl,NULL,n->D->m[j],0,
-                KSTD_NF_LAZY | KSTD_NF_NONORM | KSTD_NF_NOLF);
+	        KSTD_NF_LAZY | KSTD_NF_NONORM | KSTD_NF_NOLF);
               if (r==NULL)
               {
                 if (TEST_OPT_DEBUG)
@@ -726,7 +724,7 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec* /*w*/,kStrategy strat, ideal_list FL)
             if ((n->sl>=0)&&(n->S[0]!=NULL))
             {
               ideal r=kNF(n->Shdl,NULL,Lj->d,0,
-                KSTD_NF_LAZY | KSTD_NF_NONORM | KSTD_NF_NOLF);
+	        KSTD_NF_LAZY | KSTD_NF_NONORM | KSTD_NF_NOLF);
               if (idIs0(r))
               {
                 if (TEST_OPT_DEBUG)

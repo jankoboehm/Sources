@@ -174,7 +174,7 @@ int redEcart (LObject* h,kStrategy strat)
 
   d = h->GetpFDeg()+ h->ecart;
   reddeg = strat->LazyDegree+d;
-  if (h->sev==0) h->SetShortExpVector();
+  h->SetShortExpVector();
   loop
   {
     j = kFindDivisibleByInT(strat, h);
@@ -391,7 +391,7 @@ int redRiloc (LObject* h,kStrategy strat)
 
   d = h->GetpFDeg()+ h->ecart;
   reddeg = strat->LazyDegree+d;
-  if (h->sev==0) h->SetShortExpVector();
+  h->SetShortExpVector();
   loop
   {
     j = kFindDivisibleByInT(strat, h);
@@ -576,7 +576,7 @@ int redRiloc_Z (LObject* h,kStrategy strat)
 
     d = h->GetpFDeg()+ h->ecart;
     reddeg = strat->LazyDegree+d;
-    if (h->sev==0) h->SetShortExpVector();
+    h->SetShortExpVector();
     if ((strat->tl>=0)
     &&strat->T[0].GetpFDeg() == 0
     && strat->T[0].length <= 2)
@@ -808,7 +808,7 @@ int redFirst (LObject* h,kStrategy strat)
     d += h->ecart;
     reddeg = strat->LazyDegree+d;
   }
-  if (h->sev==0) h->SetShortExpVector();
+  h->SetShortExpVector();
   loop
   {
     j = kFindDivisibleByInT(strat, h);
@@ -3675,7 +3675,6 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
       // enter into S, L, and T
       if ((!TEST_OPT_IDLIFT) || (pGetComp(strat->P.p) <= strat->syzComp))
       {
-        strat->P.SetShortExpVector();
         enterT(strat->P, strat);
         // posInS only depends on the leading term
         strat->enterS(strat->P, pos, strat, strat->tl);

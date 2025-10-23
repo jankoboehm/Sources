@@ -1218,7 +1218,6 @@ ideal k_gnc_gr_bba(const ideal F, const ideal Q, const intvec *, const bigintmat
 #endif
 
           }
-          strat->P.SetShortExpVector();
           // kTest(strat);
           //
           enterpairs(strat->P.p,strat->sl,strat->P.ecart,pos,strat);
