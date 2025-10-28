@@ -12952,7 +12952,7 @@ void enterpairsShift (poly h,int k,int ecart,int pos,kStrategy strat, int atR)
 * assumes that p is already in T!
 */
 #ifdef HAVE_SHIFTBBA
-void enterTShift(LObject p, kStrategy strat, int atT)
+void enterTShift(LObject& p, kStrategy strat, int atT)
 {
   /* determine how many elements we have to insert */
   /* x(0)y(1)z(2) : lastVblock-1=2, to add until lastVblock=uptodeg-1 */
