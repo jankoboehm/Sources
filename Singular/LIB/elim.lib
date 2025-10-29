@@ -400,7 +400,7 @@ proc elim (def id, list #)
 "USAGE:   elim(id,arg[,s]);  id ideal/module, arg can be either an intvec v or
          a product p of variables (type poly), s a string determining the
          method which can be \"slimgb\" or \"std\" or, additionally,
-         \"withWeigts\".
+         \"withWeights\".
 RETURN: ideal/module obtained from id by eliminating either the variables
         with indices appearing in v or the variables appearing in p.
         Does not work in a qring.
