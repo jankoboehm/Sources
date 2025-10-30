@@ -61,6 +61,7 @@ New/stdmodule.tst
 New/short_print.tst
 New/smatrix.tst
 New/sres_bug.tst
+New/sat2.tst
 New/stdZ.tst
 New/stdZtests.tst
 New/std_criteria.tst

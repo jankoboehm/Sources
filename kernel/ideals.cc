@@ -1432,6 +1432,28 @@ static ideal idInitializeQuot (ideal  h1, ideal h2, BOOLEAN h1IsStb, BOOLEAN *ad
   else
     temph1 = idCopy(h1);
   if (weights!=NULL) delete weights;
+  if (currRing->qideal!=NULL)
+  {
+    int kk=si_max(k1,k2);
+    if (kk==0)
+    {
+      ideal tmp=id_SimpleAdd(temph1,currRing->qideal,currRing);
+      id_Delete(&temph1,currRing);
+      temph1=tmp;
+    }
+    else
+    {
+      for(int i=1;i<=kk;i++)
+      {
+        ideal q=id_Copy(currRing->qideal,currRing);
+        id_Shift(q,i,currRing); q->rank=i;
+        ideal tmp=id_SimpleAdd(temph1,q,currRing);
+        id_Delete(&q,currRing);
+        id_Delete(&temph1,currRing);
+        temph1=tmp;
+      }
+    }
+  }
   idTest(temph1);
 /*--- making a single vector from h2 ---------------------*/
   for (i=0; i<IDELEMS(h2); i++)
@@ -1566,7 +1588,9 @@ ideal idQuot (ideal  h1, ideal h2, BOOLEAN h1IsStb, BOOLEAN resultIsIdeal)
   }
   else
   {
-    s_h3 = kStd2(s_h4,currRing->qideal,hom,&weights1,(bigintmat*)NULL,kmax-1);
+    //s_h3 = kStd2(s_h4,currRing->qideal,hom,&weights1,(bigintmat*)NULL,kmax-1);
+    // qideal added in idInitializeQuotient
+    s_h3 = kStd2(s_h4,NULL,hom,&weights1,(bigintmat*)NULL,kmax-1);
   }
   SI_RESTORE_OPT1(old_test1);
 
