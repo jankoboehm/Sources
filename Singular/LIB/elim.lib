@@ -409,7 +409,7 @@ METHOD: elim uses elimRing to create a ring with an elimination ordering for
         is given, or slimgb if \"slimgb\" is given, or a heuristically chosen
         method.
 @*      If the variables in the basering have weights these weights are used
-        in elimRing. If a string \"withWeigts\" as (optional) argument is given
+        in elimRing. If a string \"withWeights\" as (optional) argument is given
         Singular computes weights for the variables to make the input as
         homogeneous as possible.
 @*      The method is different from that used by eliminate and elim1;
@@ -534,7 +534,7 @@ EXAMPLE: example elim; shows an example
 
    //### Todo: hier sollte id = groebner(id, "hilb"); verwendet werden.
    //da z.Zt. (Jan 09) groebener bei extra Gewichtsvektor a(...) aber stets std
-   //aufruft und ausserdem "withWeigts" nicht kennt, ist groebner(id, "hilb")
+   //aufruft und ausserdem "withWeights" nicht kennt, ist groebner(id, "hilb")
    //zunaechst nicht aktiviert. Ev. nach Ueberarbeitung von groebner aktivieren
 
    id = nselect(id,1..ne);
