@@ -37,9 +37,11 @@ RETURN:   a standard basis of I
 NOTE:     The procedure computes a standard basis of I (over the rational
           numbers) by using modular methods.
        @* An optional parameter 'exactness' can be provided.
-          If exactness = 1(default), the procedure computes a standard basis
-          of I for sure; if exactness = 0, it computes a standard basis of I
-          with high probability.
+          If exactness = 1(default) then the result is verified to be a standard
+          basis and contains I.
+          If in addition the generators of I are homogeneous,
+          the result is a standard basis of I.
+          Otherwise, the result is a standard basis of I with high probability.
 SEE ALSO: modular
 EXAMPLE:  example modStd; shows an example"
 {
