@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version modstd.lib 4.3.0.1 Mar_2022 "; // $Id$
+version="version modstd.lib 4.4.1.4 Nov_2025 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  modstd.lib      Groebner bases of ideals/modules using modular methods
@@ -39,8 +39,8 @@ NOTE:     The procedure computes a standard basis of I (over the rational
        @* An optional parameter 'exactness' can be provided.
           If exactness = 1(default) then the result is verified to be a standard
           basis and contains I.
-          If in addition the generators of I are homogeneous,
-          the result is a standard basis of I.
+          If in addition the generators of I are homogeneous
+	  or the ordering is local, the result is a standard basis of I.
           Otherwise, the result is a standard basis of I with high probability.
 SEE ALSO: modular
 EXAMPLE:  example modStd; shows an example"
