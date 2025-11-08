@@ -1727,6 +1727,8 @@ See
 @*@code{eliminate (} module_expression@code{,} intvec_expression @code{)}
 @*@code{eliminate (} ideal_expression@code{,} product_of_ring_variables@code{,} bigintvec_hilb @code{)}
 @*@code{eliminate (} module_expression@code{,} product_of_ring_variables@code{,} bigintvec_hilb @code{)}
+@*@code{eliminate (} ideal_expression@code{,} product_of_ring_variables@code{,} tring_expression @code{)}
+@*@code{eliminate (} module_expression@code{,} product_of_ring_variables@code{,} string_expression @code{)}
 @item @strong{Type:}
 the same as the type of the first argument
 @item @strong{Purpose:}
@@ -1738,6 +1740,8 @@ ideal (resp.@: a submodule of a free module), by intersecting it
 @c ideal, resp.@: module, by intersecting it with the subring not containing
 @c these variables.
 @*@code{eliminate} does not need a special ordering nor a standard basis as input.
+@*An optional third argyument of type string specifies the used Groebner base
+algorith: @@code"std","slimgb","sba","modStd"}.
 @item @strong{Note:}
 Since elimination is expensive, for homogeneous input it might be useful
 first to compute the Hilbert function of the ideal (first
