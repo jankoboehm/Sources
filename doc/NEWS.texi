@@ -25,6 +25,7 @@ Changed libraries:
 @itemize
 @item @code{homolog.lib}: handling of module weights (@nref{Ext_R})
 @item @code{normaliz.lib}: new version (@nref{normaliz_lib})
+@item @code{polymake.lib}: new version for topcom 1.1 (@nref{polymake_lib})
 @item @code{sagbiNormaliz.lib}: new version for normaliz 3.10.5 (@nref{sagbiNormaliz_lib})
 @item @code{sagbiNormaliz0.lib}: version for normaliz <=3.10.1 (@nref{sagbiNormaliz0_lib})
 @end itemize
@@ -34,7 +35,8 @@ Changes in the kernel/build system:
 @item changes for gcc 15
 @item changes for FLINT 3.3
 @item changes for normaliz 3.10.5
-@item @code{nres},@code{mres},@code{prune_map}: allow rings as coefficients
+@item fix @code{quotient} for qring case (@nref{quotient})
+@item @code{nres},@code{mres},@code{prune_map}: allow ring elements as coefficients
 (@nref{nres},@nref{mres},@nref{prune_map})
 @item @code{read},@code{write} support a link (@code{"ssi:string"}) to read/write data encoded as strings (@nref{read},@nref{write})
 @end itemize
