@@ -2355,12 +2355,19 @@ leftv ssiRead1_S(char**s, const ring R)
            //Print("bigint\n");
            break;
     case 15:
-    case 5:
-           //Print("ring %d\n",t);
-           res->rtyp=RING_CMD;
-	   res->data=(char*)ssiReadRing_R_S(s);
-           if (errorreported||(res->data==NULL)) return NULL;
-           break;
+    case 5:{
+             //Print("ring %d\n",t);
+	     ring r=ssiReadRing_R_S(s);
+             if (errorreported||(r==NULL)) return NULL;
+             res->rtyp=RING_CMD;
+	     res->data=(char*)r;
+	     if (/*(t==15)&&*/
+	     ((currRing==NULL)||(!rSamePolyRep(r,currRing))))
+	     {
+	       rChangeCurrRing(r);
+	     }
+             break;
+	   }
     case 6:res->rtyp=POLY_CMD;
            res->data=(char*)ssiReadPoly_R_S(s,R);
            break;
