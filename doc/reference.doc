@@ -1741,7 +1741,7 @@ ideal (resp.@: a submodule of a free module), by intersecting it
 @c these variables.
 @*@code{eliminate} does not need a special ordering nor a standard basis as input.
 @*An optional third argyument of type string specifies the used Groebner base
-algorith: @@code"std","slimgb","sba","modstd"}.
+algorith: @code{"std","slimgb","modstd"}.
 @item @strong{Note:}
 Since elimination is expensive, for homogeneous input it might be useful
 first to compute the Hilbert function of the ideal (first
