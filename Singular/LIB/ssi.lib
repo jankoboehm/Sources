@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-version="version ssi.lib 4.4.0.3 Jun_2024 "; // $Id$
+version="version ssi.lib 4.4.1.3 Nov_2025 "; // $Id$
 category="Data Handling";
 info="
 LIBRARY: ssi.lib   Wrapper for handling SSI files in Singular
@@ -22,6 +22,8 @@ PROCEDURES:
  writeDataToSSI(); Writes a list of expressions to an SSI file.
  readDataFromSSI(); Reads all expressions from an SSI file.
  appendDataToSSI(); Appends a list of expressions to an SSI file.
+ readFromString(s); Reads all expressions from an SSI string
+ writeToString(d); Writes a list of expressions to an SSI string
 ";
 
 proc openSSI(string mode, string filename)
@@ -140,4 +142,29 @@ example
  appendDataToSSI("example.ssi", list(x^3, ideal(x,y), M));
  list readData = readDataFromSSI("example.ssi");
  readData;
+}
+
+proc writeToString(def d)
+"USAGE: writeToString(d); d: any type
+RETURN: none
+EXAMPLE: example writeToString, shows an example"
+{
+  return(system("ssi",d));
+}
+example
+{
+ "EXAMPLE:"; echo=2;
+ writeToString(2);
+}
+proc readFromString(string s)
+"USAGE: readFromString(s); : string
+RETURN: expression_list
+EXAMPLE: example readFromString, shows an example"
+{
+  return(system("ssi-r",s));
+}
+example
+{
+ "EXAMPLE:"; echo=2;
+ readFromString("1 3 2 2 Hi");
 }
