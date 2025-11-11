@@ -4045,6 +4045,23 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       }
     }
     else
+/*==================== += =================*/
+    if(strcmp(sys_cmd,"+=")==0)
+    {
+      const short t1[]={2,BUCKET_CMD,POLY_CMD};
+      if (iiCheckTypes(h,t1,1))
+      {
+        if (h->rtyp==IDHDL)
+	{
+	  sBucket_pt b=(sBucket_pt)h->Data();
+	  poly p=(poly)h->next->CopyD();
+	  sBucket_Add_p(b,p,pLength(p));
+	}
+      }
+      res->rtyp=NONE;
+      return FALSE;
+    }
+    else
 /*==================== Error =================*/
       Werror( "(extended) system(\"%s\",...) %s", sys_cmd, feNotImplemented );
   }
