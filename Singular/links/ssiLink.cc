@@ -1167,7 +1167,53 @@ static ring ssiReadRing_R_S(char **s)
 }
 ring ssiReadRing_S(char *s)
 {
-  return ssiReadRing_R_S(&s);
+  ring r=ssiReadRing_R_S(&s);
+  // check if such ring already exist as ssiRing*
+  char name[20];
+  int nr=0;
+  idhdl h=NULL;
+  loop // already defined?
+  {
+    snprintf(name,20,"ssiRing%d",nr); nr++;
+    h=IDROOT->get(name, 0);
+    if (h==NULL)
+    {
+      break;
+    }
+    else if ((IDTYP(h)==RING_CMD)
+    && (r!=IDRING(h))
+    && (rEqual(r,IDRING(h),1)))
+    {
+      rDelete(r);
+      r=rIncRefCnt(IDRING(h));
+      break;
+    }
+  }
+  if ((h==NULL) && ((currRing==NULL) || (!rEqual(r,currRing,1))))
+  {
+    char name[20];
+    int nr=0;
+    idhdl hh=NULL;
+    loop
+    {
+      snprintf(name,20,"ssiRing%d",nr); nr++;
+      hh=IDROOT->get(name, 0);
+      if (hh==NULL)
+      {
+        hh=enterid(name,0,RING_CMD,&IDROOT,FALSE);
+        break;
+      }
+      else if ((IDTYP(hh)==RING_CMD)
+      && (rEqual(r,IDRING(hh),1)))
+      {
+        break;
+      }
+    }
+    rSetHdl(hh);
+  }
+  else
+    rSetHdl(h);
+  return r;
 }
 
 static poly ssiReadPoly_R(const ssiInfo *d, const ring r)
@@ -2357,17 +2403,17 @@ leftv ssiRead1_S(char**s, const ring R)
     case 15:
     case 5:{
              //Print("ring %d\n",t);
-	     ring r=ssiReadRing_R_S(s);
+             ring r=ssiReadRing_R_S(s);
              if (errorreported||(r==NULL)) return NULL;
              res->rtyp=RING_CMD;
-	     res->data=(char*)r;
-	     if (/*(t==15)&&*/
-	     ((currRing==NULL)||(!rSamePolyRep(r,currRing))))
-	     {
-	       rChangeCurrRing(r);
-	     }
+             res->data=(char*)r;
+             if (/*(t==15)&&*/
+             ((currRing==NULL)||(!rSamePolyRep(r,currRing))))
+             {
+               rChangeCurrRing(r);
+             }
              break;
-	   }
+           }
     case 6:res->rtyp=POLY_CMD;
            res->data=(char*)ssiReadPoly_R_S(s,R);
            break;
