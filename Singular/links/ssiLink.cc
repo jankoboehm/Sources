@@ -371,6 +371,120 @@ static void ssiWriteRing_R(ssiInfo *d,const ring r)
   }
 }
 
+static void ssiWriteIdeal_R_S(int typ,const ideal I, const ring R);
+static void ssiWriteRing_R_S(ring r)
+{
+  /* 5 <ch> <N> <l1> <v1> ...<lN> <vN> <number of orderings> <ord1> <block0_1> <block1_1> .... <extRing> <Q-ideal> */
+  /* ch=-1: transext, coeff ring follows */
+  /* ch=-2: algext, coeff ring and minpoly follows */
+  /* ch=-3: cf name follows */
+  /* ch=-4: NULL*/
+  /* ch=-5: reference <int> */
+  /* ch=-6: new reference <int> <ring> */
+  if (r!=NULL)
+  {
+    if (rField_is_Q(r) || rField_is_Zp(r))
+      StringAppend("%d %d ",n_GetChar(r->cf),r->N);
+    else if (rFieldType(r)==n_transExt)
+      StringAppend("-1 %d ",r->N);
+    else if (rFieldType(r)==n_algExt)
+      StringAppend("-2 %d ",r->N);
+    else /*dummy*/
+    {
+      StringAppend("-3 %d ",r->N);
+      ssiWriteString_S(nCoeffName(r->cf));
+    }
+
+    int i;
+    for(i=0;i<r->N;i++)
+    {
+      StringAppend("%d %s ",(int)strlen(r->names[i]),r->names[i]);
+    }
+    /* number of orderings:*/
+    i=0;
+    // remember dummy ring: everything 0:
+    if (r->order!=NULL) while (r->order[i]!=0) i++;
+    StringAppend("%d ",i);
+    /* each ordering block: */
+    i=0;
+    if (r->order!=NULL) while(r->order[i]!=0)
+    {
+      StringAppend("%d %d %d ",r->order[i],r->block0[i], r->block1[i]);
+      switch(r->order[i])
+      {
+        case ringorder_a:
+        case ringorder_wp:
+        case ringorder_Wp:
+        case ringorder_ws:
+        case ringorder_Ws:
+        case ringorder_aa:
+        {
+          int s=r->block1[i]-r->block0[i]+1; // #vars
+          for(int ii=0;ii<s;ii++)
+            StringAppend("%d ",r->wvhdl[i][ii]);
+        }
+        break;
+        case ringorder_M:
+        {
+          int s=r->block1[i]-r->block0[i]+1; // #vars
+          for(int ii=0;ii<s*s;ii++)
+          {
+            StringAppend("%d ",r->wvhdl[i][ii]);
+          }
+        }
+        break;
+
+        case ringorder_a64:
+        case ringorder_L:
+        case ringorder_IS:
+          Werror("ring oder not implemented for ssi:%d",r->order[i]);
+          break;
+
+        default: break;
+      }
+      i++;
+    }
+    if ((rFieldType(r)==n_transExt)
+    || (rFieldType(r)==n_algExt))
+    {
+      ssiWriteRing_R_S(r->cf->extRing); /* includes alg.ext if rFieldType(r)==n_algExt */
+    }
+    /* Q-ideal :*/
+    if (r->qideal!=NULL)
+    {
+      ssiWriteIdeal_R_S(IDEAL_CMD,r->qideal,r);
+    }
+    else
+    {
+      StringAppendS("0 "/*ideal with 0 entries */);
+    }
+  }
+  else /* dummy ring r==NULL*/
+  {
+    StringAppendS("0 0 0 0 "/*,r->ch,r->N, blocks, q-ideal*/);
+  }
+  if (rIsLPRing(r)) // cannot be combined with 23 2
+  {
+    StringAppend("23 1 %d %d ",SI_LOG2(r->bitmask),r->isLPring);
+  }
+  else
+  {
+    unsigned long bm=0;
+    int b=0;
+    bm=rGetExpSize(bm,b,r->N);
+    if (r->bitmask!=bm)
+    {
+      StringAppend("23 0 %d ",SI_LOG2(r->bitmask));
+    }
+    if (rIsPluralRing(r))
+    {
+      StringAppendS("23 2 ");
+      ssiWriteIdeal_R_S(MATRIX_CMD,(ideal)r->GetNC()->C,r);
+      ssiWriteIdeal_R_S(MATRIX_CMD,(ideal)r->GetNC()->D,r);
+    }
+  }
+}
+
 static void ssiWriteRing(ssiInfo *d,const ring r)
 {
   /* 5 <ch> <N> <l1> <v1> ...<lN> <vN> <number of orderings> <ord1> <block0_1> <block1_1> .... <extRing> <Q-ideal> */
@@ -395,6 +509,13 @@ static void ssiWriteRing(ssiInfo *d,const ring r)
     /*d->*/rIncRefCnt(r);
   }
   ssiWriteRing_R(d,r);
+}
+
+char* ssiWriteRing_S(const ring r)
+{
+  StringSetS("");
+  ssiWriteRing_R_S(r);
+  return StringEndS();
 }
 static void ssiWritePoly_R(const ssiInfo *d, poly p, const ring r)
 {
@@ -912,6 +1033,141 @@ static ring ssiReadRing(ssiInfo *d)
     }
     return r;
   }
+}
+static ideal ssiReadIdeal_R_S(char** s,const ring r);
+static ring ssiReadRing_R_S(char **s)
+{
+/* syntax is <ch> <N> <l1> <v1> ...<lN> <vN> <number of orderings> <ord1> <block0_1> <block1_1> .... <Q-ideal> */
+  int ch;
+  int new_ref=-1;
+  ch=s_readint_S(s);
+  if (ch==-4)
+    return NULL;
+  int N=s_readint_S(s);
+  char **names;
+  coeffs cf=NULL;
+  if (ch==-3)
+  {
+    char *cf_name=ssiReadString_S(s);
+    cf=nFindCoeffByName(cf_name);
+    if (cf==NULL)
+    {
+      Werror("cannot find cf:%s",cf_name);
+      omFreeBinAddr(cf_name);
+      return NULL;
+    }
+  }
+  if (N!=0)
+  {
+    names=(char**)omAlloc(N*sizeof(char*));
+    for(int i=0;i<N;i++)
+    {
+      names[i]=ssiReadString_S(s);
+    }
+  }
+  // read the orderings:
+  int num_ord; // number of orderings
+  num_ord=s_readint_S(s);
+  rRingOrder_t *ord=(rRingOrder_t *)omAlloc0((num_ord+1)*sizeof(rRingOrder_t));
+  int *block0=(int *)omAlloc0((num_ord+1)*sizeof(int));
+  int *block1=(int *)omAlloc0((num_ord+1)*sizeof(int));
+  int **wvhdl=(int**)omAlloc0((num_ord+1)*sizeof(int*));
+  for(int i=0;i<num_ord;i++)
+  {
+    ord[i]=(rRingOrder_t)s_readint_S(s);
+    block0[i]=s_readint_S(s);
+    block1[i]=s_readint_S(s);
+    switch(ord[i])
+    {
+      case ringorder_a:
+      case ringorder_wp:
+      case ringorder_Wp:
+      case ringorder_ws:
+      case ringorder_Ws:
+      case ringorder_aa:
+      {
+        int ss=block1[i]-block0[i]+1; // #vars
+        wvhdl[i]=(int*)omAlloc(ss*sizeof(int));
+        for(int ii=0;ii<ss;ii++)
+          wvhdl[i][ii]=s_readint_S(s);
+      }
+      break;
+      case ringorder_M:
+      {
+        int ss=block1[i]-block0[i]+1; // #vars
+        wvhdl[i]=(int*)omAlloc(ss*ss*sizeof(int));
+        for(int ii=0;ii<ss*ss;ii++)
+        {
+          wvhdl[i][ii]=s_readint_S(s);
+        }
+      }
+      break;
+      case ringorder_a64:
+      case ringorder_L:
+      case ringorder_IS:
+        Werror("ring order not implemented for ssi:%d",ord[i]);
+        break;
+
+      default: break;
+    }
+  }
+  if (N==0)
+  {
+    omFree(ord);
+    omFree(block0);
+    omFree(block1);
+    omFree(wvhdl);
+    return NULL;
+  }
+  else
+  {
+    ring r=NULL;
+    if (ch>=0) /* Q, Z/p */
+      r=rDefault(ch,N,names,num_ord,ord,block0,block1,wvhdl);
+    else if (ch==-1) /* trans ext. */
+    {
+      TransExtInfo T;
+      T.r=ssiReadRing_R_S(s);
+      if (T.r==NULL) return NULL;
+      cf=nInitChar(n_transExt,&T);
+      r=rDefault(cf,N,names,num_ord,ord,block0,block1,wvhdl);
+    }
+    else if (ch==-2) /* alg ext. */
+    {
+      TransExtInfo T;
+      T.r=ssiReadRing_R_S(s); /* includes qideal */
+      if (T.r==NULL) return NULL;
+      cf=nInitChar(n_algExt,&T);
+      r=rDefault(cf,N,names,num_ord,ord,block0,block1,wvhdl);
+    }
+    else if (ch==-3)
+    {
+      r=rDefault(cf,N,names,num_ord,ord,block0,block1,wvhdl);
+    }
+    else
+    {
+      Werror("ssi: read unknown coeffs type (%d)",ch);
+      for(int i=0;i<N;i++)
+      {
+        omFree(names[i]);
+      }
+      omFreeSize(names,N*sizeof(char*));
+      return NULL;
+    }
+    ideal q=ssiReadIdeal_R_S(s,r);
+    if (IDELEMS(q)==0) omFreeBin(q,sip_sideal_bin);
+    else r->qideal=q;
+    for(int i=0;i<N;i++)
+    {
+      omFree(names[i]);
+    }
+    omFreeSize(names,N*sizeof(char*));
+    return r;
+  }
+}
+ring ssiReadRing_S(char *s)
+{
+  return ssiReadRing_R_S(&s);
 }
 
 static poly ssiReadPoly_R(const ssiInfo *d, const ring r)
@@ -2098,24 +2354,13 @@ leftv ssiRead1_S(char**s, const ring R)
            res->data=(char *)ssiReadBigInt_S(s);
            //Print("bigint\n");
            break;
-    #if 0
     case 15:
-    case 5:{
+    case 5:
            //Print("ring %d\n",t);
-             d->r=ssiReadRing(d);
-             if (errorreported) return NULL;
-             res->data=(char*)d->r;
-             if (d->r!=NULL) rIncRefCnt(d->r);
-             res->rtyp=RING_CMD;
-             if (t==15) // setring
-             {
-               if(ssiSetCurrRing(d->r)) { d->r=currRing; }
-               omFreeBin(res,sleftv_bin);
-               return ssiRead1(l);
-             }
-           }
+           res->rtyp=RING_CMD;
+	   res->data=(char*)ssiReadRing_R_S(s);
+           if (errorreported||(res->data==NULL)) return NULL;
            break;
-    #endif
     case 6:res->rtyp=POLY_CMD;
            res->data=(char*)ssiReadPoly_R_S(s,R);
            break;
@@ -2414,11 +2659,9 @@ void ssiWrite_S(leftv data,const ring R)
         StringAppendS("3 ");
         ssiWriteNumber_CF_S((number)dd,R->cf);
         break;
-      #if 0
-      case RING_CMD:fputs("5 ",d->f_write);
-                          ssiWriteRing(d,(ring)dd);
+      case RING_CMD:StringAppendS("5 ");
+                          ssiWriteRing_R_S((ring)dd);
                           break;
-      #endif
       case BUCKET_CMD:
                           {
                             sBucket_pt b=(sBucket_pt)dd;
