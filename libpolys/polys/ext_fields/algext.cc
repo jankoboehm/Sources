@@ -836,8 +836,9 @@ static number naInvers(number a, const coeffs cf)
   poly aFactor = NULL; poly mFactor = NULL; poly theGcd = NULL;
 // singclap_extgcd!
   BOOLEAN ret=FALSE;
-  #if 0 //#ifdef HAVE_FLINT
-   // context for modulus
+  #if 0 
+  //#ifdef HAVE_FLINT
+    // context for modulus
     ring R=naRing;
     fmpz_mod_ctx_t ctxp;
     fmpz_t p;
@@ -855,10 +856,22 @@ static number naInvers(number a, const coeffs cf)
     }
     // ctx for ring r
     fq_ctx_t ctx ctx;
-       fq_ctx_init_modulus(ctx,modulus,ctxp,"a");
+    fq_ctx_init_modulus(ctx,modulus,ctxp,"a");
     fmpz_mod_poly_clear(modulus);
-    // convert f, g
-
+    // convert a
+    poly ap=(poly)a;
+    fq_poly_t aa;
+    fq_poly_init2 (aa, p_GetExp(ap,1,R), ctx);
+    while(ap!=NULL)
+    {
+      fq_t buf;
+      fmpz_poly_init2(buf,fq_ctx_degree(ctx));
+      _fmpz_poly_set_length(buf, fq_ctx_degree(ctx));
+      fmpz_set_si (buf,(long)pGetCoeff(ap));
+      fq_poly_set_coeff (aa, p_GetExp(ap,1,R), buf, ctx);
+      fq_clear (buf, ctx);
+      pIter(ap);
+    }
     // gcd
     // convert res
     // cleanup

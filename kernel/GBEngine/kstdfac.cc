@@ -351,8 +351,8 @@ static void completeReduceFac (kStrategy strat, ideal_list FL)
         pWrite(n->P.p);
       }
       enterpairs(n->P.p,n->sl,n->P.ecart,pos,n);
-      enterT(n->P,n);
-      n->enterS(n->P,pos,n, n->tl);
+      enterT(&n->P,n);
+      n->enterS(&n->P,pos,n, n->tl);
 
       /* construct D */
       if (IDELEMS(fac)>1)
@@ -622,8 +622,8 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec* /*w*/,kStrategy strat, ideal_list FL)
           PrintLn();
         }
         enterpairs(n->P.p,n->sl,n->P.ecart,pos,n);
-        enterT(n->P,n);
-        n->enterS(n->P,pos,n, n->tl);
+        enterT(&n->P,n);
+        n->enterS(&n->P,pos,n, n->tl);
         {
           int i=n->Ll;
           for(;i>=0;i--)

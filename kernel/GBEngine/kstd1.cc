@@ -149,9 +149,9 @@ static int doRed (LObject* h, TObject* with,BOOLEAN intoT,kStrategy strat, bool 
                                                        strat->tailRing));
     }
     if(redMoraNF && (rField_is_Ring(currRing)))
-      enterT_strong(*h,strat);
+      enterT_strong(h,strat);
     else
-      enterT(*h,strat);
+      enterT(h,strat);
     *h = L;
   }
   else
@@ -1050,7 +1050,7 @@ static poly redMoraNF (poly h,kStrategy strat, int flag)
         H.length=H.pLength=pLength(H.p);
         ksReducePoly(&L, &(strat->T[ii]), strat->kNoetherTail(), NULL, NULL, strat,
                             (flag & KSTD_NF_NONORM)==0);
-        enterT(H,strat);
+        enterT(&H,strat);
         H = L;
       }
       else
@@ -1188,7 +1188,7 @@ static poly redMoraNFRing (poly h,kStrategy strat, int flag)
               H.length=H.pLength=pLength(H.p);
               ksReducePoly(&L, &(strat->T[ii]), strat->kNoetherTail(), NULL, NULL, strat,
                             (flag & KSTD_NF_NONORM)==0);
-              enterT_strong(H,strat);
+              enterT_strong(&H,strat);
               H = L;
             }
             else
@@ -1626,18 +1626,18 @@ static void firstUpdate(kStrategy strat)
 *    and cancels units if possible
 *  - reorders s,L
 */
-void enterSMora (LObject &p,int atS,kStrategy strat, int atR)
+void enterSMora (LObject* p,int atS,kStrategy strat, int atR)
 {
   enterSBba(p, atS, strat, atR);
   #ifdef KDEBUG
   if (TEST_OPT_DEBUG)
   {
     Print("new s%d:",atS);
-    p_wrp(p.p,currRing,strat->tailRing);
+    p_wrp(p->p,currRing,strat->tailRing);
     PrintLn();
   }
   #endif
-  HEckeTest(p.p,strat);
+  HEckeTest(p->p,strat);
   if (strat->kAllAxis)
   {
     if (newHEdge(strat))
@@ -1679,10 +1679,10 @@ void enterSMora (LObject &p,int atS,kStrategy strat, int atR)
 *  if TRUE
 *  - computes noether
 */
-void enterSMoraNF (LObject &p, int atS,kStrategy strat, int atR)
+void enterSMoraNF (LObject* p, int atS,kStrategy strat, int atR)
 {
   enterSBba(p, atS, strat, atR);
-  if ((!strat->kAllAxis) || (strat->kNoether!=NULL)) HEckeTest(p.p,strat);
+  if ((!strat->kAllAxis) || (strat->kNoether!=NULL)) HEckeTest(p->p,strat);
   if (strat->kAllAxis)
     newHEdge(strat);
 }
@@ -2038,14 +2038,14 @@ ideal mora (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
         strat->P.pCleardenom();
 
       strat->P.SetShortExpVector();
-      enterT(strat->P,strat);
+      enterT(&strat->P,strat);
       // build new pairs
       if (rField_is_Ring(currRing))
         superenterpairs(strat->P.p,strat->sl,strat->P.ecart,0,strat, strat->tl);
       else
         enterpairs(strat->P.p,strat->sl,strat->P.ecart,0,strat, strat->tl);
       // put in S
-      strat->enterS(strat->P,
+      strat->enterS(&strat->P,
                     posInS(strat,strat->sl,strat->P.p, strat->P.ecart),
                     strat, strat->tl);
       // apply hilbert criterion
@@ -2203,7 +2203,7 @@ poly kNF1 (ideal F,ideal Q,poly q, kStrategy strat, int lazyReduce)
     h.length = pLength(h.p);
     h.sev = strat->sevS[i];
     h.SetpFDeg();
-    enterT(h,strat);
+    enterT(&h,strat);
   }
 #ifdef KDEBUG
 //  kDebugPrint(strat);
@@ -2354,9 +2354,9 @@ ideal kNF1 (ideal F,ideal Q,ideal q, kStrategy strat, int lazyReduce)
           h.sev = strat->sevS[j];
           h.SetpFDeg();
           if(rField_is_Ring(currRing) && rHasLocalOrMixedOrdering(currRing))
-            enterT_strong(h,strat);
+            enterT_strong(&h,strat);
           else
-            enterT(h,strat);
+            enterT(&h,strat);
         }
         if (TEST_OPT_PROT) { PrintS("r"); mflush(); }
         if(rField_is_Ring(currRing))
@@ -3675,9 +3675,9 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
       // enter into S, L, and T
       if ((!TEST_OPT_IDLIFT) || (pGetComp(strat->P.p) <= strat->syzComp))
       {
-        enterT(strat->P, strat);
+        enterT(&strat->P, strat);
         // posInS only depends on the leading term
-        strat->enterS(strat->P, pos, strat, strat->tl);
+        strat->enterS(&strat->P, pos, strat, strat->tl);
 
         if (pos<strat->sl)
         {
