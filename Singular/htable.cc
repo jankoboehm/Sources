@@ -60,7 +60,6 @@ char* stringTable(stablerec* t)
         StringAppendS(s);
         omFree(s);
         StringAppendS("\n");
-        telem pp=p;
         p=p->next;
     }
   }
