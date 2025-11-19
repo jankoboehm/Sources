@@ -1226,12 +1226,10 @@ static BOOLEAN jiA_QRING(leftv res, leftv a,Subexpr e)
 
   if (currRing->qideal!=NULL) /* we are already in a qring! */
   {
-    ideal tmp=idSimpleAdd(qid,currRing->qideal);
-    // both ideals should be GB, so dSimpleAdd is sufficient
-    idDelete(&qid);
-    qid=tmp;
+    ideal tmp=id_SimpleMove(qid,currRing->qideal,currRing);
     // delete the qr copy of quotient ideal!!!
-    idDelete(&qr->qideal);
+    // both ideals should be GB, so id_SimpleMove is sufficient
+    qid=tmp;
   }
   if (idElem(qid)==0)
   {
