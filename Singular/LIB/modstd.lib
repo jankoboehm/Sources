@@ -453,10 +453,10 @@ static proc finalTest_std_comm(string command, alias list args, def result)
     }
 
     /* test if result is a GB */
+    if (system("cpu")<2) { return(system("verifyGB",result));}
     def G = std(result);
     if (reduce_parallel(G, result)) { return(0); }
     return(1);
-    //return(system("verifyGB",result));
 }
 
 /* test if 'result' is a GB of the input ideal, generic */
