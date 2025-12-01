@@ -504,7 +504,12 @@ static inline BOOLEAN rField_has_Units(const ring r)
 #endif
 
 static inline BOOLEAN rField_is_Zp(const ring r)
-{ assume(r != NULL); assume(r->cf != NULL); return (getCoeffType(r->cf) == n_Zp); }
+{ assume(r != NULL); assume(r->cf != NULL); return nCoeff_is_Zp(r->cf); }
+
+static inline BOOLEAN rField_is_Zp_long(const ring r)
+{ assume(r != NULL); assume(r->cf != NULL);
+  return nCoeff_is_Zp_long(r->cf);
+}
 
 static inline BOOLEAN rField_is_Zp(const ring r, int p)
 { assume(r != NULL); assume(r->cf != NULL); return (getCoeffType(r->cf) == n_Zp) && (r->cf->ch == p); }

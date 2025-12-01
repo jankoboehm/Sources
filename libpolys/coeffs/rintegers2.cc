@@ -410,8 +410,7 @@ static nMapFunc nrzSetMap(const coeffs src, const coeffs /*dst*/)
 {
   /* dst = currRing */
   /* dst = nrn */
-  if ((src->rep==n_rep_gmp)
-  && (nCoeff_is_Z(src) || nCoeff_is_Zn(src) || nCoeff_is_Ring_PtoM(src)))
+  if (src->rep==n_rep_gmp)
   {
     return ndCopyMap; //nrzCopyMap;
   }

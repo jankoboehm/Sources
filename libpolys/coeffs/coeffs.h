@@ -727,17 +727,14 @@ static FORCE_INLINE BOOLEAN nCoeff_is_Ring_2toM(const coeffs r)
 { assume(r != NULL); return (getCoeffType(r)==n_Z2m); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Ring_PtoM(const coeffs r)
-{ assume(r != NULL); return (getCoeffType(r)==n_Znm); }
+{ assume(r != NULL); return (getCoeffType(r)==n_Znm)&&(!r->is_field); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Ring(const coeffs r)
 { assume(r != NULL); return (r->is_field==0); }
 
 /// returns TRUE, if r is a field or r has no zero divisors (i.e is a domain)
 static FORCE_INLINE BOOLEAN nCoeff_is_Domain(const coeffs r)
-{
-  assume(r != NULL);
-  return (r->is_domain);
-}
+{ assume(r != NULL); return (r->is_domain); }
 
 /// test whether 'a' is divisible 'b';
 /// for r encoding a field: TRUE iff 'b' does not represent zero
@@ -790,10 +787,16 @@ static FORCE_INLINE number  n_ImPart(number i, const coeffs cf)
 
 /// returns TRUE, if r is not a field and r has non-trivial units
 static FORCE_INLINE BOOLEAN nCoeff_has_Units(const coeffs r)
-{ assume(r != NULL); return ((getCoeffType(r)==n_Zn) || (getCoeffType(r)==n_Z2m) || (getCoeffType(r)==n_Znm)); }
+{ assume(r != NULL);
+  return (((getCoeffType(r)==n_Zn) || (getCoeffType(r)==n_Z2m) || (getCoeffType(r)==n_Znm))
+  &&(!r->is_field)); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Zp(const coeffs r)
 { assume(r != NULL); return getCoeffType(r)==n_Zp; }
+
+static FORCE_INLINE BOOLEAN nCoeff_is_Zp_long(const coeffs r)
+{ assume(r != NULL);
+  return (getCoeffType(r)==n_Zp)||(r->is_field && getCoeffType(r)==n_Znm); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Zp(const coeffs r, int p)
 { assume(r != NULL); return ((getCoeffType(r)==n_Zp) && (r->ch == p)); }
@@ -819,7 +822,7 @@ static FORCE_INLINE BOOLEAN nCoeff_is_Z(const coeffs r)
 }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Zn(const coeffs r)
-{ assume(r != NULL); return getCoeffType(r)==n_Zn; }
+{ assume(r != NULL); return (getCoeffType(r)==n_Zn)&& (r->is_field==0); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Q_or_BI(const coeffs r)
 { assume(r != NULL); return getCoeffType(r)==n_Q; }

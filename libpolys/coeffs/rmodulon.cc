@@ -70,11 +70,8 @@ static char* nrnCoeffName(const coeffs r)
   nrnCoeffName_buff=(char*)omAlloc(l);
   s= mpz_get_str (s, 10, r->modBase);
   int ll=0;
-  if (nCoeff_is_Zn(r))
+  if (nCoeff_is_Zn(r)||nCoeff_is_Zp_long(r))
   {
-    if (strlen(s)<10)
-      ll=snprintf(nrnCoeffName_buff,l,"ZZ/(%s)",s);
-    else
       ll=snprintf(nrnCoeffName_buff,l,"ZZ/bigint(%s)",s);
   }
   else if (nCoeff_is_Ring_PtoM(r))
@@ -274,6 +271,10 @@ static number nrnInvers(number c, const coeffs r)
  */
 static number nrnGcd(number a, number b, const coeffs r)
 {
+  if(r->is_field)
+  {
+    return nrnInit(1,r);
+  }
   mpz_ptr erg = (mpz_ptr)omAllocBin(gmp_nrz_bin);
   mpz_init_set(erg, r->modNumber);
   if (a != NULL) mpz_gcd(erg, erg, (mpz_ptr)a);
@@ -562,6 +563,10 @@ static number nrnAnn(number k, const coeffs r)
 
 static BOOLEAN nrnDivBy(number a, number b, const coeffs r)
 {
+  if(r->is_field)
+  {
+    return !nrnIsZero(b,r);
+  }
   /* b divides a iff b/gcd(a, b) is a unit in the given ring: */
   number n = nrnGcd(a, b, r);
   mpz_tdiv_q((mpz_ptr)n, (mpz_ptr)b, (mpz_ptr)n);
@@ -1004,6 +1009,14 @@ BOOLEAN nrnInitChar (coeffs r, void* p)
 
   r->is_field=FALSE;
   r->is_domain=FALSE;
+  if(r->modExponent==1)
+  {
+    if (mpz_probab_prime_p(r->modNumber,15)>0)
+    {
+      r->is_field=TRUE;
+      r->is_domain=TRUE;
+    }
+  }
   r->rep=n_rep_gmp;
 
   r->cfInit        = nrnInit;

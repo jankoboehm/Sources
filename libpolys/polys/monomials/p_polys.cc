@@ -3258,7 +3258,7 @@ void p_ProjectiveUnique(poly ph, const ring r)
         p=p_Neg (p,r);
       }
     }
-    else if (rField_is_Zp(C->extRing))
+    else if (rField_is_Zp(C->extRing)||rField_is_Zp_long(C->extRing))
     {
       if (!n_IsOne (n, C->extRing->cf))
       {
@@ -3887,6 +3887,18 @@ void p_Norm(poly p1, const ring r)
             pIter(h);
           }
         }
+      }
+      else if (nCoeff_is_Zp_long(C))
+      {
+        number inv=n_Invers(k,C);
+        while (h!=NULL)
+        {
+          number c=n_Mult(pGetCoeff(h),inv,C);
+          // no need to normalize
+          p_SetCoeff(h,c,r);
+          pIter(h);
+        }
+        n_Delete(&inv,r->cf);
       }
       else if(getCoeffType(C)==n_algExt)
       {

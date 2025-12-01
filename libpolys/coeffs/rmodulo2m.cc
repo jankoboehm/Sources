@@ -718,6 +718,10 @@ static nMapFunc nr2mSetMap(const coeffs src, const coeffs dst)
     if (mpz_divisible_2exp_p(src->modNumber,dst->modExponent))
       return nr2mMapGMP;
   }
+  if ((src->rep==n_rep_gmp) && nCoeff_is_Zp_long(src))
+  {
+    return nr2mMapGMP;
+  }
   return NULL;      // default
 }
 
