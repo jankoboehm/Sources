@@ -136,7 +136,10 @@ static coeffs nrnQuot1(number c, const coeffs r)
       //printf("\nkNew = %i\n",kNew);
       info.exp = kNew;
       mpz_clear(baseTokNew);
-      rr = nInitChar(n_Znm, (void*)&info);
+      if (kNew==1)
+        rr = nInitChar(n_Zn, (void*)&info);
+      else
+        rr = nInitChar(n_Znm, (void*)&info);
     }
     mpz_clear(gcd);
     return(rr);
@@ -1000,6 +1003,8 @@ BOOLEAN nrnInitChar (coeffs r, void* p)
   r->modBase= (mpz_ptr)nrnCopy((number)info->base, r); //this circumvents the problem
   //in bigintmat.cc where we cannot create a "legal" nrn that can be freed.
   //If we take a copy, we can do whatever we want.
+
+  if (info->exp==1) r->type=n_Zn;
 
   nrnInitExp (info->exp, r);
 

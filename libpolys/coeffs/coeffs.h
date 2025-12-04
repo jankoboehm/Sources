@@ -796,7 +796,7 @@ static FORCE_INLINE BOOLEAN nCoeff_is_Zp(const coeffs r)
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Zp_long(const coeffs r)
 { assume(r != NULL);
-  return (getCoeffType(r)==n_Zp)||(r->is_field && getCoeffType(r)==n_Znm); }
+  return (r->is_field && getCoeffType(r)==n_Zn); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Zp(const coeffs r, int p)
 { assume(r != NULL); return ((getCoeffType(r)==n_Zp) && (r->ch == p)); }
