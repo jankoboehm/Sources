@@ -2629,7 +2629,7 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
     if( rField_is_Q(currRing)
     && (!rHasGlobalOrdering(currRing))
     && (rOrd_is_ds(currRing)||rOrd_is_Ds(currRing))
-    && (!idIsSimplePoly(F)))
+    && (!idIsSimpleGB(F,Q)))
     {
       currRing->ppNoether=kTryHC(F,Q);
       ideal res=kStd_internal(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp);
@@ -2643,7 +2643,7 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
     && (!TEST_OPT_DEGBOUND)
     && (currRing->LexOrder
          || rHasBlockOrder(currRing))
-    && (!idIsSimplePoly(F))
+    && (!idIsSimpleGB(F,Q))
     && ( rField_is_Q(currRing)|| rField_is_Zp(currRing)))
     {
       ideal result=kTryHilbstd(F,Q);
