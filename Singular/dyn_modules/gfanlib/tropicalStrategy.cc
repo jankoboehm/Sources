@@ -268,6 +268,11 @@ static ideal constructStartingIdeal(ideal originalIdeal, ring originalRing, numb
   return startingIdeal;
 }
 
+static number nMap_dummy(number a, const coeffs src, const coeffs dst)
+{
+  return n_Init(n_Int(a,src),dst);
+}
+
 /***
  * Initializes all relevant structures and information for the valued case,
  * i.e. computing a tropical variety over the rational numbers with p-adic valuation
@@ -295,6 +300,8 @@ tropicalStrategy::tropicalStrategy(ideal J, number q, ring s):
 
   /* map the uniformizing parameter into the new coefficient domain */
   nMapFunc nMap = n_SetMap(originalRing->cf,startingRing->cf);
+  if (nMap==NULL)
+    nMap=nMap_dummy;
   uniformizingParameter = nMap(q,originalRing->cf,startingRing->cf);
 
   /* map the input ideal into the new polynomial ring */
