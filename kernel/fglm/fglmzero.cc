@@ -909,7 +909,7 @@ fglmDdata::updateCandidates( poly m, const fglmVector v )
         }
         if ( !done )
         {
-            nlist.append( fglmDelem( newmonom, v, k ) );
+            nlist.append( fglmDelem( newmonom, v, varpermutation[k] ) );
             break;
         }
         if ( state == 0 )
@@ -919,7 +919,7 @@ fglmDdata::updateCandidates( poly m, const fglmVector v )
         }
         else
         {
-            list.insert( fglmDelem( newmonom, v, k ) );
+            list.insert( fglmDelem( newmonom, v, varpermutation[k] ) );
         }
         k--;
     }
@@ -928,7 +928,7 @@ fglmDdata::updateCandidates( poly m, const fglmVector v )
         newmonom= pCopy( m );
         pIncrExp( newmonom, varpermutation[k] );
         pSetm( newmonom );
-        nlist.append( fglmDelem( newmonom, v, k ) );
+        nlist.append( fglmDelem( newmonom, v, varpermutation[k] ) );
     }
 }
 
