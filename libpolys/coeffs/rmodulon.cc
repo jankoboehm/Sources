@@ -274,7 +274,7 @@ static number nrnInvers(number c, const coeffs r)
  */
 static number nrnGcd(number a, number b, const coeffs r)
 {
-  if(r->is_field)
+  if(!(nrnIsZero(a,r) && nrnIsZero(b,r)) && r->is_field )
   {
     return nrnInit(1,r);
   }
