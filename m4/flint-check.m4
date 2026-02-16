@@ -25,8 +25,10 @@ AC_ARG_WITH(flint,
              ],
              [if test "x$withval" = xyes ; then
                         FLINT_HOME_PATH="DEFAULTS ${DEFAULT_CHECKING_PATH}"
+                        flint_requested="yes"
               elif test "x$withval" != xno ; then
                         FLINT_HOME_PATH="$withval"
+                        flint_requested="yes"
              fi],
              [FLINT_HOME_PATH="DEFAULTS ${DEFAULT_CHECKING_PATH}"])
 
@@ -76,6 +78,9 @@ else
         FLINT_CFLAGS=""
         FLINT_LIBS=""
         FLINT_HOME=""
+        if test "x$flint_requested" = "xyes" ; then
+            AC_MSG_ERROR([Configure error: FLINT requested, but not found])
+        fi
 fi
 AC_SUBST(FLINT_CFLAGS)
 AC_SUBST(FLINT_LIBS)
