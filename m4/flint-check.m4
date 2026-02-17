@@ -79,7 +79,7 @@ else
         FLINT_LIBS=""
         FLINT_HOME=""
         if test "x$flint_requested" = "xyes" ; then
-            AC_MSG_ERROR([Configure error: FLINT requested, but not found])
+            AC_MSG_FAILURE([Configure error: FLINT requested, but not found])
         fi
 fi
 AC_SUBST(FLINT_CFLAGS)
