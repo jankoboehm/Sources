@@ -84,6 +84,7 @@ jobs:
           name: upstream
 
   kanarienvogel:
+    # Quick representative check before running the broader matrices.
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
       tox_system_factors: >-
@@ -110,8 +111,14 @@ jobs:
     needs: [dist]
 
   docker:
+    # Keep this matrix small: test one newer Ubuntu and Debian,
+    # in the standard configuration.
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
+      tox_system_factors: >-
+        ["ubuntu-noble", "debian-bookworm"]
+      tox_packages_factors: >-
+        ["standard"]
       # Extra system packages to install. See available packages at
       # https://github.com/sagemath/sage/tree/develop/build/pkgs
       extra_sage_packages: "info ncurses readline"
@@ -131,9 +138,34 @@ jobs:
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
     needs: [dist, kanarienvogel]
 
+  docker-minimal:
+    # Add a small amount of coverage for the "minimal" package configuration.
+    # (This is much smaller than the upstream default matrix.)
+    uses: passagemath/passagemath/.github/workflows/docker.yml@main
+    with:
+      tox_system_factors: >-
+        ["ubuntu-noble"]
+      tox_packages_factors: >-
+        ["minimal"]
+      extra_sage_packages: "info ncurses readline"
+      targets_pre: SAGE_CHECK=no singular-build-deps
+      targets: GITHUB_ACTIONS=1 SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
+      targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
+      timeout: 5000
+      sage_repo: passagemath/passagemath
+      sage_ref: main
+      upstream_artifact: upstream
+      docker_targets: "with-targets"
+      docker_push_repository: ghcr.io/${{ github.repository }}/singular_
+    needs: [dist, kanarienvogel]
+
   macos:
     uses: passagemath/passagemath/.github/workflows/macos.yml@main
     with:
+      # The upstream workflow defaults to a large macOS matrix.
+      # Restrict to a single representative configuration to keep CI stable.
+      osversion_xcodeversion_toxenv_tuples: >-
+        [["14", "", "homebrew-macos-opthomebrew-standard"]]
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular

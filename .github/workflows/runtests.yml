@@ -5,6 +5,7 @@ on: [push, pull_request]
 
 env:
   prefix: "/tmp/prefix"
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -16,24 +17,94 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-      - name: "Install dependencies"
+
+      - name: Install dependencies
         run: |
-               if [ "$RUNNER_OS" == "Linux" ]; then
-                    # sharutils is for uudecode
-                    sudo apt install sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev 4ti2 normaliz libopenblas-dev libflint-dev
-               elif [ "$RUNNER_OS" == "macOS" ]; then
-                    brew install autoconf automake libtool gmp readline mpfr ntl cddlib flint
-                    # TODO: 4ti2?
-                    # TODO: normaliz?
-               else
-                    echo "$RUNNER_OS not supported"
-                    exit 1
-               fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo DEBIAN_FRONTEND=noninteractive apt-get update
+            # sharutils is for uudecode
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
+              4ti2 normaliz libopenblas-dev libflint-dev \
+              cmake
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install autoconf automake libtool gmp readline mpfr ntl cddlib flint
+            # TODO: 4ti2?
+            # TODO: normaliz?
+          else
+            echo "$RUNNER_OS not supported"
+            exit 1
+          fi
+
       - run: ./autogen.sh
       - run: ./configure --prefix=$prefix --enable-gfanlib ${{ matrix.configflags }}
       - run: make -j3
       - run: make check
       - run: make install
+
+      # ----------------------------------------------------------------------
+      # Upstream tests: Singular.jl (release and master)
+      #
+      # Singular.jl normally uses Singular_jll. To test a local build of
+      # Singular, we override the Singular_jll artifact (UUID
+      # 43d676ae-4934-50ba-8046-7a96366d613b) so that it points to $prefix.
+      #
+      # Singular_jll also provides the executable product bin/libparse,
+      # which Singular.jl uses to parse Singular .lib files; Singular's
+      # "make install" does not install it, so we build and install it here.
+      # ----------------------------------------------------------------------
+
+      - name: Build and install libparse (needed by Singular.jl)
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        run: |
+          make -C Singular libparse
+          mkdir -p "$prefix/bin"
+          install -m 0755 Singular/libparse "$prefix/bin/libparse"
+          test -x "$prefix/bin/libparse"
+
+      - name: Set up Julia
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+
+      - name: Cache Julia packages
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        uses: julia-actions/cache@v2
+        with:
+          # Do not cache compiled modules: Singular.jl caches a dictionary
+          # derived from Singular's .lib files in the precompile cache.
+          cache-compiled: 'false'
+          delete-old-caches: 'false'
+
+      - name: Override Singular_jll artifact to use this build
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        run: |
+          mkdir -p ~/.julia/artifacts
+          cat > ~/.julia/artifacts/Overrides.toml <<EOF
+          [43d676ae-4934-50ba-8046-7a96366d613b]
+          Singular = "$prefix"
+          EOF
+          echo "Using Overrides.toml:"
+          cat ~/.julia/artifacts/Overrides.toml
+
+      - name: "Upstream: test Singular.jl (release)"
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        run: |
+          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:${LD_LIBRARY_PATH:-}"
+          export SINGULAR_LIBRARY_DIR="$prefix/share/singular/LIB"
+          julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.add("Singular"); Pkg.test("Singular"; coverage=false)'
+
+      - name: "Upstream: test Singular.jl (master)"
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        # Singular.jl master can fail for reasons unrelated to this Singular PR;
+        # keep it informative but non-blocking.
+        continue-on-error: true
+        run: |
+          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:${LD_LIBRARY_PATH:-}"
+          export SINGULAR_LIBRARY_DIR="$prefix/share/singular/LIB"
+          julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.develop(PackageSpec(url="https://github.com/oscar-system/Singular.jl.git")); Pkg.test("Singular"; coverage=false)'
+
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Old/universal.lst
         if: ${{ always() }}
       #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Buch/buch.lst
@@ -44,6 +115,11 @@ jobs:
         if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Short/ok_s.lst
         if: ${{ always() }}
+
+      # Run New tests once (Linux + full-feature configuration)
+      - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular New.lst
+        if: ${{ always() && runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+
       #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Long/ok_l.lst
       #  if: ${{ always() }}
 
