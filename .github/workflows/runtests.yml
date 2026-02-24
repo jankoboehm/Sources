@@ -130,7 +130,10 @@ jobs:
             Pkg.activate(mktempdir())
             # Use the same dependency stack that Singular.jl users get by default
             # (Singular_jll and its dependencies).
-            Pkg.add("Singular_jll")
+            # NOTE: in Julia, `using FLINT_jll` etc. only works if these packages
+            # are direct dependencies of the active project. Even though they are
+            # dependencies of Singular_jll, we must add them explicitly here.
+            Pkg.add(["Singular_jll", "GMP_jll", "MPFR_jll", "FLINT_jll", "cddlib_jll"])
             using Singular_jll, GMP_jll, MPFR_jll, FLINT_jll, cddlib_jll
             println("GMP_DIR=" * GMP_jll.artifact_dir)
             println("MPFR_DIR=" * MPFR_jll.artifact_dir)
@@ -153,7 +156,12 @@ jobs:
           ./autogen.sh
 
           export CPPFLAGS="-I${GMP_DIR}/include -I${MPFR_DIR}/include -I${FLINT_DIR}/include -I${CDDLIB_DIR}/include"
-          export LDFLAGS="-L${GMP_DIR}/lib -L${GMP_DIR}/lib64 -L${MPFR_DIR}/lib -L${MPFR_DIR}/lib64 -L${FLINT_DIR}/lib -L${FLINT_DIR}/lib64 -L${CDDLIB_DIR}/lib -L${CDDLIB_DIR}/lib64"
+          # Add rpaths so that the resulting binaries/libraries can find the JLL
+          # dependencies at runtime without relying on LD_LIBRARY_PATH.
+          export LDFLAGS="-L${GMP_DIR}/lib -L${GMP_DIR}/lib64 -Wl,-rpath,${GMP_DIR}/lib -Wl,-rpath,${GMP_DIR}/lib64 \
+                         -L${MPFR_DIR}/lib -L${MPFR_DIR}/lib64 -Wl,-rpath,${MPFR_DIR}/lib -Wl,-rpath,${MPFR_DIR}/lib64 \
+                         -L${FLINT_DIR}/lib -L${FLINT_DIR}/lib64 -Wl,-rpath,${FLINT_DIR}/lib -Wl,-rpath,${FLINT_DIR}/lib64 \
+                         -L${CDDLIB_DIR}/lib -L${CDDLIB_DIR}/lib64 -Wl,-rpath,${CDDLIB_DIR}/lib -Wl,-rpath,${CDDLIB_DIR}/lib64"
           export PKG_CONFIG_PATH="${GMP_DIR}/lib/pkgconfig:${GMP_DIR}/share/pkgconfig:${MPFR_DIR}/lib/pkgconfig:${FLINT_DIR}/lib/pkgconfig:${CDDLIB_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
           export LD_LIBRARY_PATH="${GMP_DIR}/lib:${GMP_DIR}/lib64:${MPFR_DIR}/lib:${MPFR_DIR}/lib64:${FLINT_DIR}/lib:${FLINT_DIR}/lib64:${CDDLIB_DIR}/lib:${CDDLIB_DIR}/lib64:${LD_LIBRARY_PATH:-}"
 
@@ -167,8 +175,8 @@ jobs:
             --enable-gfanlib \
             --without-readline \
             --without-ntl \
-            --with-gmp=yes \
-            --with-flint=yes \
+            --with-gmp="${GMP_DIR}" \
+            --with-flint="${FLINT_DIR}" \
             --without-python \
             --with-builtinmodules=gfanlib,syzextra,customstd,interval,subsets,loctriv,gitfan,freealgebra \
             --disable-partialgb-module \
