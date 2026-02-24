@@ -111,14 +111,14 @@ jobs:
       - name: Install build tools
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          # NOTE: GMP_jll / MPFR_jll often use the copies bundled with Julia, which do not ship
+          # development headers. We install headers + pkg-config metadata from Ubuntu so that
+          # ./configure can find GMP/MPFR and therefore also FLINT.
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             autoconf automake libtool pkg-config \
             build-essential \
             curl ca-certificates \
             cmake \
-            # GMP_jll / MPFR_jll usually use the copies bundled with Julia,
-            # which do not ship development headers. We need headers and
-            # pkg-config files to build Singular against FLINT_jll.
             libgmp-dev libmpfr-dev
 
       - name: Set up Julia
