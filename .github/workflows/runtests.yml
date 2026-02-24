@@ -141,14 +141,7 @@ jobs:
       - name: Determine latest Singular release tag
         id: singular_release
         run: |
-          tag="$(python3 - <<'PY'
-import json, urllib.request
-url = 'https://api.github.com/repos/Singular/Singular/releases/latest'
-with urllib.request.urlopen(url) as f:
-    data = json.load(f)
-print(data['tag_name'])
-PY
-)"
+          tag="$(python3 -c 'import json, urllib.request; print(json.load(urllib.request.urlopen("https://api.github.com/repos/Singular/Singular/releases/latest"))["tag_name"])')"
           echo "Latest Singular release tag: ${tag}"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
