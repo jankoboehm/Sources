@@ -136,7 +136,8 @@ jobs:
       # We prefix the image name with the SPKG name ("singular_") to avoid the error
       # 'Package "sage-docker-..." is already associated with another repository.'
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
-    needs: [dist, kanarienvogel]
+    # Run in parallel with the canary job once the upstream artifact is ready.
+    needs: [dist]
 
   docker-minimal:
     # Add a small amount of coverage for the "minimal" package configuration.
@@ -157,7 +158,8 @@ jobs:
       upstream_artifact: upstream
       docker_targets: "with-targets"
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
-    needs: [dist, kanarienvogel]
+    # Run in parallel with the canary job once the upstream artifact is ready.
+    needs: [dist]
 
   macos:
     uses: passagemath/passagemath/.github/workflows/macos.yml@main
@@ -174,4 +176,5 @@ jobs:
       sage_repo: passagemath/passagemath
       sage_ref: main
       upstream_artifact: upstream
-    needs: [dist, kanarienvogel]
+    # Run in parallel with the canary job once the upstream artifact is ready.
+    needs: [dist]
