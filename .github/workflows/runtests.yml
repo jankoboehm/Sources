@@ -137,16 +137,17 @@ jobs:
             # NOTE: in Julia, `using FLINT_jll` etc. only works if these packages
             # are direct dependencies of the active project. Even though they are
             # dependencies of Singular_jll, we must add them explicitly here.
-            Pkg.add(["Singular_jll", "GMP_jll", "MPFR_jll", "FLINT_jll", "cddlib_jll"])
-            using Singular_jll, GMP_jll, MPFR_jll, FLINT_jll, cddlib_jll
+            Pkg.add(["Singular_jll", "GMP_jll", "MPFR_jll", "FLINT_jll", "cddlib_jll", "OpenBLAS32_jll"])
+            using Singular_jll, GMP_jll, MPFR_jll, FLINT_jll, cddlib_jll, OpenBLAS32_jll
             println("GMP_DIR=" * GMP_jll.artifact_dir)
             println("MPFR_DIR=" * MPFR_jll.artifact_dir)
             println("FLINT_DIR=" * FLINT_jll.artifact_dir)
             println("CDDLIB_DIR=" * cddlib_jll.artifact_dir)
+            println("OPENBLAS_DIR=" * OpenBLAS32_jll.artifact_dir)
           ' > jll-prefixes-raw.txt
 
           # Keep only the exported variables; ignore any Pkg output.
-          grep -E '^(GMP_DIR|MPFR_DIR|FLINT_DIR|CDDLIB_DIR)=' jll-prefixes-raw.txt | tee jll-prefixes.txt
+          grep -E '^(GMP_DIR|MPFR_DIR|FLINT_DIR|CDDLIB_DIR|OPENBLAS_DIR)=' jll-prefixes-raw.txt | tee jll-prefixes.txt
 
           # Export to subsequent steps
           cat jll-prefixes.txt >> "$GITHUB_ENV"
@@ -165,9 +166,11 @@ jobs:
           export LDFLAGS="-L${GMP_DIR}/lib -L${GMP_DIR}/lib64 -Wl,-rpath,${GMP_DIR}/lib -Wl,-rpath,${GMP_DIR}/lib64 \
                          -L${MPFR_DIR}/lib -L${MPFR_DIR}/lib64 -Wl,-rpath,${MPFR_DIR}/lib -Wl,-rpath,${MPFR_DIR}/lib64 \
                          -L${FLINT_DIR}/lib -L${FLINT_DIR}/lib64 -Wl,-rpath,${FLINT_DIR}/lib -Wl,-rpath,${FLINT_DIR}/lib64 \
-                         -L${CDDLIB_DIR}/lib -L${CDDLIB_DIR}/lib64 -Wl,-rpath,${CDDLIB_DIR}/lib -Wl,-rpath,${CDDLIB_DIR}/lib64"
-          export PKG_CONFIG_PATH="${GMP_DIR}/lib/pkgconfig:${GMP_DIR}/share/pkgconfig:${MPFR_DIR}/lib/pkgconfig:${FLINT_DIR}/lib/pkgconfig:${CDDLIB_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-          export LD_LIBRARY_PATH="${GMP_DIR}/lib:${GMP_DIR}/lib64:${MPFR_DIR}/lib:${MPFR_DIR}/lib64:${FLINT_DIR}/lib:${FLINT_DIR}/lib64:${CDDLIB_DIR}/lib:${CDDLIB_DIR}/lib64:${LD_LIBRARY_PATH:-}"
+                         -L${CDDLIB_DIR}/lib -L${CDDLIB_DIR}/lib64 -Wl,-rpath,${CDDLIB_DIR}/lib -Wl,-rpath,${CDDLIB_DIR}/lib64 \
+                         -L${OPENBLAS_DIR}/lib -L${OPENBLAS_DIR}/lib64 -Wl,-rpath,${OPENBLAS_DIR}/lib -Wl,-rpath,${OPENBLAS_DIR}/lib64 \
+                         -Wl,-rpath-link,${OPENBLAS_DIR}/lib -Wl,-rpath-link,${OPENBLAS_DIR}/lib64"
+          export PKG_CONFIG_PATH="${GMP_DIR}/lib/pkgconfig:${GMP_DIR}/share/pkgconfig:${MPFR_DIR}/lib/pkgconfig:${FLINT_DIR}/lib/pkgconfig:${CDDLIB_DIR}/lib/pkgconfig:${OPENBLAS_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          export LD_LIBRARY_PATH="${GMP_DIR}/lib:${GMP_DIR}/lib64:${MPFR_DIR}/lib:${MPFR_DIR}/lib64:${FLINT_DIR}/lib:${FLINT_DIR}/lib64:${CDDLIB_DIR}/lib:${CDDLIB_DIR}/lib64:${OPENBLAS_DIR}/lib:${OPENBLAS_DIR}/lib64:${LD_LIBRARY_PATH:-}"
 
           # Match the Singular_jll configuration as closely as practical.
           ./configure --prefix=$prefix \
