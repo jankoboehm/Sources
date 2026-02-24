@@ -43,7 +43,7 @@ jobs:
       - run: make install
 
       # ----------------------------------------------------------------------
-      # Upstream tests: Singular.jl (release and master)
+      # Upstream tests: Singular.jl
       #
       # Singular.jl normally uses Singular_jll. To test a local build of
       # Singular, we override the Singular_jll artifact (UUID
@@ -52,6 +52,9 @@ jobs:
       # Singular_jll also provides the executable product bin/libparse,
       # which Singular.jl uses to parse Singular .lib files; Singular's
       # "make install" does not install it, so we build and install it here.
+      #
+      # The upstream Singular.jl tests themselves are run in a separate job
+      # ("singularjl-upstream") so that they show up as dedicated CI checks.
       # ----------------------------------------------------------------------
 
       - name: Build and install libparse (needed by Singular.jl)
@@ -62,61 +65,19 @@ jobs:
           install -m 0755 Singular/libparse "$prefix/bin/libparse"
           test -x "$prefix/bin/libparse"
 
-      - name: Set up Julia
+      - name: Pack Singular prefix (dev)
         if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
-        uses: julia-actions/setup-julia@v2
+        run: |
+          tar -C /tmp -czf singular-prefix-dev.tar.gz prefix
+          ls -lh singular-prefix-dev.tar.gz
+
+      - name: Upload Singular prefix (dev)
+        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
+        uses: actions/upload-artifact@v4
         with:
-          version: '1.10'
-
-      - name: Cache Julia packages
-        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
-        uses: julia-actions/cache@v2
-        with:
-          # Do not cache compiled modules: Singular.jl caches a dictionary
-          # derived from Singular's .lib files in the precompile cache.
-          cache-compiled: 'false'
-          delete-old-caches: 'false'
-
-      - name: Override Singular_jll artifact to use this build
-        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
-        run: |
-          mkdir -p ~/.julia/artifacts
-          cat > ~/.julia/artifacts/Overrides.toml <<EOF
-          [43d676ae-4934-50ba-8046-7a96366d613b]
-          Singular = "$prefix"
-          EOF
-          echo "Using Overrides.toml:"
-          cat ~/.julia/artifacts/Overrides.toml
-
-      - name: "Upstream: test Singular.jl (release)"
-        if: ${{ runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
-        run: |
-          # The GitHub runner provides system libflint built against the system
-          # libgmp. Julia ships and preloads its own GMP (via GMP_jll), and the
-          # internal symbol sets can differ. Preload the system libgmp first so
-          # that libflint and libfactory resolve GMP's low-level symbols from the
-          # system copy.
-          GMP_SO="$(ldconfig -p | awk '/libgmp\.so\.10/ {print $NF; exit}')"
-          echo "Preloading system GMP: ${GMP_SO}"
-          test -n "${GMP_SO}" && test -r "${GMP_SO}"
-          export LD_PRELOAD="${GMP_SO}${LD_PRELOAD:+ $LD_PRELOAD}"
-          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:${LD_LIBRARY_PATH:-}"
-          export SINGULAR_LIBRARY_DIR="$prefix/share/singular/LIB"
-          julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.add("Singular"); Pkg.test("Singular"; coverage=false)'
-
-      - name: "Upstream: test Singular.jl (master)"
-        if: ${{ always() && runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
-        # Singular.jl master can fail for reasons unrelated to this Singular PR;
-        # keep it informative but non-blocking.
-        continue-on-error: true
-        run: |
-          GMP_SO="$(ldconfig -p | awk '/libgmp\.so\.10/ {print $NF; exit}')"
-          echo "Preloading system GMP: ${GMP_SO}"
-          test -n "${GMP_SO}" && test -r "${GMP_SO}"
-          export LD_PRELOAD="${GMP_SO}${LD_PRELOAD:+ $LD_PRELOAD}"
-          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:${LD_LIBRARY_PATH:-}"
-          export SINGULAR_LIBRARY_DIR="$prefix/share/singular/LIB"
-          julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.develop(PackageSpec(url="https://github.com/oscar-system/Singular.jl.git")); Pkg.test("Singular"; coverage=false)'
+          name: singular-prefix-dev
+          path: singular-prefix-dev.tar.gz
+          retention-days: 7
 
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Old/universal.lst
         if: ${{ always() }}
@@ -135,6 +96,15 @@ jobs:
       # 1) Run the new test requested in the PR (Tst/New/new.tst) if present.
       # 2) Run most of New.lst as an extra signal, but exclude a small set of
       #    currently unstable/segfaulting tests on ubuntu-latest.
+      #
+      # Disabled (CI-only) tests from Tst/New.lst:
+      #   - Tst/New/dim_integers.tst
+      #   - Tst/New/qring_ZmtoZmn.tst
+      #   - Tst/New/qring_ZmtoZmn_errorCoprime.tst
+      #   - Tst/New/qring_ZtoZm.tst
+      #   - Tst/New/qring_ntom.tst
+      #   - Tst/New/qring_with_constant.tst
+      #   - Tst/New/ringlocal.tst
       # ----------------------------------------------------------------------
 
       - name: Run Tst/New/new.tst (if present)
@@ -153,5 +123,153 @@ jobs:
 
       #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Long/ok_l.lst
       #  if: ${{ always() }}
+
+  singular-release-prefix:
+    name: Build Singular release prefix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          # sharutils is for uudecode (used by regress.cmd, not needed here, but cheap)
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            sharutils curl ca-certificates \
+            libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
+            4ti2 normaliz libopenblas-dev libflint-dev \
+            cmake
+
+      - name: Determine latest Singular release tag
+        id: singular_release
+        run: |
+          tag="$(python3 - <<'PY'
+import json, urllib.request
+url = 'https://api.github.com/repos/Singular/Singular/releases/latest'
+with urllib.request.urlopen(url) as f:
+    data = json.load(f)
+print(data['tag_name'])
+PY
+)"
+          echo "Latest Singular release tag: ${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and install Singular (${{ steps.singular_release.outputs.tag }})
+        run: |
+          tag="${{ steps.singular_release.outputs.tag }}"
+          test -n "$tag"
+
+          curl -L "https://github.com/Singular/Singular/archive/refs/tags/${tag}.tar.gz" -o singular-src.tar.gz
+          tar xf singular-src.tar.gz
+
+          cd "Singular-${tag}"
+          ./autogen.sh
+          ./configure --prefix=$prefix --enable-gfanlib --with-ntl --with-flint
+          make -j3
+          make install
+
+          # Install libparse for Singular.jl
+          make -C Singular libparse
+          mkdir -p "$prefix/bin"
+          install -m 0755 Singular/libparse "$prefix/bin/libparse"
+          test -x "$prefix/bin/Singular"
+          test -x "$prefix/bin/libparse"
+
+      - name: Pack Singular prefix (release)
+        run: |
+          tar -C /tmp -czf singular-prefix-release.tar.gz prefix
+          ls -lh singular-prefix-release.tar.gz
+
+      - name: Upload Singular prefix (release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-prefix-release
+          path: singular-prefix-release.tar.gz
+          retention-days: 7
+
+  singularjl-upstream:
+    name: Singular.jl (${{ matrix.singularjl }}) vs Singular (${{ matrix.singular }})
+    needs: [test, singular-release-prefix]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        singular: [dev, release]
+        singularjl: [release, master]
+
+    steps:
+      - name: Install runtime dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
+            4ti2 normaliz libopenblas-dev libflint-dev \
+            cmake
+
+      - name: Download Singular prefix (dev)
+        if: ${{ matrix.singular == 'dev' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: singular-prefix-dev
+          path: artifacts
+
+      - name: Download Singular prefix (release)
+        if: ${{ matrix.singular == 'release' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: singular-prefix-release
+          path: artifacts
+
+      - name: Extract Singular prefix
+        run: |
+          rm -rf "$prefix"
+          mkdir -p /tmp
+          tar -C /tmp -xzf artifacts/*.tar.gz
+          echo "Installed executables in $prefix/bin:"
+          ls -la "$prefix/bin" | head -n 50
+          test -x "$prefix/bin/Singular"
+          test -x "$prefix/bin/libparse"
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+
+      - name: Cache Julia packages
+        uses: julia-actions/cache@v2
+        with:
+          cache-compiled: 'false'
+          delete-old-caches: 'false'
+
+      - name: Override Singular_jll artifact to use this Singular
+        run: |
+          mkdir -p ~/.julia/artifacts
+          cat > ~/.julia/artifacts/Overrides.toml <<EOF
+          [43d676ae-4934-50ba-8046-7a96366d613b]
+          Singular = "$prefix"
+          EOF
+          echo "Using Overrides.toml:"
+          cat ~/.julia/artifacts/Overrides.toml
+
+      - name: Run Singular.jl tests
+        continue-on-error: ${{ matrix.singularjl == 'master' }}
+        run: |
+          # The GitHub runner provides system libflint built against the system
+          # libgmp. Julia ships and preloads its own GMP (via GMP_jll), and the
+          # internal symbol sets can differ. Preload the system libgmp first so
+          # that libflint and libfactory resolve GMP's low-level symbols from the
+          # system copy.
+          GMP_SO="$(ldconfig -p | awk '/libgmp\.so\.10/ {print $NF; exit}')"
+          echo "Preloading system GMP: ${GMP_SO}"
+          test -n "${GMP_SO}" && test -r "${GMP_SO}"
+          export LD_PRELOAD="${GMP_SO}${LD_PRELOAD:+ $LD_PRELOAD}"
+          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:${LD_LIBRARY_PATH:-}"
+          export SINGULAR_LIBRARY_DIR="$prefix/share/singular/LIB"
+
+          echo "Testing Singular.jl '${{ matrix.singularjl }}' against Singular '${{ matrix.singular }}'"
+
+          if [ "${{ matrix.singularjl }}" = "release" ]; then
+            julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.add("Singular"); Pkg.test("Singular"; coverage=false)'
+          else
+            julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.develop(Pkg.PackageSpec(url="https://github.com/oscar-system/Singular.jl.git")); Pkg.test("Singular"; coverage=false)'
+          fi
 
 # TODO: code coverage?
