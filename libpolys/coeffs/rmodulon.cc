@@ -274,9 +274,12 @@ static number nrnInvers(number c, const coeffs r)
  */
 static number nrnGcd(number a, number b, const coeffs r)
 {
-  if(!(nrnIsZero(a,r) && nrnIsZero(b,r)) && r->is_field )
-  {
-    return nrnInit(1,r);
+  if(r->is_field) {
+    if ((a == NULL || nrnIsZero(a,r)) && nrnIsZero(b,r)) {
+      return nrnInit(0,r);
+    } else {
+      return nrnInit(1,r);
+    }
   }
   mpz_ptr erg = (mpz_ptr)omAllocBin(gmp_nrz_bin);
   mpz_init_set(erg, r->modNumber);
