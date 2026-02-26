@@ -1,5 +1,6 @@
 name: Run tests
 
+# Trigger the workflow on push or pull request
 on: [push, pull_request]
 
 env:
@@ -21,12 +22,15 @@ jobs:
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
             sudo apt-get update
+            # sharutils is for uudecode
             sudo apt-get install -y \
               sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
               4ti2 normaliz libopenblas-dev libflint-dev \
               cmake
           elif [ "$RUNNER_OS" == "macOS" ]; then
             brew install autoconf automake libtool gmp readline mpfr ntl cddlib flint
+            # TODO: 4ti2?
+            # TODO: normaliz?
           else
             echo "$RUNNER_OS not supported"
             exit 1
@@ -40,6 +44,8 @@ jobs:
 
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Old/universal.lst
         if: ${{ always() }}
+      #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Buch/buch.lst
+      #  if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Plural/short.lst
         if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Plural/dmod.lst
@@ -58,3 +64,8 @@ jobs:
           grep -v -E '^New/(dim_integers|qring_ZmtoZmn|qring_ZmtoZmn_errorCoprime|qring_ZtoZm|qring_ntom|qring_with_constant|ringlocal)\.tst$' \
             New.lst > New.ci.lst
           ./regress.cmd -s $prefix/bin/Singular New.ci.lst
+
+      #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Long/ok_l.lst
+      #  if: ${{ always() }}
+
+# TODO: code coverage?
