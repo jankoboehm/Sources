@@ -1,41 +1,5 @@
 name: Sage CI
 
-## This GitHub Actions workflow provides:
-##
-##  - portability testing, by building and testing this project on many platforms
-##    (Linux variants and macOS), each with two configurations (installed packages),
-##
-##  - continuous integration, by building and testing other software
-##    that depends on this project.
-##
-## It runs on every pull request and push of a tag to the GitHub repository.
-##
-## The testing can be monitored in the "Actions" tab of the GitHub repository.
-##
-## After all jobs have finished (or are canceled) and a short delay,
-## tar files of all logs are made available as "build artifacts".
-##
-## This GitHub Actions workflow uses the portability testing framework
-## of SageMath (https://www.sagemath.org/).  For more information, see
-## https://doc.sagemath.org/html/en/developer/portability_testing.html
-
-## The workflow consists of two jobs:
-##
-##  - First, it builds a source distribution of the project
-##    and generates a script "update-pkgs.sh".  It uploads them
-##    as a build artifact named upstream.
-##
-##  - Second, it checks out a copy of the SageMath source tree.
-##    It downloads the upstream artifact and replaces the project's
-##    package in the SageMath distribution by the newly packaged one
-##    from the upstream artifact, by running the script "update-pkgs.sh".
-##    Then it builds a small portion of the Sage distribution.
-##
-## Many copies of the second step are run in parallel for each of the tested
-## systems/configurations.
-
-#on: [push, pull_request]
-
 on:
   pull_request:
     types: [opened, synchronize]
@@ -43,17 +7,13 @@ on:
     tags:
       - '*'
   workflow_dispatch:
-    # Allow to run manually
 
 concurrency:
-  # Cancel previous runs of this workflow for the same branch
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Ubuntu packages to install so that the project's "make dist" can succeed
   DIST_PREREQ: libcdd-dev
-  # Name of this project in the Sage distribution
   SPKG:        singular
   REMOVE_PATCHES: "*"
 
@@ -68,8 +28,8 @@ jobs:
           path: build/pkgs/${{ env.SPKG }}/src
       - name: Install prerequisites
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install $DIST_PREREQ
+          sudo apt-get update
+          sudo apt-get install -y $DIST_PREREQ
       - name: Run make dist, prepare upstream artifact
         run: |
           (cd build/pkgs/${{ env.SPKG }}/src && (./autogen.sh && ./configure && make dist) ) \
@@ -84,63 +44,44 @@ jobs:
           name: upstream
 
   kanarienvogel:
-    # Quick representative check before running the broader matrices.
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
       tox_system_factors: >-
         ["ubuntu-jammy"]
       tox_packages_factors: >-
         ["standard"]
-      # Extra system packages to install. See available packages at
-      # https://github.com/sagemath/sage/tree/develop/build/pkgs
       extra_sage_packages: "info ncurses readline"
-      # Sage distribution packages to build
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: GITHUB_ACTIONS=1 SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
       timeout: 5000
-      # Standard setting: Test the current HEAD of passagemath:
       sage_repo: passagemath/passagemath
       sage_ref: main
       upstream_artifact: upstream
-      # Docker targets (stages) to tag
       docker_targets: "with-targets"
-      # We prefix the image name with the SPKG name ("singular_") to avoid the error
-      # 'Package "sage-docker-..." is already associated with another repository.'
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
     needs: [dist]
 
   docker:
-    # Keep this matrix small: test one newer Ubuntu and Debian,
-    # in the standard configuration.
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
       tox_system_factors: >-
         ["ubuntu-noble", "debian-bookworm"]
       tox_packages_factors: >-
         ["standard"]
-      # Extra system packages to install. See available packages at
-      # https://github.com/sagemath/sage/tree/develop/build/pkgs
       extra_sage_packages: "info ncurses readline"
-      # Sage distribution packages to build
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: GITHUB_ACTIONS=1 SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
       timeout: 5000
-      # Standard setting: Test the current HEAD of passagemath:
       sage_repo: passagemath/passagemath
       sage_ref: main
       upstream_artifact: upstream
-      # Docker targets (stages) to tag
       docker_targets: "with-targets"
-      # We prefix the image name with the SPKG name ("singular_") to avoid the error
-      # 'Package "sage-docker-..." is already associated with another repository.'
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
     needs: [dist, kanarienvogel]
 
   docker-minimal:
-    # Add a small amount of coverage for the "minimal" package configuration.
-    # (This is much smaller than the upstream default matrix.)
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
       tox_system_factors: >-
@@ -162,15 +103,12 @@ jobs:
   macos:
     uses: passagemath/passagemath/.github/workflows/macos.yml@main
     with:
-      # The upstream workflow defaults to a large macOS matrix.
-      # Restrict to a single representative configuration to keep CI stable.
       osversion_xcodeversion_toxenv_tuples: >-
         [["14", "", "homebrew-macos-opthomebrew-standard"]]
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
       timeout: 5000
-      # Standard setting: Test the current HEAD of passagemath:
       sage_repo: passagemath/passagemath
       sage_ref: main
       upstream_artifact: upstream

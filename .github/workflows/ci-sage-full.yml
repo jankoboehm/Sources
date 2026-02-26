@@ -1,25 +1,14 @@
 name: Sage CI (full matrix)
 
-## This workflow is intentionally *manual-only*.
-##
-## It runs a broad Sage portability matrix (Docker + macOS) using the upstream
-## defaults from passagemath/passagemath reusable workflows.
-##
-## This is to keep pull request CI stable and reasonably sized (see ci-sage.yml).
-## We still provide the "big matrix" manually for broad portability testing.
-
 on:
   workflow_dispatch:
 
 concurrency:
-  # Cancel previous runs of this workflow for the same branch
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Ubuntu packages to install for "make dist"
   DIST_PREREQ: libcdd-dev
-  # Name of this project in the Sage distribution
   SPKG:        singular
   REMOVE_PATCHES: "*"
 
@@ -34,8 +23,8 @@ jobs:
           path: build/pkgs/${{ env.SPKG }}/src
       - name: Install prerequisites
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install $DIST_PREREQ
+          sudo apt-get update
+          sudo apt-get install -y $DIST_PREREQ
       - name: Run make dist, prepare upstream artifact
         run: |
           (cd build/pkgs/${{ env.SPKG }}/src && (./autogen.sh && ./configure && make dist) ) \
@@ -50,35 +39,23 @@ jobs:
           name: upstream
 
   docker-full:
-    # We do NOT set tox_system_factors / tox_packages_factors here.
-    # The upstream reusable workflow's defaults define the full matrix.
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
-      # Keep parallelism moderate so manual runs don't overwhelm the GitHub runners.
       max_parallel: 12
       free_disk_space: true
-      # Extra system packages to install. See available packages at
-      # https://github.com/sagemath/sage/tree/develop/build/pkgs
       extra_sage_packages: "info ncurses readline"
-      # Sage distribution packages to build
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: GITHUB_ACTIONS=1 SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
       timeout: 8000
-      # Standard setting: Test the current HEAD of passagemath:
       sage_repo: passagemath/passagemath
       sage_ref: main
       upstream_artifact: upstream
-      # Docker targets (stages) to tag
       docker_targets: "with-targets"
-      # We prefix the image name with the SPKG name ("singular_") to avoid the error
-      # 'Package "sage-docker-..." is already associated with another repository.'
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
     needs: [dist]
 
   macos-full:
-    # We do NOT set osversion_xcodeversion_toxenv_tuples here.
-    # The upstream reusable workflow's defaults define the full matrix.
     uses: passagemath/passagemath/.github/workflows/macos.yml@main
     with:
       max_parallel: 4
@@ -86,7 +63,6 @@ jobs:
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
       timeout: 8000
-      # Standard setting: Test the current HEAD of passagemath:
       sage_repo: passagemath/passagemath
       sage_ref: main
       upstream_artifact: upstream

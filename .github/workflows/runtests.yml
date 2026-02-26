@@ -1,6 +1,5 @@
 name: Run tests
 
-# Trigger the workflow on push or pull request
 on: [push, pull_request]
 
 env:
@@ -21,16 +20,13 @@ jobs:
       - name: Install dependencies
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            sudo DEBIAN_FRONTEND=noninteractive apt-get update
-            # sharutils is for uudecode
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            sudo apt-get update
+            sudo apt-get install -y \
               sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
               4ti2 normaliz libopenblas-dev libflint-dev \
               cmake
           elif [ "$RUNNER_OS" == "macOS" ]; then
             brew install autoconf automake libtool gmp readline mpfr ntl cddlib flint
-            # TODO: 4ti2?
-            # TODO: normaliz?
           else
             echo "$RUNNER_OS not supported"
             exit 1
@@ -42,48 +38,14 @@ jobs:
       - run: make check
       - run: make install
 
-      # ----------------------------------------------------------------------
-      # Upstream tests: Singular.jl
-      #
-      # These are executed in a separate job ("singularjl-upstream") so that
-      # they show up as dedicated CI checks.
-      #
-      # In addition, to make the upstream test environment match what users of
-      # Oscar/Singular.jl see outside CI, we build a dedicated Singular prefix
-      # against the same Julia JLL dependency stack (GMP_jll, MPFR_jll,
-      # FLINT_jll, cddlib_jll) and using the same configure choices as
-      # Singular_jll (notably: --without-ntl).
-      #
-      # See the Singular_jll build recipe in Yggdrasil for the exact options.
-      # ----------------------------------------------------------------------
-
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Old/universal.lst
         if: ${{ always() }}
-      #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Buch/buch.lst
-      #  if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Plural/short.lst
         if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Plural/dmod.lst
         if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Short/ok_s.lst
         if: ${{ always() }}
-
-      # ----------------------------------------------------------------------
-      # Additional tests in Tst/New
-      #
-      # 1) Run the new test requested in the PR (Tst/New/new.tst) if present.
-      # 2) Run most of New.lst as an extra signal, but exclude a small set of
-      #    currently unstable/segfaulting tests on ubuntu-latest.
-      #
-      # Disabled (CI-only) tests from Tst/New.lst:
-      #   - Tst/New/dim_integers.tst
-      #   - Tst/New/qring_ZmtoZmn.tst
-      #   - Tst/New/qring_ZmtoZmn_errorCoprime.tst
-      #   - Tst/New/qring_ZtoZm.tst
-      #   - Tst/New/qring_ntom.tst
-      #   - Tst/New/qring_with_constant.tst
-      #   - Tst/New/ringlocal.tst
-      # ----------------------------------------------------------------------
 
       - name: Run Tst/New/new.tst (if present)
         if: ${{ always() && runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' && hashFiles('Tst/New/new.tst') != '' }}
@@ -93,246 +55,6 @@ jobs:
         if: ${{ always() && runner.os == 'Linux' && matrix.configflags == '--with-ntl --with-flint' }}
         run: |
           cd Tst
-          # Exclude tests that currently segfault on the GitHub runner.
-          # TODO: re-enable once fixed upstream.
           grep -v -E '^New/(dim_integers|qring_ZmtoZmn|qring_ZmtoZmn_errorCoprime|qring_ZtoZm|qring_ntom|qring_with_constant|ringlocal)\.tst$' \
             New.lst > New.ci.lst
           ./regress.cmd -s $prefix/bin/Singular New.ci.lst
-
-      #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Long/ok_l.lst
-      #  if: ${{ always() }}
-
-  singular-dev-prefix-jll:
-    name: Build Singular dev prefix for Julia (JLL deps)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install build tools
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          # NOTE: GMP_jll / MPFR_jll often use the copies bundled with Julia, which do not ship
-          # development headers. We install headers + pkg-config metadata from Ubuntu so that
-          # ./configure can find GMP/MPFR and therefore also FLINT.
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            autoconf automake libtool pkg-config \
-            build-essential \
-            curl ca-certificates \
-            cmake \
-            libgmp-dev libmpfr-dev
-
-      - name: Set up Julia
-        uses: julia-actions/setup-julia@v2
-        with:
-          version: '1.10'
-
-      - name: Resolve Julia JLL dependency prefixes
-        run: |
-          set -euxo pipefail
-          julia --color=no -e '
-            using Pkg
-            Pkg.activate(mktempdir())
-            # Use the same dependency stack that Singular.jl users get by default
-            # (Singular_jll and its dependencies).
-            # NOTE: in Julia, `using FLINT_jll` etc. only works if these packages
-            # are direct dependencies of the active project. Even though they are
-            # dependencies of Singular_jll, we must add them explicitly here.
-            Pkg.add(["Singular_jll", "GMP_jll", "MPFR_jll", "FLINT_jll", "cddlib_jll", "OpenBLAS32_jll"])
-            using Singular_jll, GMP_jll, MPFR_jll, FLINT_jll, cddlib_jll, OpenBLAS32_jll
-            println("GMP_DIR=" * GMP_jll.artifact_dir)
-            println("MPFR_DIR=" * MPFR_jll.artifact_dir)
-            println("FLINT_DIR=" * FLINT_jll.artifact_dir)
-            println("CDDLIB_DIR=" * cddlib_jll.artifact_dir)
-            println("OPENBLAS_DIR=" * OpenBLAS32_jll.artifact_dir)
-          ' > jll-prefixes-raw.txt
-
-          # Keep only the exported variables; ignore any Pkg output.
-          grep -E '^(GMP_DIR|MPFR_DIR|FLINT_DIR|CDDLIB_DIR|OPENBLAS_DIR)=' jll-prefixes-raw.txt | tee jll-prefixes.txt
-
-          # Export to subsequent steps
-          cat jll-prefixes.txt >> "$GITHUB_ENV"
-
-      - name: Build and install Singular (dev, JLL-like)
-        run: |
-          set -euxo pipefail
-
-          rm -rf "$prefix"
-
-          ./autogen.sh
-
-          export CPPFLAGS="-I${GMP_DIR}/include -I${MPFR_DIR}/include -I${FLINT_DIR}/include -I${CDDLIB_DIR}/include"
-          # Add rpaths so that the resulting binaries/libraries can find the JLL
-          # dependencies at runtime without relying on LD_LIBRARY_PATH.
-          export LDFLAGS="-L${GMP_DIR}/lib -L${GMP_DIR}/lib64 -Wl,-rpath,${GMP_DIR}/lib -Wl,-rpath,${GMP_DIR}/lib64 \
-                         -L${MPFR_DIR}/lib -L${MPFR_DIR}/lib64 -Wl,-rpath,${MPFR_DIR}/lib -Wl,-rpath,${MPFR_DIR}/lib64 \
-                         -L${FLINT_DIR}/lib -L${FLINT_DIR}/lib64 -Wl,-rpath,${FLINT_DIR}/lib -Wl,-rpath,${FLINT_DIR}/lib64 \
-                         -L${CDDLIB_DIR}/lib -L${CDDLIB_DIR}/lib64 -Wl,-rpath,${CDDLIB_DIR}/lib -Wl,-rpath,${CDDLIB_DIR}/lib64 \
-                         -L${OPENBLAS_DIR}/lib -L${OPENBLAS_DIR}/lib64 -Wl,-rpath,${OPENBLAS_DIR}/lib -Wl,-rpath,${OPENBLAS_DIR}/lib64 \
-                         -Wl,-rpath-link,${OPENBLAS_DIR}/lib -Wl,-rpath-link,${OPENBLAS_DIR}/lib64"
-          export PKG_CONFIG_PATH="${GMP_DIR}/lib/pkgconfig:${GMP_DIR}/share/pkgconfig:${MPFR_DIR}/lib/pkgconfig:${FLINT_DIR}/lib/pkgconfig:${CDDLIB_DIR}/lib/pkgconfig:${OPENBLAS_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-          export LD_LIBRARY_PATH="${GMP_DIR}/lib:${GMP_DIR}/lib64:${MPFR_DIR}/lib:${MPFR_DIR}/lib64:${FLINT_DIR}/lib:${FLINT_DIR}/lib64:${CDDLIB_DIR}/lib:${CDDLIB_DIR}/lib64:${OPENBLAS_DIR}/lib:${OPENBLAS_DIR}/lib64:${LD_LIBRARY_PATH:-}"
-
-          # Match the Singular_jll configuration as closely as practical.
-          ./configure --prefix=$prefix \
-            --with-libparse \
-            --enable-shared \
-            --disable-static \
-            --enable-p-procs-static \
-            --disable-p-procs-dynamic \
-            --enable-gfanlib \
-            --without-readline \
-            --without-ntl \
-            --with-gmp="${GMP_DIR}" \
-            --with-flint="${FLINT_DIR}" \
-            --without-python \
-            --with-builtinmodules=gfanlib,syzextra,customstd,interval,subsets,loctriv,gitfan,freealgebra \
-            --disable-partialgb-module \
-            --disable-polymake-module \
-            --disable-pyobject-module \
-            --disable-singmathic-module \
-            --disable-systhreads-module \
-            --disable-cohomo-module \
-            --disable-machinelearning-module \
-            --disable-sispasm-module
-
-          make -j3
-          make install
-
-          # Singular.jl expects bin/libparse (ExecutableProduct in Singular_jll).
-          # Some make install setups do not install it, so ensure it exists.
-          if [ ! -x "$prefix/bin/libparse" ]; then
-            make -C Singular libparse
-            mkdir -p "$prefix/bin"
-            install -m 0755 Singular/libparse "$prefix/bin/libparse"
-          fi
-
-          echo "Installed executables in $prefix/bin:"
-          ls -la "$prefix/bin" | head -n 50
-          test -x "$prefix/bin/Singular"
-          test -x "$prefix/bin/libparse"
-          test -d "$prefix/share/singular/LIB"
-
-          echo "Linkage check (libSingular):"
-          ls -la "$prefix/lib" | head -n 50
-          ldd "$prefix/lib/libSingular.so" | sed -n '1,200p' || true
-
-      - name: Pack Singular prefix (dev, JLL-like)
-        run: |
-          tar -C /tmp -czf singular-prefix-dev.tar.gz prefix
-          ls -lh singular-prefix-dev.tar.gz
-
-      - name: Upload Singular prefix (dev)
-        uses: actions/upload-artifact@v4
-        with:
-          name: singular-prefix-dev
-          path: singular-prefix-dev.tar.gz
-          retention-days: 7
-
-
-  singularjl-upstream-release:
-    name: Singular.jl (${{ matrix.singularjl }}) vs Singular (release)
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        singularjl: [release, master]
-
-    steps:
-      - name: Install runtime dependencies
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          # CMake is needed if Singular.jl master rebuilds its C++ glue.
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cmake
-
-      - name: Set up Julia
-        uses: julia-actions/setup-julia@v2
-        with:
-          version: '1.10'
-
-      - name: Cache Julia packages
-        uses: julia-actions/cache@v2
-        with:
-          cache-compiled: 'false'
-          delete-old-caches: 'false'
-
-      - name: Run Singular.jl tests (stock Singular_jll)
-        continue-on-error: ${{ matrix.singularjl == 'master' }}
-        run: |
-          echo "Testing Singular.jl '${{ matrix.singularjl }}' against stock Singular_jll (release)"
-
-          if [ "${{ matrix.singularjl }}" = "release" ]; then
-            julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.add("Singular"); Pkg.test("Singular"; coverage=false)'
-          else
-            julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.develop(Pkg.PackageSpec(url="https://github.com/oscar-system/Singular.jl.git")); Pkg.test("Singular"; coverage=false)'
-          fi
-
-
-  singularjl-upstream-dev:
-    name: Singular.jl (${{ matrix.singularjl }}) vs Singular (dev)
-    needs: [singular-dev-prefix-jll]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        singularjl: [release, master]
-
-    steps:
-      - name: Install runtime dependencies
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          # CMake is needed if Singular.jl master rebuilds its C++ glue.
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cmake
-
-      - name: Download Singular prefix (dev)
-        uses: actions/download-artifact@v4
-        with:
-          name: singular-prefix-dev
-          path: artifacts
-
-      - name: Extract Singular prefix (dev)
-        run: |
-          rm -rf "$prefix"
-          mkdir -p /tmp
-          tar -C /tmp -xzf artifacts/*.tar.gz
-          echo "Installed executables in $prefix/bin:"
-          ls -la "$prefix/bin" | head -n 50
-          test -x "$prefix/bin/Singular"
-          test -x "$prefix/bin/libparse"
-
-      - name: Set up Julia
-        uses: julia-actions/setup-julia@v2
-        with:
-          version: '1.10'
-
-      - name: Cache Julia packages
-        uses: julia-actions/cache@v2
-        with:
-          cache-compiled: 'false'
-          delete-old-caches: 'false'
-
-      - name: Override Singular_jll artifact to use this Singular (dev)
-        run: |
-          mkdir -p ~/.julia/artifacts
-          cat > ~/.julia/artifacts/Overrides.toml <<EOF
-          [43d676ae-4934-50ba-8046-7a96366d613b]
-          Singular = "$prefix"
-          EOF
-          echo "Using Overrides.toml:"
-          cat ~/.julia/artifacts/Overrides.toml
-
-      - name: Run Singular.jl tests (dev Singular override)
-        continue-on-error: ${{ matrix.singularjl == 'master' }}
-        run: |
-          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:${LD_LIBRARY_PATH:-}"
-          export SINGULAR_LIBRARY_DIR="$prefix/share/singular/LIB"
-
-          echo "Testing Singular.jl '${{ matrix.singularjl }}' against Singular 'dev'"
-
-          if [ "${{ matrix.singularjl }}" = "release" ]; then
-            julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.add("Singular"); Pkg.test("Singular"; coverage=false)'
-          else
-            julia --color=yes -e 'using Pkg; Pkg.activate(mktempdir()); Pkg.develop(Pkg.PackageSpec(url="https://github.com/oscar-system/Singular.jl.git")); Pkg.test("Singular"; coverage=false)'
-          fi
-
-
-# TODO: code coverage?
