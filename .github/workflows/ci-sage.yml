@@ -1,5 +1,6 @@
 name: Sage CI
 
+
 ## This GitHub Actions workflow provides:
 ##
 ##  - portability testing, by building and testing this project on many platforms
@@ -68,8 +69,8 @@ jobs:
           path: build/pkgs/${{ env.SPKG }}/src
       - name: Install prerequisites
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install $DIST_PREREQ
+          sudo apt-get update
+          sudo apt-get install -y $DIST_PREREQ
       - name: Run make dist, prepare upstream artifact
         run: |
           (cd build/pkgs/${{ env.SPKG }}/src && (./autogen.sh && ./configure && make dist) ) \
@@ -112,6 +113,10 @@ jobs:
   docker:
     uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
+      tox_system_factors: >-
+        ["ubuntu-noble", "debian-bookworm"]
+      tox_packages_factors: >-
+        ["standard"]
       # Extra system packages to install. See available packages at
       # https://github.com/sagemath/sage/tree/develop/build/pkgs
       extra_sage_packages: "info ncurses readline"
@@ -131,9 +136,30 @@ jobs:
       docker_push_repository: ghcr.io/${{ github.repository }}/singular_
     needs: [dist, kanarienvogel]
 
+  docker-minimal:
+    uses: passagemath/passagemath/.github/workflows/docker.yml@main
+    with:
+      tox_system_factors: >-
+        ["ubuntu-noble"]
+      tox_packages_factors: >-
+        ["minimal"]
+      extra_sage_packages: "info ncurses readline"
+      targets_pre: SAGE_CHECK=no singular-build-deps
+      targets: GITHUB_ACTIONS=1 SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
+      targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
+      timeout: 5000
+      sage_repo: passagemath/passagemath
+      sage_ref: main
+      upstream_artifact: upstream
+      docker_targets: "with-targets"
+      docker_push_repository: ghcr.io/${{ github.repository }}/singular_
+    needs: [dist, kanarienvogel]
+
   macos:
     uses: passagemath/passagemath/.github/workflows/macos.yml@main
     with:
+      osversion_xcodeversion_toxenv_tuples: >-
+        [["14", "", "homebrew-macos-opthomebrew-standard"]]
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
       targets_optional: SAGE_CHECK=no SAGE_CHECK_pysingular=warn pysingular
