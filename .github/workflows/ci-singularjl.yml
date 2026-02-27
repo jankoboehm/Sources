@@ -30,7 +30,7 @@ jobs:
         julia-version:
           - '1.10'
           - '1'         # latest stable release
-          # - 'nightly' # TODO: re-enable once https://github.com/JuliaPackaging/JLLPrefixes.jl/pull/37 is merged and a new release of JLLPrefixes.jl is tagged
+          - 'nightly'
         os:
           - ubuntu-latest
         # include:
