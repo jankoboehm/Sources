@@ -1,0 +1,173 @@
+name: Release Tarball
+
+## Build a distribution tarball (with autotools-generated files and compiled
+## documentation) and attach it to the GitHub Release.
+##
+## The tarball reproduces the layout of the tarballs historically published
+## at https://www.mathematik.uni-kl.de/ftp/pub/Math/Singular/UNIX/ and used
+## by SageMath (sage-package).
+##
+## Trigger: creating (or editing) a GitHub Release whose tag looks like
+##   v4.4.1p5   – patch release  → tarball singular-4.4.1p5.tar.gz
+##   v4.4.1     – major release  → tarball singular-4.4.1.tar.gz
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tarball_version:
+        description: >
+          Override tarball version string (e.g. 4.4.1p6).
+          Leave empty to derive from the release tag.
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-tarball:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          # full history so that `git archive` works
+          fetch-depth: 0
+
+      # ── 2. Determine version strings ─────────────────────────────
+      - name: Compute VERSION and TARVERSION
+        id: version
+        run: |
+          # Prefer the manual input, then the release tag, then configure.ac
+          if [[ -n "${{ github.event.inputs.tarball_version }}" ]]; then
+            TARVERSION="${{ github.event.inputs.tarball_version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # strip leading 'v' from tag  (v4.4.1p5 → 4.4.1p5)
+            TARVERSION="${GITHUB_REF_NAME#v}"
+          else
+            TARVERSION="$(sed -n "s/^AC_INIT(\[singular\], \[\(.*\)\],.*/\1/p" configure.ac)-dev"
+          fi
+
+          # Base VERSION is everything up to the first 'p' suffix
+          #   4.4.1p5 → 4.4.1    4.4.1 → 4.4.1
+          VERSION="${TARVERSION%%p*}"
+
+          echo "TARVERSION=$TARVERSION" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$VERSION"       >> "$GITHUB_OUTPUT"
+          echo "Tarball will be: singular-${TARVERSION}.tar.gz  (directory singular-${VERSION})"
+
+      # ── 3. Install build prerequisites ────────────────────────────
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf automake libtool libgmp-dev libmpfr-dev libreadline-dev \
+            libcdd-dev libntl-dev libflint-dev libopenblas-dev \
+            4ti2 normaliz cmake \
+            texlive texlive-latex-extra texinfo texlive-plain-generic \
+            latex2html perl sharutils
+
+      # ── 4. Build Singular (needed for doc generation) ─────────────
+      - name: autogen + configure + build
+        run: |
+          ./autogen.sh
+          ./configure \
+            --enable-doc-build \
+            --enable-gfanlib \
+            --with-ntl --with-flint
+          make -j$(nproc)
+
+      # ── 5. Build documentation (doc.tbz2) ─────────────────────────
+      - name: Build documentation
+        working-directory: doc
+        run: |
+          make -j1 -f Makefile-docbuild singular.info html
+          chmod -R a+rX singular.info html
+          cp singular.info singular.idx html
+          (cd html && tar jcf ../doc.tbz2 *)
+          ls -lh doc.tbz2
+
+      # ── 6. Generate spec file ─────────────────────────────────────
+      # configure already expanded redhat/singular.spec from
+      # redhat/singular.spec.in, so it is ready to copy.
+
+      # ── 7. Generate all.lib ───────────────────────────────────────
+      # `make` already built Singular/all.lib via the all-local target.
+
+      # ── 8. Package the tarball (mirrors make_tar.sh) ──────────────
+      - name: Create release tarball
+        env:
+          TARVERSION: ${{ steps.version.outputs.TARVERSION }}
+          VERSION:    ${{ steps.version.outputs.VERSION }}
+        run: |
+          set -e
+
+          # --- export a clean tree from git ---
+          rm -rf "singular-${VERSION}"
+          git archive --prefix="singular-${VERSION}/" HEAD | tar xf -
+
+          # --- remove files that should not ship ---
+          # .gdbinit files
+          find "singular-${VERSION}" -name .gdbinit -delete 2>/dev/null || true
+
+          # IntegerProgramming/README conflicts with top-level README
+          rm -f "singular-${VERSION}/IntegerProgramming/README"
+
+          # copy compiled documentation
+          cp doc/doc.tbz2 "singular-${VERSION}/doc/"
+
+          # run autogen.sh inside the exported tree to generate
+          # configure, Makefile.in, aclocal.m4, etc.
+          (cd "singular-${VERSION}" && ./autogen.sh)
+
+          # remove autom4te caches
+          find "singular-${VERSION}" -type d -name autom4te.cache -exec rm -rf {} + 2>/dev/null || true
+
+          # remove misc unneeded dirs/files
+          rm -rf "singular-${VERSION}/omalloc/Misc"
+          rm -rf "singular-${VERSION}/Singular/LIB/surfex"
+          rm -f  "singular-${VERSION}/Singular/cnf2ideal.py"
+          rm -rf "singular-${VERSION}/kernel/old" "singular-${VERSION}/kernel/sample"
+          rm -f  "singular-${VERSION}/dox/Doxyfile.html.all" \
+                 "singular-${VERSION}/dox/Doxyfile.in1" \
+                 "singular-${VERSION}/dox/Doxyfile.latex.short" \
+                 "singular-${VERSION}/dox/readme"
+          rm -f  "singular-${VERSION}/factory/ConwayList.txt"
+          rm -rf "singular-${VERSION}/logo" \
+                 "singular-${VERSION}/standalone.test" \
+                 "singular-${VERSION}/templates" \
+                 "singular-${VERSION}/tests"
+
+          # remove .git metadata files
+          find "singular-${VERSION}" -name '.git*' -delete 2>/dev/null || true
+
+          # copy generated artefacts produced by the build
+          cp redhat/singular.spec "singular-${VERSION}/redhat/singular.spec"
+          cp Singular/all.lib     "singular-${VERSION}/Singular/LIB/"
+
+          # --- create the compressed tarball ---
+          tar cf "singular-${TARVERSION}.tar" "singular-${VERSION}"
+          gzip -9 -f "singular-${TARVERSION}.tar"
+          ls -lh "singular-${TARVERSION}.tar.gz"
+
+          # clean up
+          rm -rf "singular-${VERSION}"
+
+      # ── 9. Upload tarball as workflow artifact ────────────────────
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-tarball
+          path: singular-${{ steps.version.outputs.TARVERSION }}.tar.gz
+
+      # ── 10. Attach tarball to GitHub Release ──────────────────────
+      - name: Attach tarball to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: singular-${{ steps.version.outputs.TARVERSION }}.tar.gz
