@@ -7,7 +7,7 @@ name: Release Tarball
 ## at https://www.singular.uni-kl.de/ftp/pub/Math/Singular/src/ and used
 ## by SageMath.
 ##
-## Trigger: creating (or editing) a GitHub Release whose tag looks like
+## Trigger: publishing a GitHub Release whose tag looks like
 ##   v4.4.1p5   – patch release  → tarball singular-4.4.1p5.tar.gz
 ##   v4.4.1     – major release  → tarball singular-4.4.1.tar.gz
 
@@ -30,6 +30,8 @@ jobs:
   build-tarball:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: write
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────
@@ -105,7 +107,15 @@ jobs:
           TARVERSION: ${{ steps.version.outputs.TARVERSION }}
           VERSION:    ${{ steps.version.outputs.VERSION }}
         run: |
-          set -e
+          set -eo pipefail
+
+          # --- sanity-check that required build artefacts exist ---
+          for f in doc/doc.tbz2 redhat/singular.spec Singular/all.lib; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Required artefact missing: $f"
+              exit 1
+            fi
+          done
 
           # --- export a clean tree from git ---
           rm -rf "singular-${VERSION}"
@@ -149,6 +159,17 @@ jobs:
           # copy generated artefacts produced by the build
           cp redhat/singular.spec "singular-${VERSION}/redhat/singular.spec"
           cp Singular/all.lib     "singular-${VERSION}/Singular/LIB/"
+
+          # --- verify the exported tree has key files ---
+          for f in "singular-${VERSION}/configure" \
+               "singular-${VERSION}/doc/doc.tbz2" \
+               "singular-${VERSION}/Singular/LIB/all.lib" \
+               "singular-${VERSION}/redhat/singular.spec"; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Expected file missing from tarball tree: $f"
+              exit 1
+            fi
+          done
 
           # --- create the compressed tarball ---
           tar cf "singular-${TARVERSION}.tar" "singular-${VERSION}"
