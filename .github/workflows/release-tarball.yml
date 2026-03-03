@@ -4,8 +4,8 @@ name: Release Tarball
 ## documentation) and attach it to the GitHub Release.
 ##
 ## The tarball reproduces the layout of the tarballs historically published
-## at https://www.mathematik.uni-kl.de/ftp/pub/Math/Singular/UNIX/ and used
-## by SageMath (sage-package).
+## at https://www.singular.uni-kl.de/ftp/pub/Math/Singular/src/ and used
+## by SageMath.
 ##
 ## Trigger: creating (or editing) a GitHub Release whose tag looks like
 ##   v4.4.1p5   – patch release  → tarball singular-4.4.1p5.tar.gz
