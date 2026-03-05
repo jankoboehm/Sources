@@ -122,6 +122,7 @@ jobs:
           else
             Pkg.add(; name="Oscar", rev="${{ matrix.oscar-version }}")
           end
+          Pkg.add("Documenter")
           Pkg.instantiate()
           path = dirname(dirname(Base.find_package("Singular")))
           open(ENV["GITHUB_ENV"], "a") do io
