@@ -1104,7 +1104,8 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
         }
       }
     }
-    if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Z(r) || rField_is_Zn(r))
+    if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Zp_long(r)
+    || rField_is_Z(r) || rField_is_Zn(r))
     {
       setCharacteristic( rInternalChar(r) );
       if (rInternalChar(r)>MAX_CHAR_FACTORY)
@@ -1172,8 +1173,8 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
     for ( ; J.hasItem(); J++, j++ )
     {
       if (with_exps!=1) (**v)[j] = J.getItem().exp();
-      if (rField_is_Zp(r) || rField_is_Q(r)||  rField_is_Z(r)
-      || rField_is_Zn(r))           /* Q, Fp, Z */
+      if (rField_is_Zp(r) || rField_is_Zp_long(r) || rField_is_Q(r)
+      || rField_is_Z(r) || rField_is_Zn(r))           /* Q, Fp, Z */
       {
         //count_Factors(res,*v,f, j, convFactoryPSingP( J.getItem().factor() );
         res->m[j] = convFactoryPSingP( J.getItem().factor(),r );
