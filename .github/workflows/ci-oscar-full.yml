@@ -148,6 +148,6 @@ jobs:
             println(io, "SINGULARJL_PATH=$path")
           end
 
-      - name: Run Oscar test suite (subset: ${{ matrix.oscar-subset }})
+      - name: "Run Oscar test suite (subset: ${{ matrix.oscar-subset }})"
         run: |
           julia --project=override $SINGULARJL_PATH/etc/run_with_override.jl /tmp/singular_jll_override --startup-file=no --color=yes -e 'import Pkg; Pkg.test("Oscar")'

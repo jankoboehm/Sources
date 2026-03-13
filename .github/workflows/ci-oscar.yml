@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 env:
-  OSCAR_SELECTED_TESTS: 'Rings/mpoly.jl Rings/binomial-ideals.jl Rings/oscar_singular.jl Rings/orderings.jl Modules/ModulesGraded.jl Modules/UngradedModules.jl Modules/homological-algebra.jl'
+  OSCAR_SELECTED_TESTS: 'Rings/mpoly.jl Rings/MPolyQuo.jl Rings/mpoly-affine-algebras.jl Rings/binomial-ideals.jl Rings/oscar_singular.jl Rings/orderings.jl Modules/ModulesGraded.jl Modules/UngradedModules.jl Modules/homological-algebra.jl'
   JULIA_NUM_THREADS: '2'
   OPENBLAS_NUM_THREADS: '1'
   OMP_NUM_THREADS: '1'
