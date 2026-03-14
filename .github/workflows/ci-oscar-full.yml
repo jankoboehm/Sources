@@ -79,32 +79,16 @@ jobs:
     name: Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})
     runs-on: ubuntu-latest
     needs: build-singular-override
-    if: ${{ github.event.inputs.subset == 'both' || github.event.inputs.subset == matrix.oscar-subset }}
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - oscar-version: 'latest-release'
-            singularjl-version: 'latest-release'
-            oscar-subset: 'short'
-          - oscar-version: 'latest-release'
-            singularjl-version: 'latest-release'
-            oscar-subset: 'long'
-
-          - oscar-version: 'latest-release'
-            singularjl-version: 'master'
-            oscar-subset: 'short'
-          - oscar-version: 'latest-release'
-            singularjl-version: 'master'
-            oscar-subset: 'long'
-
+        oscar-version: ['latest-release', 'master']
+        singularjl-version: ['latest-release', 'master']
+        oscar-subset: ${{ fromJSON(github.event.inputs.subset == 'both' && '["short","long"]' || format('["{0}"]', github.event.inputs.subset)) }}
+        exclude:
           - oscar-version: 'master'
-            singularjl-version: 'master'
-            oscar-subset: 'short'
-          - oscar-version: 'master'
-            singularjl-version: 'master'
-            oscar-subset: 'long'
+            singularjl-version: 'latest-release'
     env:
       OSCAR_TEST_SUBSET: ${{ matrix.oscar-subset }}
     steps:
