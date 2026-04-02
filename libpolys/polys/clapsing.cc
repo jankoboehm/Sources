@@ -734,7 +734,7 @@ poly singclap_pmod ( poly f, poly g, const ring r )
 {
   poly res=NULL;
   On(SW_RATIONAL);
-  if (rField_is_Zp(r) || rField_is_Q(r)
+  if (rField_is_Zp(r) || rField_is_Zp_long(r) || rField_is_Q(r)
   || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
   {
     setCharacteristic( rInternalChar(r) );
