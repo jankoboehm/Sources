@@ -4,6 +4,7 @@ New/algext_numbers.tst
 New/algext_ring_compose.tst
 New/bigints.tst
 New/bug593_primdecZ.tst
+New/bug_1334_factorize_Zp_long.tst
 New/bug_541_interred.tst
 New/bug_absprimdec.tst
 New/bug_dim_mixedorder.tst

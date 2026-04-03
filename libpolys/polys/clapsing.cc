@@ -367,7 +367,8 @@ poly singclap_resultant ( poly f, poly g , poly x, const ring r)
     goto resultant_returns_res;
   // for now there is only the possibility to handle polynomials over
   // Q and Fp ...
-  if (rField_is_Zp(r) || rField_is_Q(r) || rField_is_Z(r)
+  if (rField_is_Zp(r) || rField_is_Zp_long(r) || rField_is_Q(r)
+  || rField_is_Z(r)
   || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
   {
     Variable X(i);
@@ -681,7 +682,7 @@ poly singclap_pdivide ( poly f, poly g, const ring r )
   #endif
 
   On(SW_RATIONAL);
-  if (rField_is_Zp(r) || rField_is_Q(r)
+  if (rField_is_Zp(r) || rField_is_Zp_long(r) || rField_is_Q(r)
   || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
   {
     setCharacteristic( rInternalChar(r) );
@@ -733,7 +734,7 @@ poly singclap_pmod ( poly f, poly g, const ring r )
 {
   poly res=NULL;
   On(SW_RATIONAL);
-  if (rField_is_Zp(r) || rField_is_Q(r)
+  if (rField_is_Zp(r) || rField_is_Zp_long(r) || rField_is_Q(r)
   || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
   {
     setCharacteristic( rInternalChar(r) );
@@ -1104,7 +1105,8 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
         }
       }
     }
-    if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Z(r) || rField_is_Zn(r))
+    if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Zp_long(r)
+    || rField_is_Z(r) || rField_is_Zn(r))
     {
       setCharacteristic( rInternalChar(r) );
       if (rInternalChar(r)>MAX_CHAR_FACTORY)
@@ -1172,8 +1174,8 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
     for ( ; J.hasItem(); J++, j++ )
     {
       if (with_exps!=1) (**v)[j] = J.getItem().exp();
-      if (rField_is_Zp(r) || rField_is_Q(r)||  rField_is_Z(r)
-      || rField_is_Zn(r))           /* Q, Fp, Z */
+      if (rField_is_Zp(r) || rField_is_Zp_long(r) || rField_is_Q(r)
+      || rField_is_Z(r) || rField_is_Zn(r))           /* Q, Fp, Z */
       {
         //count_Factors(res,*v,f, j, convFactoryPSingP( J.getItem().factor() );
         res->m[j] = convFactoryPSingP( J.getItem().factor(),r );
