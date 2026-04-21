@@ -68,4 +68,77 @@ jobs:
       #- run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Long/ok_l.lst
       #  if: ${{ always() }}
 
+  extra:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 120
+
+    steps:
+
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+
+        run: |
+
+          sudo apt-get update
+          sudo apt-get install -y \
+            sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
+            4ti2 normaliz libopenblas-dev libflint-dev \
+            cmake
+
+      - run: ./autogen.sh
+
+      - run: ./configure --prefix=$prefix --enable-gfanlib --with-ntl --with-flint
+
+      - run: make -j"$(nproc)"
+
+      - run: make install
+
+      - name: Build extra CI list
+
+        run: |
+
+          cat > Tst/Extra.ci.lst <<'EOF'
+          Buch/Example_1_8_7.tst
+          Short/bug_53.tst
+          Short/bug_55.tst
+          Short/bug_div.tst
+          Short/rInit.tst
+          Short/solve_s.tst
+          Long/tropical.tst
+          Manual/fglm_solve.tst
+          Manual/laguerre_solve.tst
+          Manual/lex_solve.tst
+          Manual/number_pi.tst
+          Manual/simplex.tst
+          Manual/simplexOut.tst
+          Manual/solve.tst
+          Manual/triangL_solve.tst
+          Manual/triangLf_solve.tst
+          Manual/triangM_solve.tst
+          Manual/triang_solve.tst
+          EOF
+
+      - name: Run extra regression tests
+
+        run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Extra.ci.lst
+
+      - name: Upload regression artifacts
+
+        if: ${{ failure() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: singular-extra-regressions
+          path: |
+            Tst/**/*.diff
+            Tst/**/*.stat.diff
+            Tst/**/*.new.res
+            Tst/**/*.new.stat
+            Tst/Extra.ci.lst
+
 # TODO: code coverage?
