@@ -85,7 +85,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
-            4ti2 normaliz libopenblas-dev libflint-dev \
+            4ti2 normaliz gfan libopenblas-dev libflint-dev \
             cmake
 
       - run: ./autogen.sh
