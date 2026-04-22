@@ -3,6 +3,10 @@ name: CI with Oscar (full test suite)
 on:
   workflow_dispatch:
     inputs:
+      pr_number:
+        description: 'PR number to test instead of the selected branch (optional)'
+        required: false
+        type: string
       subset:
         description: Oscar test subset to run
         type: choice
@@ -13,13 +17,17 @@ on:
         default: short
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.inputs.pr_number != '' && format('pr-{0}', github.event.inputs.pr_number) || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   JULIA_NUM_THREADS: '2'
   OPENBLAS_NUM_THREADS: '1'
   OMP_NUM_THREADS: '1'
+  SINGULAR_CHECKOUT_REF: ${{ github.event.inputs.pr_number != '' && format('refs/pull/{0}/merge', github.event.inputs.pr_number) || github.ref }}
 
 jobs:
   build-singular-override:
@@ -31,6 +39,14 @@ jobs:
         uses: actions/checkout@v5
         with:
           path: SINGULARROOT
+          ref: ${{ env.SINGULAR_CHECKOUT_REF }}
+
+      - name: Show tested ref
+        run: |
+          echo "Testing ref: $SINGULAR_CHECKOUT_REF"
+          if [ -n '${{ github.event.inputs.pr_number }}' ]; then
+            echo "Testing PR #${{ github.event.inputs.pr_number }} via merge ref"
+          fi
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
@@ -93,6 +109,8 @@ jobs:
       OSCAR_TEST_SUBSET: ${{ matrix.oscar-subset }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.SINGULAR_CHECKOUT_REF }}
 
       - name: Download override prefix
         uses: actions/download-artifact@v4
