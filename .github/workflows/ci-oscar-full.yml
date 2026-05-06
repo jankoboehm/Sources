@@ -123,7 +123,8 @@ jobs:
         if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
           rm -rf /tmp/singular_jll_override
-          cp "$SINGULARJL_PATH/etc/setup_override_dir.jl" /tmp/setup_override_dir.jl
+          rm -f /tmp/setup_override_dir.jl
+          install -m 0644 "$SINGULARJL_PATH/etc/setup_override_dir.jl" /tmp/setup_override_dir.jl
           python3 - <<'PY'
           from pathlib import Path
           path = Path('/tmp/setup_override_dir.jl')
