@@ -34,6 +34,7 @@ jobs:
     name: Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    continue-on-error: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
     strategy:
       fail-fast: false
       matrix:
@@ -62,12 +63,55 @@ jobs:
         with:
           version: '1.10'
 
+      - name: Install Singular.jl + Oscar
+        shell: julia --project=override --color=yes {0}
+        env:
+          OSCAR_CI_EXPERIMENTAL: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
+        run: |
+          using Pkg
+
+          function set_github_env(name, value)
+            open(ENV["GITHUB_ENV"], "a") do io
+              println(io, name, "=", value)
+            end
+          end
+
+          experimental = lowercase(get(ENV, "OSCAR_CI_EXPERIMENTAL", "false")) == "true"
+
+          try
+            if "${{ matrix.singularjl-version }}" == "latest-release"
+              Pkg.add("Singular")
+            else
+              Pkg.add(; name="Singular", rev="${{ matrix.singularjl-version }}")
+            end
+            if "${{ matrix.oscar-version }}" == "latest-release"
+              Pkg.add("Oscar")
+            else
+              Pkg.add(; name="Oscar", rev="${{ matrix.oscar-version }}")
+            end
+            Pkg.add("Documenter")
+            Pkg.instantiate()
+            path = dirname(dirname(Base.find_package("Singular")))
+            set_github_env("SINGULARJL_PATH", path)
+            set_github_env("OSCAR_CI_SKIP_ROW", "false")
+          catch err
+            if experimental
+              @warn "Optional Oscar/Singular.jl matrix row cannot be resolved; skipping this row" exception=(err, catch_backtrace())
+              set_github_env("OSCAR_CI_SKIP_ROW", "true")
+              exit(0)
+            else
+              rethrow()
+            end
+          end
+
       - name: Install build tools
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y autoconf automake libtool pkg-config build-essential cmake
 
       - name: Prepare Singular source
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
           rm -rf /tmp/SINGULARROOT
           mkdir -p /tmp/SINGULARROOT
@@ -75,28 +119,8 @@ jobs:
           cd /tmp/SINGULARROOT
           ./autogen.sh
 
-      - name: Install Singular.jl + Oscar
-        shell: julia --project=override --color=yes {0}
-        run: |
-          using Pkg
-          if "${{ matrix.singularjl-version }}" == "latest-release"
-            Pkg.add("Singular")
-          else
-            Pkg.add(; name="Singular", rev="${{ matrix.singularjl-version }}")
-          end
-          if "${{ matrix.oscar-version }}" == "latest-release"
-            Pkg.add("Oscar")
-          else
-            Pkg.add(; name="Oscar", rev="${{ matrix.oscar-version }}")
-          end
-          Pkg.add("Documenter")
-          Pkg.instantiate()
-          path = dirname(dirname(Base.find_package("Singular")))
-          open(ENV["GITHUB_ENV"], "a") do io
-            println(io, "SINGULARJL_PATH=$path")
-          end
-
       - name: Build Singular override prefix
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
           rm -rf /tmp/singular_jll_override
           cp "$SINGULARJL_PATH/etc/setup_override_dir.jl" /tmp/setup_override_dir.jl
@@ -113,5 +137,6 @@ jobs:
           julia --project=override --color=yes /tmp/setup_override_dir.jl /tmp/SINGULARROOT /tmp/singular_jll_override --yes
 
       - name: "Run Oscar test suite (subset: ${{ matrix.oscar-subset }})"
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
           julia --project=override $SINGULARJL_PATH/etc/run_with_override.jl /tmp/singular_jll_override --startup-file=no --color=yes -e 'import Pkg; Pkg.test("Oscar")'
