@@ -1,41 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="2.0";
+version="version conway.lib 1.0.0 May_2026 "; // $Id$
 category="Finite fields";
 info="
 LIBRARY:  conway.lib   Calculation of Conway polynomials over finite fields
 
-AUTHOR:   Miguel, Mathematics Degree Thesis
+AUTHOR:   Miguel, miguelsbdh@gmail.com
 
-OVERVIEW:
-  Implementation of the Heath-Loehr (2004) algorithm to calculate the
-  Conway polynomial C_{p,n} over F_p, utilizing concepts from Ruano-Laplagne
-  (2007) for Singular.
-
-  Given a prime p and a degree n = q1^e1 * ... * qs^es, the algorithm
-  reduces the search space of p^n candidates to exactly
-  g = gcd{ (p^n-1)/(p^{n/qi}-1) } candidates using a polynomial GCD,
-  avoiding exhaustive search for composite n.
-
-CASES:
-  n = 1      ->  smallest primitive of F_p
-  s >= 2     ->  r(z) = gcd{ C_{p,di}(z^{mi/g}) } is irreducible of degree n
-  s = 1, e=1 ->  prime n: exhaustive Parker search with immediate halt
-  s = 1, e>1 ->  n = q^e: r(z) = C_{p,n/q}(z), search among g roots
-
-IMPLEMENTED OPTIMIZATIONS:
-  - Constant term fixed for compatibility with C_{p,1}
-  - Exact Parker order in exhaustive loop (immediate stop on first match)
-  - Lexicographical pruning in iterateCandidates
-  - Incremental multiplication: beta_{k+1} = beta_k * zeta
-  - Primitivity test prior to minpoly calculation
-  - Precalculated ideal and factorization of p^n-1
-
-REFERENCES:
-  [HL04] Heath, Loehr: New algorithms for generating Conway polynomials
-         over finite fields. J. Symbolic Comput. 38 (2004), 1003-1024.
-  [RL07] Ruano, Laplagne: Conway Polynomials and Singular. Segovia, 2007.
-  [Lub]  Frank Luebeck: tables at
-         https://www.math.rwth-aachen.de/~Frank.Luebeck/data/ConwayPol/
+OVERVIEW: Implementation of the Heath-Loehr (2004) algorithm to calculate the Conway polynomial C_{p,n} over F_p, utilizing concepts from Ruano-Laplagne (2007) for Singular.
 
 PROCEDURES:
   conwayPoly(n [,known])         Calculates C_{p,n}
@@ -46,8 +17,6 @@ PROCEDURES:
   candidatosConway(n)            Counts g and phi(p^n-1)/n for C_{p,n}
   mostrarCandidatos(n)           Displays g and phi(p^n-1)/n
 ";
-
-LIB "polylib.lib";
 
 ///////////////////////////////////////////////////////////////////////////////
 //  SECTION 1: BIGINT ARITHMETIC
@@ -1063,7 +1032,7 @@ EXAMPLE:  example conwayPolyMersenne; shows an example
         if (result != 0)
         {
             "//   C_{2," + string(n) + "} = " + string(result);
-            "//   Time: " + string(elapsed) + " ms";
+            // "//   Time: " + string(elapsed) + " ms";  // removed: non-deterministic output breaks regress.cmd
             "";
         }
         else
