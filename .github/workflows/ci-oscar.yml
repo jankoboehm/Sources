@@ -93,6 +93,17 @@ jobs:
             end
           end
 
+      - name: "Optional row skipped: unresolved Julia package set"
+        if: env.OSCAR_CI_SKIP_ROW == 'true'
+        run: |
+          {
+            echo "### Optional Oscar/Singular.jl matrix row skipped"
+            echo
+            echo "This row uses at least one \`master\` Julia package. Julia could not currently resolve a compatible Oscar/Singular.jl/Nemo dependency set, so the Singular override was not built and no Oscar tests were run for this optional row."
+            echo
+            echo "The release/release row remains the required integration check for this Singular checkout."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Install build tools
         if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
@@ -119,10 +130,46 @@ jobs:
           path = Path('/tmp/setup_override_dir.jl')
           text = path.read_text()
           old = 'artifact_paths = collect_artifact_paths(deps)'
-          new = 'artifact_paths = collect_artifact_paths(deps; project_dir=dirname(Base.active_project()))'
+          replacement = r"""
+          function resolved_jll_specs_from_active_manifest(names)
+              ctx = Pkg.Types.Context()
+              specs = Pkg.PackageSpec[]
+
+              for name in names
+                  found_uuid = nothing
+                  found_entry = nothing
+
+                  for (uuid, entry) in ctx.env.manifest.deps
+                      if entry.name == name
+                          found_uuid = uuid
+                          found_entry = entry
+                          break
+                      end
+                  end
+
+                  if found_entry === nothing
+                      push!(specs, Pkg.PackageSpec(; name = name))
+                  else
+                      push!(specs, Pkg.PackageSpec(;
+                          name = found_entry.name,
+                          uuid = found_uuid,
+                          version = found_entry.version,
+                          tree_hash = found_entry.tree_hash,
+                          path = found_entry.path,
+                          repo = found_entry.repo,
+                      ))
+                  end
+              end
+
+              return specs
+          end
+
+          deps = resolved_jll_specs_from_active_manifest(deps)
+          artifact_paths = collect_artifact_paths(deps)
+          """
           if old not in text:
               raise SystemExit('setup_override_dir.jl changed: expected collect_artifact_paths(deps) call not found')
-          path.write_text(text.replace(old, new, 1))
+          path.write_text(text.replace(old, replacement, 1))
           PY
           julia --project=override --color=yes /tmp/setup_override_dir.jl /tmp/SINGULARROOT /tmp/singular_jll_override --yes
 
