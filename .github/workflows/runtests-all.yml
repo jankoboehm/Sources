@@ -1,0 +1,189 @@
+name: Run all Singular tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to test instead of the selected branch (optional)'
+        required: false
+        type: string
+      suite:
+        description: Singular suite to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - extra
+          - Old/universal.lst
+          - Buch/buch.lst
+          - BuchDL/buchdl.lst
+          - Plural.lst
+          - Plural/short.lst
+          - Plural/dmod.lst
+          - Short.lst
+          - Short/ok_s.lst
+          - Short/ok_e.lst
+          - Short/ok_g.lst
+          - Long/ok_l.lst
+          - Long/ok_l2.lst
+          - Manual/m.lst
+          - Manual/all.lst
+          - New/new.tst
+          - New.lst
+          - 4ti2.lst
+          - Letterplace.lst
+          - dyn_modules.lst
+          - normaliz.lst
+          - parallel.lst
+          - ringcf.lst
+          - sba.lst
+          - Wester
+          - VeryLong/gangl.tst
+
+env:
+  prefix: "/tmp/prefix"
+  SINGULAR_CHECKOUT_REF: ${{ github.event.inputs.pr_number != '' && format('refs/pull/{0}/merge', github.event.inputs.pr_number) || github.ref }}
+
+jobs:
+  all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.SINGULAR_CHECKOUT_REF }}
+
+      - name: Show tested ref
+        run: |
+          echo "Testing ref: $SINGULAR_CHECKOUT_REF"
+          if [ -n '${{ github.event.inputs.pr_number }}' ]; then
+            echo "Testing PR #${{ github.event.inputs.pr_number }} via merge ref"
+          fi
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            sharutils libgmp-dev libreadline-dev libmpfr-dev libntl-dev libcdd-dev \
+            4ti2 normaliz gfan libopenblas-dev libflint-dev \
+            cmake
+
+      - run: ./autogen.sh
+      - run: ./configure --prefix=$prefix --enable-gfanlib --with-ntl --with-flint
+      - run: make -j"$(nproc)"
+      - run: make install
+
+      - name: Build manual CI lists
+        run: |
+          cat > Tst/Extra.ci.lst <<'EOF'
+          Buch/Example_1_8_7.tst
+          Short/bug_53.tst
+          Short/bug_55.tst
+          Short/bug_div.tst
+          Short/rInit.tst
+          Short/solve_s.tst
+          Long/tropical.tst
+          Manual/fglm_solve.tst
+          Manual/laguerre_solve.tst
+          Manual/lex_solve.tst
+          Manual/number_pi.tst
+          Manual/simplex.tst
+          Manual/simplexOut.tst
+          Manual/solve.tst
+          Manual/triangL_solve.tst
+          Manual/triangLf_solve.tst
+          Manual/triangM_solve.tst
+          Manual/triang_solve.tst
+          EOF
+
+          cat > Tst/Wester.ci.lst <<'EOF'
+          Wester/A.tst
+          Wester/B.tst
+          Wester/C.tst
+          Wester/D.tst
+          Wester/E.tst
+          Wester/F.tst
+          Wester/G.tst
+          Wester/G_p.tst
+          Wester/H.tst
+          Wester/I.tst
+          Wester/K.tst
+          Wester/M1.tst
+          Wester/M2.tst
+          Wester/O.tst
+          Wester/P.tst
+          Wester/P_p.tst
+          Wester/X.tst
+          Wester/Y.tst
+          EOF
+
+      - name: Run requested Singular suite
+        env:
+          SUITE: ${{ github.event.inputs.suite }}
+        run: |
+          set -euo pipefail
+          cd Tst
+
+          if [ "$SUITE" = "all" ]; then
+            suites=(
+              Old/universal.lst
+              Buch/buch.lst
+              BuchDL/buchdl.lst
+              Plural.lst
+              Short.lst
+              Long/ok_l.lst
+              Long/ok_l2.lst
+              Manual/all.lst
+              4ti2.lst
+              Letterplace.lst
+              New.lst
+              dyn_modules.lst
+              normaliz.lst
+              parallel.lst
+              ringcf.lst
+              sba.lst
+              Wester.ci.lst
+              VeryLong/gangl.tst
+            )
+            if [ -f New/new.tst ]; then
+              suites+=(New/new.tst)
+            fi
+          elif [ "$SUITE" = "extra" ]; then
+            suites=(Extra.ci.lst)
+          elif [ "$SUITE" = "Wester" ]; then
+            suites=(Wester.ci.lst)
+          else
+            suites=("$SUITE")
+          fi
+
+          failed=0
+          failed_suites=()
+          for suite in "${suites[@]}"; do
+            echo "::group::$suite"
+            if ! ./regress.cmd -s "$prefix/bin/Singular" "$suite"; then
+              failed=1
+              failed_suites+=("$suite")
+            fi
+            echo "::endgroup::"
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            printf 'Failed suites:\n' >&2
+            printf '  %s\n' "${failed_suites[@]}" >&2
+            exit 1
+          fi
+
+      - name: Upload regression artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-all-regressions-${{ github.event.inputs.pr_number != '' && format('pr-{0}-', github.event.inputs.pr_number) || '' }}${{ github.event.inputs.suite }}
+          path: |
+            Tst/**/*.diff
+            Tst/**/*.stat.diff
+            Tst/**/*.new.res
+            Tst/**/*.new.stat
+            Tst/Extra.ci.lst
+            Tst/Wester.ci.lst
