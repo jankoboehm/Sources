@@ -29,64 +29,10 @@ env:
   OMP_NUM_THREADS: '1'
 
 jobs:
-  build-singular-override:
-    name: Build Singular override prefix
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Checkout Singular
-        uses: actions/checkout@v5
-        with:
-          path: SINGULARROOT
-
-      - name: Set up Julia
-        uses: julia-actions/setup-julia@v2
-        with:
-          version: '1.10'
-
-      - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool pkg-config build-essential cmake
-
-      - name: Install Singular.jl (latest release)
-        shell: julia --color=yes {0}
-        run: |
-          using Pkg
-          Pkg.add("Singular")
-          path = dirname(dirname(Base.find_package("Singular")))
-          open(ENV["GITHUB_ENV"], "a") do io
-            println(io, "SINGULARJL_PATH=$path")
-          end
-
-      - name: Run autogen.sh in SINGULARROOT
-        run: |
-          mv SINGULARROOT /tmp/SINGULARROOT
-          cd /tmp/SINGULARROOT
-          ./autogen.sh
-
-      - name: Build override prefix
-        run: |
-          rm -rf /tmp/singular_jll_override
-          julia --project=override $SINGULARJL_PATH/etc/setup_override_dir.jl /tmp/SINGULARROOT /tmp/singular_jll_override --yes
-
-      - name: Pack override prefix
-        run: |
-          tar -C /tmp -czf singular_jll_override.tar.gz singular_jll_override
-          ls -lh singular_jll_override.tar.gz
-
-      - name: Upload override prefix
-        uses: actions/upload-artifact@v4
-        with:
-          name: singular_jll_override
-          path: singular_jll_override.tar.gz
-          retention-days: 7
-
   test:
     name: Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev
     runs-on: ubuntu-latest
-    needs: build-singular-override
-    timeout-minutes: 40
+    timeout-minutes: 90
     continue-on-error: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
     strategy:
       fail-fast: false
@@ -101,18 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Download override prefix
-        uses: actions/download-artifact@v4
-        with:
-          name: singular_jll_override
-          path: artifacts
-
-      - name: Extract override prefix
-        run: |
-          rm -rf /tmp/singular_jll_override
-          tar -C /tmp -xzf artifacts/singular_jll_override.tar.gz
-          test -d /tmp/singular_jll_override
-
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
         with:
@@ -120,32 +54,132 @@ jobs:
 
       - name: Install Singular.jl + Oscar
         shell: julia --project=override --color=yes {0}
+        env:
+          OSCAR_CI_EXPERIMENTAL: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
         run: |
           using Pkg
-          if "${{ matrix.singularjl-version }}" == "latest-release"
-            Pkg.add("Singular")
-          else
-            Pkg.add(; name="Singular", rev="${{ matrix.singularjl-version }}")
-          end
-          if "${{ matrix.oscar-version }}" == "latest-release"
-            Pkg.add("Oscar")
-          else
-            Pkg.add(; name="Oscar", rev="${{ matrix.oscar-version }}")
-          end
-          Pkg.add("Documenter")
-          Pkg.instantiate()
-          path = dirname(dirname(Base.find_package("Singular")))
-          open(ENV["GITHUB_ENV"], "a") do io
-            println(io, "SINGULARJL_PATH=$path")
+
+          function set_github_env(name, value)
+            open(ENV["GITHUB_ENV"], "a") do io
+              println(io, name, "=", value)
+            end
           end
 
+          experimental = lowercase(get(ENV, "OSCAR_CI_EXPERIMENTAL", "false")) == "true"
+
+          try
+            if "${{ matrix.singularjl-version }}" == "latest-release"
+              Pkg.add("Singular")
+            else
+              Pkg.add(; name="Singular", rev="${{ matrix.singularjl-version }}")
+            end
+            if "${{ matrix.oscar-version }}" == "latest-release"
+              Pkg.add("Oscar")
+            else
+              Pkg.add(; name="Oscar", rev="${{ matrix.oscar-version }}")
+            end
+            Pkg.add("Documenter")
+            Pkg.instantiate()
+            path = dirname(dirname(Base.find_package("Singular")))
+            set_github_env("SINGULARJL_PATH", path)
+            set_github_env("OSCAR_CI_SKIP_ROW", "false")
+          catch err
+            if experimental
+              @warn "Optional Oscar/Singular.jl matrix row cannot be resolved; skipping this row" exception=(err, catch_backtrace())
+              set_github_env("OSCAR_CI_SKIP_ROW", "true")
+              exit(0)
+            else
+              rethrow()
+            end
+          end
+
+      - name: "Optional row skipped: unresolved Julia package set"
+        if: env.OSCAR_CI_SKIP_ROW == 'true'
+        run: |
+          {
+            echo "### Optional Oscar/Singular.jl matrix row skipped"
+            echo
+            echo "This row uses at least one \`master\` Julia package. Julia could not currently resolve a compatible Oscar/Singular.jl/Nemo dependency set, so the Singular override was not built and no Oscar tests were run for this optional row."
+            echo
+            echo "The release/release row remains the required integration check for this Singular checkout."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install build tools
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool pkg-config build-essential cmake
+
+      - name: Prepare Singular source
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
+        run: |
+          rm -rf /tmp/SINGULARROOT
+          mkdir -p /tmp/SINGULARROOT
+          cp -a "$GITHUB_WORKSPACE/." /tmp/SINGULARROOT
+          cd /tmp/SINGULARROOT
+          ./autogen.sh
+
+      - name: Build Singular override prefix
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
+        run: |
+          rm -rf /tmp/singular_jll_override
+          rm -f /tmp/setup_override_dir.jl
+          install -m 0644 "$SINGULARJL_PATH/etc/setup_override_dir.jl" /tmp/setup_override_dir.jl
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/setup_override_dir.jl')
+          text = path.read_text()
+          old = 'artifact_paths = collect_artifact_paths(deps)'
+          replacement = r"""
+          function resolved_jll_specs_from_active_manifest(names)
+              ctx = Pkg.Types.Context()
+              specs = Pkg.PackageSpec[]
+
+              for name in names
+                  found_uuid = nothing
+                  found_entry = nothing
+
+                  for (uuid, entry) in ctx.env.manifest.deps
+                      if entry.name == name
+                          found_uuid = uuid
+                          found_entry = entry
+                          break
+                      end
+                  end
+
+                  if found_entry === nothing
+                      push!(specs, Pkg.PackageSpec(; name = name))
+                  else
+                      push!(specs, Pkg.PackageSpec(;
+                          name = found_entry.name,
+                          uuid = found_uuid,
+                          version = found_entry.version,
+                          tree_hash = found_entry.tree_hash,
+                          path = found_entry.path,
+                          repo = found_entry.repo,
+                      ))
+                  end
+              end
+
+              return specs
+          end
+
+          deps = resolved_jll_specs_from_active_manifest(deps)
+          artifact_paths = collect_artifact_paths(deps)
+          """
+          if old not in text:
+              raise SystemExit('setup_override_dir.jl changed: expected collect_artifact_paths(deps) call not found')
+          path.write_text(text.replace(old, replacement, 1))
+          PY
+          julia --project=override --color=yes /tmp/setup_override_dir.jl /tmp/SINGULARROOT /tmp/singular_jll_override --yes
+
       - name: Run selected Oscar upstream tests (with overridden Singular_jll)
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
           julia --project=override $SINGULARJL_PATH/etc/run_with_override.jl /tmp/singular_jll_override --startup-file=no --color=yes .github/oscar/run_selected_tests.jl
 
-
       - name: Run Oscar test suite via Pkg.test (optional)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.pkgtest_subset != 'none' && matrix.oscar-version == 'latest-release' && matrix.singularjl-version == 'latest-release' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.pkgtest_subset != 'none' && matrix.oscar-version == 'latest-release' && matrix.singularjl-version == 'latest-release' && env.OSCAR_CI_SKIP_ROW != 'true' }}
         run: |
           subset='${{ github.event.inputs.pkgtest_subset }}'
           if [ "$subset" = "both" ]; then

@@ -58,6 +58,25 @@ jobs:
   macos-full:
     uses: passagemath/passagemath/.github/workflows/macos.yml@main
     with:
+      # Homebrew's ecl formula no longer supports macOS 14. Keep macOS 14
+      # conda-forge coverage, but run Homebrew coverage on macOS 15+.
+      osversion_xcodeversion_toxenv_tuples: >-
+        [
+          ["15-intel", "", "homebrew-macos-usrlocal-minimal"],
+          ["15-intel", "", "homebrew-macos-usrlocal-standard"],
+          ["15-intel", "", "conda-forge-macos-minimal"],
+          ["15-intel", "", "conda-forge-macos-standard"],
+          ["14", "", "conda-forge-macos-minimal"],
+          ["14", "", "conda-forge-macos-standard"],
+          ["15", "", "homebrew-macos-opthomebrew-minimal"],
+          ["15", "", "homebrew-macos-opthomebrew-standard"],
+          ["15", "", "conda-forge-macos-minimal"],
+          ["15", "", "conda-forge-macos-standard"],
+          ["26", "", "homebrew-macos-opthomebrew-minimal"],
+          ["26", "", "homebrew-macos-opthomebrew-standard"],
+          ["26", "", "conda-forge-macos-minimal"],
+          ["26", "", "conda-forge-macos-standard"]
+        ]
       max_parallel: 4
       targets_pre: SAGE_CHECK=no singular-build-deps
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES=singular V=1 singular
