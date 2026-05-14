@@ -1,5 +1,8 @@
 name: CI with Oscar (full test suite)
 
+run-name: >-
+  ${{ github.event.inputs.pr_number != '' && format('PR #{0} - Oscar full ({1})', github.event.inputs.pr_number, github.event.inputs.subset) || format('{0} - Oscar full ({1})', github.ref_name, github.event.inputs.subset) }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -31,7 +34,7 @@ env:
 
 jobs:
   test:
-    name: Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})
+    name: "${{ github.event.inputs.pr_number != '' && format('PR #{0} / ', github.event.inputs.pr_number) || '' }}Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})"
     runs-on: ubuntu-latest
     timeout-minutes: 240
     continue-on-error: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
@@ -52,11 +55,31 @@ jobs:
           ref: ${{ env.SINGULAR_CHECKOUT_REF }}
 
       - name: Show tested ref
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          SELECTED_REF: ${{ github.ref_name }}
+          OSCAR_SUBSET_INPUT: ${{ github.event.inputs.subset }}
         run: |
+          echo "Selected workflow ref: $SELECTED_REF"
           echo "Testing ref: $SINGULAR_CHECKOUT_REF"
-          if [ -n '${{ github.event.inputs.pr_number }}' ]; then
-            echo "Testing PR #${{ github.event.inputs.pr_number }} via merge ref"
+          echo "Oscar subset input: $OSCAR_SUBSET_INPUT"
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Testing PR #$PR_NUMBER via merge ref"
           fi
+
+          {
+            echo "### Full Oscar matrix target"
+            echo
+            if [ -n "$PR_NUMBER" ]; then
+              echo "- PR: #$PR_NUMBER"
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            else
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            fi
+            echo "- Oscar subset input: $OSCAR_SUBSET_INPUT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2

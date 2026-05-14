@@ -14,9 +14,22 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         configflags: ["", "--with-ntl --with-flint", "--without-ntl --with-flint"]
+        include:
+          - os: macos-15
+            configflags: "--with-ntl --with-flint"
+          - os: macos-26
+            configflags: "--with-ntl --with-flint"
 
     steps:
       - uses: actions/checkout@v5
+
+      - name: Show runner info
+        run: |
+          uname -a
+          echo "uname -m=$(uname -m)"
+          if command -v getconf >/dev/null 2>&1; then
+            echo "getconf PAGESIZE=$(getconf PAGESIZE)"
+          fi
 
       - name: Install dependencies
         run: |
