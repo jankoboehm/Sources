@@ -195,16 +195,11 @@ dnl
 AC_MSG_CHECKING(size of system page)
 AC_CACHE_VAL(ac_cv_pagesize,
 ac_cv_pagesize=`getconf PAGESIZE`)
-# can not really handle pagesizes which are greater -- there must be a
-# bug somewhere
-if test $ac_cv_pagesize -gt 8192; then
-  ac_cv_pagesize=8192
-fi
 AC_MSG_RESULT($ac_cv_pagesize)
-if test "$ac_cv_pagesize" = 4096 || test "$ac_cv_pagesize" = 8192; then
+if test "$ac_cv_pagesize" = 4096 || test "$ac_cv_pagesize" = 8192 || test "$ac_cv_pagesize" = 16384; then
   AC_DEFINE_UNQUOTED(SIZEOF_SYSTEM_PAGE, $ac_cv_pagesize, "Page-size of the build-system")
 else
-AC_MSG_ERROR([need system page to be of size 4096 or 8192, but is $ac_cv_pagesize])
+AC_MSG_ERROR([need system page to be of size 4096, 8192, or 16384, but is $ac_cv_pagesize])
 fi
 
 AC_DEFINE_UNQUOTED(SIZEOF_OM_PAGE,SIZEOF_SYSTEM_PAGE,Page-size of the build-system)

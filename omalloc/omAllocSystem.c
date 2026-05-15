@@ -251,7 +251,9 @@ void* omReallocSizeFromSystem(void* addr, size_t oldsize, size_t newsize)
 {
   void* res;
 
-  /*oldsize=omSizeOfLargeAddr(addr);*/
+#if defined(HAVE_MALLOC_SIZE) || defined(HAVE_MALLOC_USABLE_SIZE)
+  oldsize = _omSizeOfLargeAddr(addr);
+#endif
   res = OM_REALLOC_FROM_SYSTEM(addr, newsize);
   if (res == NULL)
   {
@@ -268,7 +270,9 @@ void* omReallocSizeFromSystem(void* addr, size_t oldsize, size_t newsize)
       exit(1);
     }
   }
-  /*newsize=omSizeOfAddr(res);*/
+#if defined(HAVE_MALLOC_SIZE) || defined(HAVE_MALLOC_USABLE_SIZE)
+  newsize = _omSizeOfLargeAddr(res);
+#endif
 
 #ifndef OM_NDEBUG
   if (((unsigned long) res) + newsize > om_MaxAddr)
