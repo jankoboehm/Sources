@@ -1,5 +1,8 @@
 name: CI with Oscar (full test suite)
 
+run-name: >-
+  ${{ github.event.inputs.pr_number != '' && format('PR #{0} - Oscar full ({1})', github.event.inputs.pr_number, github.event.inputs.subset) || format('{0} - Oscar full ({1})', github.ref_name, github.event.inputs.subset) }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -31,45 +34,57 @@ env:
 
 jobs:
   test:
-    name: Oscar ${{ matrix.oscar_row.oscar_version }} - Singular.jl ${{ matrix.oscar_row.singularjl_version }} - Singular dev (${{ matrix.oscar-subset }})
+    name: "${{ github.event.inputs.pr_number != '' && format('PR #{0} / ', github.event.inputs.pr_number) || '' }}Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})"
     runs-on: ubuntu-latest
     timeout-minutes: 240
-    continue-on-error: ${{ matrix.oscar_row.experimental }}
+    continue-on-error: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
     strategy:
       fail-fast: false
       matrix:
-        oscar_row:
-          # Required compatibility row: Oscar release chooses the compatible
-          # registered Singular.jl/Singular_jll stack. This is intentionally
-          # not the absolute newest Singular.jl release.
-          - oscar_version: 'latest-release'
-            singularjl_version: 'compatible-release'
-            experimental: false
-          # Optional forward-looking rows. They may be temporarily
-          # unresolvable while Oscar/Singular.jl/Nemo compat bounds move.
-          - oscar_version: 'latest-release'
-            singularjl_version: 'master'
-            experimental: true
-          - oscar_version: 'master'
-            singularjl_version: 'master'
-            experimental: true
+        # Required compatibility row: Oscar release chooses the compatible
+        # registered Singular.jl/Singular_jll stack. This is intentionally
+        # not the absolute newest Singular.jl release.
+        oscar-version: ['latest-release', 'master']
+        singularjl-version: ['compatible-release', 'master']
         oscar-subset: ${{ fromJSON(github.event.inputs.subset == 'both' && '["short","long"]' || format('["{0}"]', github.event.inputs.subset)) }}
+        exclude:
+          - oscar-version: 'master'
+            singularjl-version: 'compatible-release'
     env:
       OSCAR_TEST_SUBSET: ${{ matrix.oscar-subset }}
-      OSCAR_VERSION: ${{ matrix.oscar_row.oscar_version }}
-      SINGULARJL_VERSION: ${{ matrix.oscar_row.singularjl_version }}
-      OSCAR_CI_EXPERIMENTAL: ${{ matrix.oscar_row.experimental }}
+      OSCAR_VERSION: ${{ matrix.oscar-version }}
+      SINGULARJL_VERSION: ${{ matrix.singularjl-version }}
+      OSCAR_CI_EXPERIMENTAL: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.SINGULAR_CHECKOUT_REF }}
 
       - name: Show tested ref
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          SELECTED_REF: ${{ github.ref_name }}
+          OSCAR_SUBSET_INPUT: ${{ github.event.inputs.subset }}
         run: |
+          echo "Selected workflow ref: $SELECTED_REF"
           echo "Testing ref: $SINGULAR_CHECKOUT_REF"
-          if [ -n '${{ github.event.inputs.pr_number }}' ]; then
-            echo "Testing PR #${{ github.event.inputs.pr_number }} via merge ref"
+          echo "Oscar subset input: $OSCAR_SUBSET_INPUT"
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Testing PR #$PR_NUMBER via merge ref"
           fi
+          {
+            echo "### Full Oscar matrix target"
+            echo
+            if [ -n "$PR_NUMBER" ]; then
+              echo "- PR: #$PR_NUMBER"
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            else
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            fi
+            echo "- Oscar subset input: $OSCAR_SUBSET_INPUT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
