@@ -1,5 +1,8 @@
 name: CI with Oscar (full test suite)
 
+run-name: >-
+  ${{ github.event.inputs.pr_number != '' && format('PR #{0} - Oscar full ({1})', github.event.inputs.pr_number, github.event.inputs.subset) || format('{0} - Oscar full ({1})', github.ref_name, github.event.inputs.subset) }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -31,42 +34,65 @@ env:
 
 jobs:
   test:
-    name: Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})
+    name: "${{ github.event.inputs.pr_number != '' && format('PR #{0} / ', github.event.inputs.pr_number) || '' }}Oscar ${{ matrix.oscar-version }} - Singular.jl ${{ matrix.singularjl-version }} - Singular dev (${{ matrix.oscar-subset }})"
     runs-on: ubuntu-latest
     timeout-minutes: 240
     continue-on-error: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
     strategy:
       fail-fast: false
       matrix:
+        # Required compatibility row: Oscar release chooses the compatible
+        # registered Singular.jl/Singular_jll stack. This is intentionally
+        # not the absolute newest Singular.jl release.
         oscar-version: ['latest-release', 'master']
-        singularjl-version: ['latest-release', 'master']
+        singularjl-version: ['compatible-release', 'master']
         oscar-subset: ${{ fromJSON(github.event.inputs.subset == 'both' && '["short","long"]' || format('["{0}"]', github.event.inputs.subset)) }}
         exclude:
           - oscar-version: 'master'
-            singularjl-version: 'latest-release'
+            singularjl-version: 'compatible-release'
     env:
       OSCAR_TEST_SUBSET: ${{ matrix.oscar-subset }}
+      OSCAR_VERSION: ${{ matrix.oscar-version }}
+      SINGULARJL_VERSION: ${{ matrix.singularjl-version }}
+      OSCAR_CI_EXPERIMENTAL: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.SINGULAR_CHECKOUT_REF }}
 
       - name: Show tested ref
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          SELECTED_REF: ${{ github.ref_name }}
+          OSCAR_SUBSET_INPUT: ${{ github.event.inputs.subset }}
         run: |
+          echo "Selected workflow ref: $SELECTED_REF"
           echo "Testing ref: $SINGULAR_CHECKOUT_REF"
-          if [ -n '${{ github.event.inputs.pr_number }}' ]; then
-            echo "Testing PR #${{ github.event.inputs.pr_number }} via merge ref"
+          echo "Oscar subset input: $OSCAR_SUBSET_INPUT"
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Testing PR #$PR_NUMBER via merge ref"
           fi
+          {
+            echo "### Full Oscar matrix target"
+            echo
+            if [ -n "$PR_NUMBER" ]; then
+              echo "- PR: #$PR_NUMBER"
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            else
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            fi
+            echo "- Oscar subset input: $OSCAR_SUBSET_INPUT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
         with:
           version: '1.10'
 
-      - name: Install Singular.jl + Oscar
+      - name: Resolve Julia package stack
         shell: julia --project=override --color=yes {0}
-        env:
-          OSCAR_CI_EXPERIMENTAL: ${{ matrix.oscar-version == 'master' || matrix.singularjl-version == 'master' }}
         run: |
           using Pkg
 
@@ -76,24 +102,67 @@ jobs:
             end
           end
 
+          function manifest_version(name)
+            ctx = Pkg.Types.Context()
+            for (_, entry) in ctx.env.manifest.deps
+              if entry.name == name
+                return entry.version === nothing ? "unversioned" : string(entry.version)
+              end
+            end
+            return "not present"
+          end
+
+          function write_stack_summary()
+            open(ENV["GITHUB_STEP_SUMMARY"], "a") do io
+              println(io, "### Resolved Oscar/Singular.jl stack")
+              println(io)
+              println(io, "Requested Oscar: `", ENV["OSCAR_VERSION"], "`")
+              println(io, "Requested Singular.jl: `", ENV["SINGULARJL_VERSION"], "`")
+              println(io)
+              println(io, "| package | resolved version |")
+              println(io, "| --- | --- |")
+              for name in ("Oscar", "Singular", "Nemo", "Singular_jll", "libsingular_julia_jll", "FLINT_jll")
+                println(io, "| `", name, "` | `", manifest_version(name), "` |")
+              end
+              println(io)
+              if ENV["SINGULARJL_VERSION"] == "compatible-release"
+                println(io, "`compatible-release` means: let the registered Oscar release select the compatible registered Singular.jl/Singular_jll stack. It is not necessarily the newest Singular.jl release.")
+              end
+            end
+          end
+
           experimental = lowercase(get(ENV, "OSCAR_CI_EXPERIMENTAL", "false")) == "true"
+          oscar_version = ENV["OSCAR_VERSION"]
+          singularjl_version = ENV["SINGULARJL_VERSION"]
+
+          specs = Pkg.PackageSpec[Pkg.PackageSpec(; name="Documenter")]
+
+          if singularjl_version == "compatible-release"
+            if oscar_version != "latest-release"
+              error("Singular.jl compatible-release is only meaningful with Oscar latest-release")
+            end
+            # Add Oscar and Singular in one resolver transaction. This avoids
+            # first installing the absolute newest Singular.jl and then
+            # downgrading it after Oscar's compat bounds are applied.
+            push!(specs, Pkg.PackageSpec(; name="Oscar"))
+            push!(specs, Pkg.PackageSpec(; name="Singular"))
+          else
+            push!(specs, singularjl_version == "master" ?
+                         Pkg.PackageSpec(; name="Singular", rev="master") :
+                         Pkg.PackageSpec(; name="Singular"))
+            push!(specs, oscar_version == "master" ?
+                         Pkg.PackageSpec(; name="Oscar", rev="master") :
+                         Pkg.PackageSpec(; name="Oscar"))
+          end
 
           try
-            if "${{ matrix.singularjl-version }}" == "latest-release"
-              Pkg.add("Singular")
-            else
-              Pkg.add(; name="Singular", rev="${{ matrix.singularjl-version }}")
-            end
-            if "${{ matrix.oscar-version }}" == "latest-release"
-              Pkg.add("Oscar")
-            else
-              Pkg.add(; name="Oscar", rev="${{ matrix.oscar-version }}")
-            end
-            Pkg.add("Documenter")
+            Pkg.add(specs)
             Pkg.instantiate()
+            Pkg.status(; mode=Pkg.PKGMODE_MANIFEST)
             path = dirname(dirname(Base.find_package("Singular")))
             set_github_env("SINGULARJL_PATH", path)
             set_github_env("OSCAR_CI_SKIP_ROW", "false")
+            write_stack_summary()
           catch err
             if experimental
               @warn "Optional Oscar/Singular.jl matrix row cannot be resolved; skipping this row" exception=(err, catch_backtrace())
@@ -158,16 +227,13 @@ jobs:
                       end
                   end
 
-                  if found_entry === nothing
+                  if found_entry === nothing || found_entry.version === nothing
                       push!(specs, Pkg.PackageSpec(; name = name))
                   else
                       push!(specs, Pkg.PackageSpec(;
                           name = found_entry.name,
                           uuid = found_uuid,
                           version = found_entry.version,
-                          tree_hash = found_entry.tree_hash,
-                          path = found_entry.path,
-                          repo = found_entry.repo,
                       ))
                   end
               end
@@ -175,6 +241,10 @@ jobs:
               return specs
           end
 
+          # setup_override_dir.jl normally resolves the JLL dependencies from
+          # scratch. For Oscar release this may pick a different FLINT/Singular_jll
+          # stack than Oscar resolved above, which then produces override libraries
+          # with missing SONAMEs at test time. Use the already resolved manifest.
           deps = resolved_jll_specs_from_active_manifest(deps)
           artifact_paths = collect_artifact_paths(deps)
           """
@@ -184,7 +254,12 @@ jobs:
           PY
           julia --project=override --color=yes /tmp/setup_override_dir.jl /tmp/SINGULARROOT /tmp/singular_jll_override --yes
 
+      - name: Smoke-test Singular override prefix
+        if: env.OSCAR_CI_SKIP_ROW != 'true'
+        run: |
+          julia --project=override $SINGULARJL_PATH/etc/run_with_override.jl /tmp/singular_jll_override --startup-file=no --color=yes -e 'using Singular_jll; println("Singular_jll override prefix loads")'
+
       - name: "Run Oscar test suite (subset: ${{ matrix.oscar-subset }})"
         if: env.OSCAR_CI_SKIP_ROW != 'true'
         run: |
-          julia --project=override $SINGULARJL_PATH/etc/run_with_override.jl /tmp/singular_jll_override --startup-file=no --color=yes -e 'import Pkg; Pkg.test("Oscar")'
+          julia --project=override $SINGULARJL_PATH/etc/run_with_override.jl /tmp/singular_jll_override --startup-file=no --color=yes -e 'import Pkg; Pkg.test("Oscar"; allow_reresolve=false)'
