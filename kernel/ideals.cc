@@ -2865,6 +2865,28 @@ ideal idMinEmbedding(ideal arg,BOOLEAN inPlace, intvec **w)
   return res;
 }
 
+ideal idMinEmbedding_v(ideal arg,BOOLEAN inPlace, intvec **w, int* g)
+{
+  if (idIs0(arg))
+  {
+    if (g!=NULL)
+    {
+      for(int i=0;i<arg->rank;i++) g[i]=i+1;
+    }
+    return arg;
+  }
+  int *red_comp=(int*)omAlloc((arg->rank+1)*sizeof(int));
+  int del=0;
+  ideal res=idMinEmbedding1(arg,FALSE,w,red_comp,del);
+  for(int i=1;i<=arg->rank;i++)
+  {
+    g[i-1]=red_comp[i];
+  }
+  idDeleteComps(res,red_comp,del);
+  omFree(red_comp);
+  return res;
+}
+
 ideal idMinEmbedding_with_map(ideal arg,intvec **w, ideal &trans)
 {
   int *red_comp=(int*)omAlloc((arg->rank+1)*sizeof(int));
