@@ -42,6 +42,23 @@
 
 #if defined(HAVE_MALLOC_SIZE)
   #define _omSizeOfLargeAddr(addr) (malloc_size(addr))
+
+void* omReallocLarge(void* old_addr, size_t new_size)
+{
+  size_t old_size;
+  size_t copy_size;
+  void* new_addr;
+
+  omAssume(!omIsBinPageAddr(old_addr));
+
+  old_size = omSizeOfLargeAddr(old_addr);
+  new_addr = omAllocFromSystem(new_size);
+  new_size = omSizeOfLargeAddr(new_addr);
+  copy_size = (old_size < new_size ? old_size : new_size);
+  memcpy(new_addr, old_addr, copy_size);
+  omFreeSizeToSystem(old_addr, old_size);
+  return new_addr;
+}
 #elif defined(HAVE_MALLOC_USABLE_SIZE)
   #define _omSizeOfLargeAddr(addr) (malloc_usable_size(addr))
 #else
@@ -251,7 +268,9 @@ void* omReallocSizeFromSystem(void* addr, size_t oldsize, size_t newsize)
 {
   void* res;
 
-  /*oldsize=omSizeOfLargeAddr(addr);*/
+#if defined(HAVE_MALLOC_SIZE) || defined(HAVE_MALLOC_USABLE_SIZE)
+  oldsize = _omSizeOfLargeAddr(addr);
+#endif
   res = OM_REALLOC_FROM_SYSTEM(addr, newsize);
   if (res == NULL)
   {
@@ -268,7 +287,9 @@ void* omReallocSizeFromSystem(void* addr, size_t oldsize, size_t newsize)
       exit(1);
     }
   }
-  /*newsize=omSizeOfAddr(res);*/
+#if defined(HAVE_MALLOC_SIZE) || defined(HAVE_MALLOC_USABLE_SIZE)
+  newsize = _omSizeOfLargeAddr(res);
+#endif
 
 #ifndef OM_NDEBUG
   if (((unsigned long) res) + newsize > om_MaxAddr)

@@ -30,7 +30,11 @@ void* _omVallocFromSystem(size_t size, int fail);
 void omVfreeToSystem(void* page, size_t size);
 
 
-#if defined(HAVE_MALLOC_SIZE) || defined(HAVE_MALLOC_USABLE_SIZE)
+#if defined(HAVE_MALLOC_SIZE)
+#define omAllocLarge(size)             omAllocFromSystem(size)
+void* omReallocLarge(void* old_addr, size_t new_size);
+#define omFreeLarge(addr)              omFreeSizeToSystem(addr, omSizeOfLargeAddr(addr))
+#elif defined(HAVE_MALLOC_USABLE_SIZE)
 #define omAllocLarge(size)             omAllocFromSystem(size)
 #define omReallocLarge(addr, new_size) omReallocSizeFromSystem(addr, omSizeOfLargeAddr(addr), new_size)
 #define omFreeLarge(addr)              omFreeSizeToSystem(addr, omSizeOfLargeAddr(addr))

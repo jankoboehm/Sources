@@ -86,6 +86,20 @@ jobs:
             echo "- Oscar subset input: $OSCAR_SUBSET_INPUT"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          {
+            echo "### Full Oscar matrix target"
+            echo
+            if [ -n "$PR_NUMBER" ]; then
+              echo "- PR: #$PR_NUMBER"
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            else
+              echo "- Selected workflow ref: $SELECTED_REF"
+              echo "- Checkout ref: $SINGULAR_CHECKOUT_REF"
+            fi
+            echo "- Oscar subset input: $OSCAR_SUBSET_INPUT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
         with:
