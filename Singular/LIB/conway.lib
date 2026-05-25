@@ -72,30 +72,23 @@ static proc factorizeSmall(int n)
 
 static proc factorizeBigint(bigint n)
 {
-    list L; string cmd; int dummy; string output; 
-    int idx = 0; bigint d = 2; int e;
+    list L; int idx;
+    if (n < 0) { n = -n; }
+    if (n <= 1) { return(L); }
 
-    cmd = "factor " + string(n) + " | cut -d: -f2 | tr -s ' ' '\\n' | grep -v '^$' | uniq -c | awk '{print \"L[\" NR \"]=list(bigint(\" $2 \"),\" $1 \");\"}' > tmp_fac.txt";
-    dummy = system("sh", cmd);
-    output = read("tmp_fac.txt");
-    
-    if (size(output) > 0)
+    list pf = primefactors(n);
+    // pf[1]: primos (ascendente), pf[2]: multiplicidades, pf[3]: signo o resto
+
+    if (bigint(pf[3]) != 1 && bigint(pf[3]) != -1)
     {
-        execute(output);
-        return(L);
+        ERROR("factorizeBigint: primefactors left an unfactored residue "
+              + string(pf[3]) + " for n = " + string(n));
     }
-    
-    while (d * d <= n)
+
+    for (idx = 1; idx <= size(pf[1]); idx++)
     {
-        if (n mod d == 0)
-        {
-            e = 0;
-            while (n mod d == 0) { n = n div d; e = e + 1; }
-            idx = idx + 1; L[idx] = list(d, e);
-        }
-        d = d + 1;
+        L[idx] = list(bigint(pf[1][idx]), int(pf[2][idx]));
     }
-    if (n > 1) { idx = idx + 1; L[idx] = list(n, 1); }
     return(L);
 }
 
