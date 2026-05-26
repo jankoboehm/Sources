@@ -193,6 +193,8 @@ nnb_tst_assert_str(NNBnormalFormSeriesParameters(G2[1][1])[1], "l",
 nnb_tst_assert_str(NNBnormalFormSeriesString(G2[1][1]),
                    "normal form series of modality 0; series parameters: l; normal forms: y^(2*l-1) + x^(2) with l > 1",
                    "NNBNormalFormSeries has a nice show string");
+"enumnf.tst: NNBprintNormalFormSeries output";
+NNBprintNormalFormSeries(G2[1][1]);
 NNBNormalForm g0 = G2[1][1].normalForms[1];
 nnb_tst_assert_str(NNBnormalFormString(g0),
                    "y^(2*l-1) + x^(2) with l > 1",

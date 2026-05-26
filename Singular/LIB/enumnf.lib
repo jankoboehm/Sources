@@ -35,6 +35,8 @@ NNBnormalFormString(f);   string representation of an NNBNormalForm.
 NNBprintNormalForm(f);    print one NNBNormalForm.
 NNBnormalFormSeriesString(s);
                           string representation of an NNBNormalFormSeries.
+NNBprintNormalFormSeries(s);
+                          print one NNBNormalFormSeries.
 NNBnormalFormSeriesParameters(s);
                           list the series exponent parameters, among k,l.
 NNBevaluateNormalFormSeries(s[,k,l,i]);
@@ -1323,7 +1325,8 @@ static proc NNBnormalFormSeriesParameterString(NNBNormalFormSeries s)
 
 proc NNBnormalFormSeriesString(NNBNormalFormSeries s)
 "USAGE: NNBnormalFormSeriesString(s); s NNBNormalFormSeries
-RETURN: string representation of a symbolic normal-form series"
+RETURN: string representation of a symbolic normal-form series
+EXAMPLE: example NNBnormalFormSeriesString; shows a modality-series example"
 {
   string out="normal form series";
   if (s.modality>=0) { out=out+" of modality "+string(s.modality); }
@@ -1335,12 +1338,31 @@ RETURN: string representation of a symbolic normal-form series"
   }
   return(out);
 }
+example
+{
+  "EXAMPLE:"; echo=2;
+  ring R=0,(x,y),ds;
+  LIB "enumnf.lib";
+  list E=NNBenumerate(-1,1,0);
+  list G=NNBnormalForms(E,1,0);
+  NNBnormalFormSeriesString(G[1][1]);
+}
 
 proc NNBprintNormalFormSeries(NNBNormalFormSeries s)
 "USAGE: NNBprintNormalFormSeries(s); s NNBNormalFormSeries
-RETURN: prints a symbolic normal-form series"
+RETURN: prints a symbolic normal-form series
+EXAMPLE: example NNBprintNormalFormSeries; shows a modality-series example"
 {
   NNBnormalFormSeriesString(s);
+}
+example
+{
+  "EXAMPLE:"; echo=2;
+  ring R=0,(x,y),ds;
+  LIB "enumnf.lib";
+  list E=NNBenumerate(-1,1,0);
+  list G=NNBnormalForms(E,1,0);
+  NNBprintNormalFormSeries(G[1][1]);
 }
 
 proc NNBnormalFormString(NNBNormalForm f)
@@ -1601,7 +1623,7 @@ example
   LIB "enumnf.lib";
   list E=NNBenumerate(15,2,0);
   list G=NNBnormalForms(E,2,0);
-  NNBregularBasis(G[3][1]);
+  NNBregularBasis(G[3][1].normalForms[1]);
 }
 
 static proc NNBsingularityTypeString(NNBNormalForm f)
