@@ -326,6 +326,9 @@ static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
 ideal kTryHilbstd(ideal F, ideal Q)
 {
  if (rField_is_Ring(currRing)) return NULL;
+ if ((currRing->pFDeg != p_Totaldegree)
+ && (!rOrd_is_Totaldegree_Ordering(currRing)))
+   return NULL;
  if(!TEST_V_PURE_GB)
  {
    tHomog h = (tHomog)id_HomIdealDP(F,Q,currRing);
