@@ -3445,6 +3445,27 @@ BOOLEAN p_IsHomogeneousDP (poly p, const ring r)
   return TRUE;
 }
 
+static long p_TotaldegreeWIntvec(poly p, const intvec *w, const ring r)
+{
+  long d = 0;
+  const int l = (w == NULL ? 0 : w->length());
+
+  for (int i=rVar(r); i>0; i--)
+  {
+    if (i <= l) d += (long)p_GetExp(p,i,r) * (long)(*w)[i-1];
+  }
+  return d;
+}
+
+static long p_ComponentWeightIntvec(poly p, const intvec *module_w, const ring r)
+{
+  if (module_w == NULL) return 0;
+
+  const int c = p_GetComp(p,r);
+  if ((c <= 0) || (c > module_w->length())) return 0;
+  return (*module_w)[c-1];
+}
+
 /*2
 *tests if p is homogeneous with respect to the given weights
 */
@@ -3455,10 +3476,10 @@ BOOLEAN p_IsHomogeneousW (poly p, const intvec *w, const ring r)
 
   if ((p == NULL) || (pNext(p) == NULL)) return TRUE;
   pIter(qp);
-  o = totaldegreeWecart_IV(p,r,w->ivGetVec());
+  o = p_TotaldegreeWIntvec(p,w,r);
   do
   {
-    if (totaldegreeWecart_IV(qp,r,w->ivGetVec()) != o) return FALSE;
+    if (p_TotaldegreeWIntvec(qp,w,r) != o) return FALSE;
     pIter(qp);
   }
   while (qp != NULL);
@@ -3472,10 +3493,10 @@ BOOLEAN p_IsHomogeneousW (poly p, const intvec *w, const intvec *module_w, const
 
   if ((p == NULL) || (pNext(p) == NULL)) return TRUE;
   pIter(qp);
-  o = totaldegreeWecart_IV(p,r,w->ivGetVec())+(*module_w)[p_GetComp(p,r)];
+  o = p_TotaldegreeWIntvec(p,w,r)+p_ComponentWeightIntvec(p,module_w,r);
   do
   {
-    long oo=totaldegreeWecart_IV(qp,r,w->ivGetVec())+(*module_w)[p_GetComp(qp,r)];
+    long oo=p_TotaldegreeWIntvec(qp,w,r)+p_ComponentWeightIntvec(qp,module_w,r);
     if (oo != o) return FALSE;
     pIter(qp);
   }
@@ -5167,4 +5188,3 @@ int p_MaxExpPerVar(poly p, int i, const ring r)
   }
   return m;
 }
-

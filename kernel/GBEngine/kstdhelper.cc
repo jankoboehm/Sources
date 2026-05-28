@@ -28,6 +28,8 @@
 #include "Singular/links/ssiLink.h"
 #include "Singular/feOpt.h"
 
+#include <limits.h>
+
 static int kFindLuckyPrime(ideal F, ideal Q) // TODO
 {
   int prim=32003;
@@ -112,8 +114,130 @@ static number nMapZpa2Zp(number a, const coeffs src, const coeffs dst)
 }
 #endif
 
-static ideal kTryHilbstd_homog(ideal F, ideal Q)
+static intvec* kHilbstdDeleteWeights(intvec* w)
 {
+  delete w;
+  return NULL;
+}
+
+static intvec* kHilbstdUnitWeights(const int n)
+{
+  intvec* w = new intvec(n);
+  for (int i=n-1; i>=0; i--) (*w)[i] = 1;
+  return w;
+}
+
+static BOOLEAN kHilbstdWeightsAllOne(const intvec* w)
+{
+  assume(w != NULL);
+  for (int i=w->length()-1; i>=0; i--)
+  {
+    if ((*w)[i] != 1) return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOLEAN kHilbstdSupportedFDeg(const ring r)
+{
+  return (r->pFDeg == p_Totaldegree)
+      || (r->pFDeg == p_Deg)
+      || (r->pFDeg == p_WTotaldegree)
+      || (r->pFDeg == p_WFirstTotalDegree);
+}
+
+static intvec* kHilbstdPositiveFDegWeights(const ring r)
+{
+  assume(r != NULL);
+
+  if (!kHilbstdSupportedFDeg(r)) return NULL;
+
+  intvec* w = new intvec(rVar(r));
+  for (int i=1; i<=rVar(r); i++)
+  {
+    poly x = p_One(r);
+    p_SetExp(x, i, 1, r);
+    p_Setm(x, r);
+    const long d = r->pFDeg(x, r);
+    p_Delete(&x, r);
+
+    if ((d <= 0) || (d > INT_MAX)) return kHilbstdDeleteWeights(w);
+    (*w)[i-1] = (int)d;
+  }
+
+  return w;
+}
+
+static intvec* kHilbstdHomogenizingWeights(const intvec* w)
+{
+  assume(w != NULL);
+
+  intvec* hw = new intvec(w->length()+1);
+  for (int i=w->length()-1; i>=0; i--) (*hw)[i] = (*w)[i];
+  (*hw)[w->length()] = 1;
+  return hw;
+}
+
+static long kHilbstdWeightedDeg(poly p, const intvec* w, const ring r)
+{
+  assume(p != NULL);
+  assume(w != NULL);
+  assume(w->length() >= rVar(r));
+
+  long d = 0;
+  for (int i=rVar(r); i>0; i--)
+  {
+    d += (long)p_GetExp(p, i, r) * (long)(*w)[i-1];
+  }
+  return d;
+}
+
+static poly kHilbstdHomogenW(poly p, int varnum, const intvec* w, const ring r)
+{
+  if (p == NULL) return NULL;
+  if ((varnum < 1) || (varnum > rVar(r))) return NULL;
+  assume(w != NULL);
+  assume(w->length() >= rVar(r));
+  assume((*w)[varnum-1] == 1);
+
+  long maxdeg = kHilbstdWeightedDeg(p, w, r);
+  for (poly q=pNext(p); q!=NULL; pIter(q))
+  {
+    const long d = kHilbstdWeightedDeg(q, w, r);
+    if (d > maxdeg) maxdeg = d;
+  }
+
+  poly q = p_Copy(p, r);
+  poly result = NULL;
+  while (q != NULL)
+  {
+    poly qn = pNext(q);
+    pNext(q) = NULL;
+
+    const long shift = maxdeg - kHilbstdWeightedDeg(q, w, r);
+    if (shift != 0)
+    {
+      p_AddExp(q, varnum, shift, r);
+      p_Setm(q, r);
+    }
+    result = p_Add_q(result, q, r);
+    q = qn;
+  }
+  return result;
+}
+
+static ideal kHilbstdHomogenIdealW(ideal F, int varnum, const intvec* w, const ring r)
+{
+  ideal H = idInit(IDELEMS(F), F->rank);
+  for (int i=IDELEMS(F)-1; i>=0; i--)
+  {
+    H->m[i] = kHilbstdHomogenW(F->m[i], varnum, w, r);
+  }
+  return H;
+}
+
+static ideal kTryHilbstd_homog(ideal F, ideal Q, intvec* hdegree)
+{
+  assume(hdegree != NULL);
   // create Zp_ring
   ring save_ring=currRing;
   BITSET save_opt;SI_SAVE_OPT1(save_opt);
@@ -156,9 +280,9 @@ static ideal kTryHilbstd_homog(ideal F, ideal Q)
   si_opt_1&= ~Sy_bit(OPT_REDSB);
   si_opt_1&= ~Sy_bit(OPT_REDTAIL);
   if(TEST_OPT_PROT) Print("std in char. %d ------------------\n",prim);
-  ideal GB=kStd_internal(FF,QQ,(tHomog)TRUE,NULL,NULL,0,0,NULL,NULL);
+  ideal GB=kStd_internal(FF,QQ,(tHomog)TRUE,NULL,NULL,0,0,hdegree,NULL);
   // compute hilb
-  bigintmat* hilb=hFirstSeries0b(GB,QQ,NULL,NULL,Zp_ring,coeffs_BIGINT);
+  bigintmat* hilb=hFirstSeries0b(GB,QQ,hdegree,NULL,Zp_ring,coeffs_BIGINT);
   // clean up Zp_ring
   rChangeCurrRing(save_ring);
   id_Delete(&GB,Zp_ring);
@@ -169,14 +293,15 @@ static ideal kTryHilbstd_homog(ideal F, ideal Q)
   intvec *w=NULL;
   if(TEST_OPT_PROT) PrintS("stdhilb in basering  ------------------\n");
   SI_RESTORE_OPT1(save_opt);
-  ideal result=kStd_internal(F,Q,(tHomog)TRUE,&w,hilb);
+  ideal result=kStd_internal(F,Q,(tHomog)TRUE,&w,hilb,0,0,hdegree,NULL);
   if (w!=NULL) delete w;
   delete hilb;
   return result;
 }
 
-static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
+static ideal kTryHilbstd_nonhomog(ideal F, ideal Q, intvec* hdegree)
 {
+  assume(hdegree != NULL);
   int prim=kFindLuckyPrime(F,Q);
   //if(nCoeff_is_transExt(save_ring->cf)
   //&&(nCoeff_is_Zp(save_ring->cf->extRing->cf)))
@@ -195,29 +320,36 @@ static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
   }
   names[currRing->N]=omStrDup("@");
   ring Zp_ring=rDefault(cf,save_ring->N+1,names,ringorder_dp);
+  intvec* homDegree=kHilbstdHomogenizingWeights(hdegree);
   // map data
   nMapFunc nMap=n_SetMap(save_ring->cf,Zp_ring->cf);
-  if (nMap==NULL) return NULL;
+  if (nMap==NULL)
+  {
+    delete homDegree;
+    SI_RESTORE_OPT1(save_opt);
+    rDelete(Zp_ring);
+    return NULL;
+  }
   rChangeCurrRing(Zp_ring);
   ideal FF=id_PermIdeal(F,1,IDELEMS(F),NULL,save_ring,Zp_ring,nMap,NULL,0,0);
   ideal QQ=NULL;
   if (Q!=NULL) QQ=id_PermIdeal(Q,1,IDELEMS(Q),NULL,save_ring,Zp_ring,nMap,NULL,0,0);
   // homogenize
-  ideal tmp=id_HomogenDP(FF,Zp_ring->N,Zp_ring);
+  ideal tmp=kHilbstdHomogenIdealW(FF,Zp_ring->N,homDegree,Zp_ring);
   id_Delete(&FF,Zp_ring);
   FF=tmp;
   if (QQ!=NULL)
   {
-    tmp=id_HomogenDP(QQ,Zp_ring->N,Zp_ring);
+    tmp=kHilbstdHomogenIdealW(QQ,Zp_ring->N,homDegree,Zp_ring);
     id_Delete(&QQ,Zp_ring);
     QQ=tmp;
   }
   // compute GB in Zp_ring
   si_opt_1&= ~Sy_bit(OPT_REDSB);
   si_opt_1&= ~Sy_bit(OPT_REDTAIL);
-  ideal GB=kStd_internal(FF,QQ,(tHomog)TRUE,NULL,NULL,0,0,NULL,NULL);
+  ideal GB=kStd_internal(FF,QQ,(tHomog)TRUE,NULL,NULL,0,0,homDegree,NULL);
   // compute hilb
-  bigintmat* hilb=hFirstSeries0b(GB,QQ,NULL,NULL,Zp_ring,coeffs_BIGINT);
+  bigintmat* hilb=hFirstSeries0b(GB,QQ,homDegree,NULL,Zp_ring,coeffs_BIGINT);
   // clean up Zp_ring
   id_Delete(&GB,Zp_ring);
   id_Delete(&FF,Zp_ring);
@@ -269,26 +401,34 @@ static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
   ring Q_ring=rDefault(cf,save_ring->N+1,names,nblocks,order,block0,block1,wvhdl,save_ring->wanted_maxExp);
   // map data
   nMap=n_SetMap(save_ring->cf,Q_ring->cf);
-  if (nMap==NULL) return NULL;
+  if (nMap==NULL)
+  {
+    delete homDegree;
+    delete hilb;
+    SI_RESTORE_OPT1(save_opt);
+    rDelete(Q_ring);
+    return NULL;
+  }
   rChangeCurrRing(Q_ring);
   FF=id_PermIdeal(F,1,IDELEMS(F),NULL,save_ring,Q_ring,nMap,NULL,0,0);
   QQ=NULL;
   if (Q!=NULL) QQ=id_PermIdeal(Q,1,IDELEMS(Q),NULL,save_ring,Q_ring,nMap,NULL,0,0);
   // homogenize
   if(TEST_OPT_PROT) PrintS("stdhilb in basering, homogenized ------------------\n");
-  tmp=id_HomogenDP(FF,Q_ring->N,Q_ring);
+  tmp=kHilbstdHomogenIdealW(FF,Q_ring->N,homDegree,Q_ring);
   id_Delete(&FF,Q_ring);
   FF=tmp;
   if (QQ!=NULL)
   {
-    tmp=id_HomogenDP(QQ,Q_ring->N,Q_ring);
+    tmp=kHilbstdHomogenIdealW(QQ,Q_ring->N,homDegree,Q_ring);
     id_Delete(&QQ,Q_ring);
     QQ=tmp;
   }
   // std with hilb
   intvec *w=NULL;
-  tmp=kStd_internal(FF,QQ,testHomog,&w,hilb);
+  tmp=kStd_internal(FF,QQ,testHomog,&w,hilb,0,0,homDegree,NULL);
   if (w!=NULL) delete w;
+  delete homDegree;
   delete hilb;
   // dehomogenize
   if(TEST_OPT_PROT) PrintS("de-homogenize, interred ------------------\n");
@@ -323,39 +463,55 @@ static ideal kTryHilbstd_nonhomog(ideal F, ideal Q)
   }
 }
 
-static BOOLEAN kHilbstdUsesOrdinaryTotalDegree(const ring r)
-{
-  assume(r != NULL);
-
-  for (int i = rVar(r); i > 0; i--)
-  {
-    poly x = p_One(r);
-    p_SetExp(x, i, 1, r);
-    p_Setm(x, r);
-    const long d = r->pFDeg(x, r);
-    p_Delete(&x, r);
-    if (d != 1)
-      return FALSE;
-  }
-
-  return TRUE;
-}
-
 ideal kTryHilbstd(ideal F, ideal Q)
 {
  if (rField_is_Ring(currRing)) return NULL;
  if (!rHasGlobalOrdering(currRing)) return NULL;
- if (!kHilbstdUsesOrdinaryTotalDegree(currRing))
-   return NULL;
- if(!TEST_V_PURE_GB)
+ if(TEST_V_PURE_GB) return NULL;
+
+ intvec* fdegree=kHilbstdPositiveFDegWeights(currRing);
+ if (fdegree != NULL)
  {
-   tHomog h = (tHomog)id_HomIdealDP(F,Q,currRing);
-   if (h==(tHomog)TRUE) return kTryHilbstd_homog(F,Q);
-   if((!rField_is_Q(currRing))
-   &&(!rField_is_Zp(currRing))
-   ) return NULL;
-   if (h==(tHomog)FALSE) return kTryHilbstd_nonhomog(F,Q);
+   if (!kHilbstdWeightsAllOne(fdegree))
+   {
+     if (id_HomIdealW(F,Q,fdegree,currRing))
+     {
+       ideal result=kTryHilbstd_homog(F,Q,fdegree);
+       delete fdegree;
+       return result;
+     }
+     if((rField_is_Q(currRing)) || (rField_is_Zp(currRing)))
+     {
+       ideal result=kTryHilbstd_nonhomog(F,Q,fdegree);
+       delete fdegree;
+       if (result != NULL) return result;
+     }
+   }
+   delete fdegree;
  }
+
+ intvec* totaldegree=kHilbstdUnitWeights(currRing->N);
+ tHomog h = (tHomog)id_HomIdealDP(F,Q,currRing);
+ if (h==(tHomog)TRUE)
+ {
+   ideal result=kTryHilbstd_homog(F,Q,totaldegree);
+   delete totaldegree;
+   return result;
+ }
+ if((!rField_is_Q(currRing))
+ &&(!rField_is_Zp(currRing))
+ )
+ {
+   delete totaldegree;
+   return NULL;
+ }
+ if (h==(tHomog)FALSE)
+ {
+   ideal result=kTryHilbstd_nonhomog(F,Q,totaldegree);
+   delete totaldegree;
+   return result;
+ }
+ delete totaldegree;
  return NULL;
 }
 
