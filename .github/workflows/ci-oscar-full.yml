@@ -150,6 +150,7 @@ jobs:
           singularjl_version = ENV["SINGULARJL_VERSION"]
 
           specs = Pkg.PackageSpec[Pkg.PackageSpec(; name="Documenter")]
+          develop_oscar_master = false
 
           if singularjl_version == "compatible-release"
             if oscar_version != "latest-release"
@@ -164,13 +165,25 @@ jobs:
             push!(specs, singularjl_version == "master" ?
                          Pkg.PackageSpec(; name="Singular", rev="master") :
                          Pkg.PackageSpec(; name="Singular"))
-            push!(specs, oscar_version == "master" ?
-                         Pkg.PackageSpec(; name="Oscar", rev="master") :
-                         Pkg.PackageSpec(; name="Oscar"))
+            if oscar_version == "master"
+              develop_oscar_master = true
+            else
+              push!(specs, Pkg.PackageSpec(; name="Oscar"))
+            end
           end
 
           try
             Pkg.add(specs)
+            if develop_oscar_master
+              Pkg.develop(Pkg.PackageSpec(;
+                name="Oscar",
+                url="https://github.com/oscar-system/Oscar.jl.git",
+              ))
+              oscar_path = dirname(dirname(Base.find_package("Oscar")))
+              run(`git -C $oscar_path fetch --depth=1 origin master`)
+              run(`git -C $oscar_path checkout --detach FETCH_HEAD`)
+              Pkg.resolve()
+            end
             Pkg.instantiate()
             Pkg.status(; mode=Pkg.PKGMODE_MANIFEST)
             path = dirname(dirname(Base.find_package("Singular")))
