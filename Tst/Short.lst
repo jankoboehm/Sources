@@ -96,6 +96,7 @@ Short/bug_div.tst
 Short/bug_division.tst
 Short/bug_factorize.tst
 Short/bug_hilbstd.tst
+Short/bug_hilbstd_mixed_order.tst
 Short/bug_homog.tst
 Short/bug_idlen.tst
 Short/bug_interpol.tst
