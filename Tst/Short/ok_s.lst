@@ -184,3 +184,4 @@ puiseuxexpansion
 vdim_overflow
 bug_pr1252
 poly_div
+regress_res_gz_ref

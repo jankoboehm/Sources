@@ -612,11 +612,24 @@ sub tst_check
         return ($exit_status);
       }
     }
+    elsif ((-r "$root.res.gz") && ! ( -z "$root.res.gz"))
+    {
+      $exit_status = mysystem("$gunzip -c \"$root.res.gz\" > \"$root.res\"");
+      if ($exit_status)
+      {
+        mysystem("$rm -f \"$root.res\"");
+        print "--- $root " unless ($verbosity == 0);
+        print (STDERR "Can not decompress $root.res.gz\n");
+        testIgnored($test_file, "Can not decompress $root.res.gz");
+        $test_files{$test_file} = $exit_status;
+        return ($exit_status);
+      }
+    }
     elsif (! (-r "$root.res") || ( -z "$root.res"))
     {
       print "--- $root " unless ($verbosity == 0);
-      print (STDERR "Can not read $root.res[.gz.uu]\n");
-      testIgnored($test_file, "Can not read $root.res[.gz.uu]");
+      print (STDERR "Can not read $root.res, $root.res.gz or $root.res.gz.uu\n");
+      testIgnored($test_file, "Can not read $root.res, $root.res.gz or $root.res.gz.uu");
       $test_files{$test_file} = 1;
       return (1);
     }
