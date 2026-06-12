@@ -14,15 +14,15 @@ PROCEDURES:
   isSmallerConway(f,g,n)         Comparison in Parker order
   isPrimitivePoly(f,n)           Primitivity test
   isCompatible(fn,fm,n,m)        Compatibility test
-  candidatosConway(n)            Counts g and phi(p^n-1)/n for C_{p,n}
-  mostrarCandidatos(n)           Displays g and phi(p^n-1)/n
+  countConwayCandidates(n)      Counts g and phi(p^n-1)/n for C_{p,n}
+  showConwayCandidates(n)       Displays g and phi(p^n-1)/n
 ";
 
 ///////////////////////////////////////////////////////////////////////////////
 //  SECTION 1: BIGINT ARITHMETIC
 ///////////////////////////////////////////////////////////////////////////////
 
-static proc mcdBigint(bigint a, bigint b)
+static proc gcdBigint(bigint a, bigint b)
 {
     bigint t;
     if (a < 0) { a = -a; }
@@ -56,7 +56,7 @@ static proc coeffAt(poly f, int i)
 static proc factorizeSmall(int n)
 {
     list L; int idx = 0; int d = 2; int e;
-    while (d * d <= n)
+    while (d <= n div d)
     {
         if (n mod d == 0)
         {
@@ -70,6 +70,40 @@ static proc factorizeSmall(int n)
     return(L);
 }
 
+static proc isPrimeInt(int p)
+{
+    list fp;
+
+    if (p < 2) { return(0); }
+
+    fp = factorizeSmall(p);
+    if (size(fp) != 1) { return(0); }
+    if (fp[1][1] != p) { return(0); }
+    if (fp[1][2] != 1) { return(0); }
+
+    return(1);
+}
+
+static proc checkConwayInput(int n, int p)
+{
+    if (n <= 0) { ERROR("degree n must be positive."); }
+    if (!isPrimeInt(p)) { ERROR("char(basering) must be a prime number > 0."); }
+    if (nvars(basering) != 1)
+    {
+        ERROR("conway.lib requires a univariate basering.");
+    }
+}
+
+static proc checkedIntExponent(bigint e, string caller)
+{
+    if (e < 0) { ERROR(caller + ": negative exponent."); }
+    if (e > (bigint(2)^31 - 1))
+    {
+        ERROR(caller + ": exponent exceeds int range.");
+    }
+    return(int(e));
+}
+
 static proc factorizeBigint(bigint n)
 {
     list L; int idx;
@@ -77,7 +111,7 @@ static proc factorizeBigint(bigint n)
     if (n <= 1) { return(L); }
 
     list pf = primefactors(n);
-    // pf[1]: primos (ascendente), pf[2]: multiplicidades, pf[3]: signo o resto
+    // pf[1]: primes (ascending), pf[2]: multiplicities, pf[3]: sign or residue
 
     if (bigint(pf[3]) != 1 && bigint(pf[3]) != -1)
     {
@@ -260,7 +294,7 @@ static proc minPolyPruned(poly beta, int p, int n, poly modp, poly best)
 proc isSmallerConway(poly f, poly g, int n)
 "USAGE:    isSmallerConway(f, g, n);  f, g monic polys of degree n over F_p
 RETURN:   int, 1 if f precedes g in Parker's lexicographic order, else 0
-THEORY:   Compares coefficients from degree n-1 down to 0; for an odd
+THEORY:   Compares coefficients from degree n-1 down to 0, for an odd
           power-of-degree gap (n-i odd), the sign of the coefficient
           is inverted (Parker's convention).
 EXAMPLE:  example isSmallerConway; shows an example
@@ -314,23 +348,16 @@ static proc isMersenneExponent(int n)
     return(0);
 }
 
-proc isPrimitivePoly(poly f, int n, list #)
-"USAGE:    isPrimitivePoly(f, n [, primes]);  f poly of degree n over F_p
-RETURN:   int, 1 if f is primitive of degree n over F_p, 0 otherwise
-ASSUME:   basering of characteristic p > 0; f is irreducible of degree n.
-          Optional argument primes: list of bigint, the distinct prime
-          divisors of p^n - 1 (precomputed; computed internally if absent).
-EXAMPLE:  example isPrimitivePoly; shows an example
-"
+static proc isPrimitiveIrredPoly(poly f, int n, list #)
 {
     int p = char(basering);
     bigint M; list primes; int i; bigint e; poly r; list facs;
-    
+
     if (p == 2 && isMersenneExponent(n)) { return(1); }
 
     M = bigint(p)^n - 1;
     if (size(#) > 0) { primes = #[1]; }
-    
+
     if (size(primes) == 0)
     {
         if (M < bigint(2)^31)
@@ -340,17 +367,40 @@ EXAMPLE:  example isPrimitivePoly; shows an example
         }
         else { primes = primeFactors(M, p, n); }
     }
-    
+
     if (size(primes) == 0) { ERROR("isPrimitivePoly: unable to factorize p^n-1."); }
 
     for (i = 1; i <= size(primes); i++)
     {
         e = M div primes[i];
-        r = polyPow(var(1), e, f); 
+        r = polyPow(var(1), e, f);
         if (r == 1) { return(0); }
     }
     return(1);
 }
+
+proc isPrimitivePoly(poly f, int n, list #)
+"USAGE:    isPrimitivePoly(f, n [, primes]);  f poly of degree n over F_p
+RETURN:   int, 1 if f is primitive of degree n over F_p, 0 otherwise
+ASSUME:   basering of characteristic p > 0.
+NOTE:     returns 0 if f is not monic, not irreducible, or not of degree n.
+          Optional argument primes: list of bigint, the distinct prime
+          divisors of p^n - 1 (precomputed, computed internally if absent).
+EXAMPLE:  example isPrimitivePoly; shows an example
+"
+{
+    int p = char(basering);
+
+    checkConwayInput(n, p);
+
+    if (deg(f) != n) { return(0); }
+    if (leadcoef(f) != 1) { return(0); }
+    if (!isIrreducibleBenOr(f, n)) { return(0); }
+
+    if (size(#) > 0) { return(isPrimitiveIrredPoly(f, n, #[1])); }
+    return(isPrimitiveIrredPoly(f, n));
+}
+
 example
 { "EXAMPLE:"; echo = 2;
    ring R = 2, x, dp;
@@ -370,11 +420,21 @@ EXAMPLE:  example isCompatible; shows an example
 "
 {
     int p = char(basering);
-    bigint Mn = bigint(p)^n - 1;
-    bigint Mm = bigint(p)^m - 1;
-    bigint e = Mn div Mm;
-    poly alpha_e = polyPow(var(1), e, fn);
-    poly val = polyEval(fm, alpha_e, fn);
+    bigint Mn; bigint Mm; bigint e; poly alpha_e; poly val;
+
+    checkConwayInput(n, p);
+    if (m <= 0) { ERROR("m must be positive."); }
+    if ((n mod m) != 0) { ERROR("m must divide n."); }
+    if (deg(fn) != n) { return(0); }
+    if (leadcoef(fn) != 1) { return(0); }
+    if (deg(fm) != m) { return(0); }
+    if (leadcoef(fm) != 1) { return(0); }
+
+    Mn = bigint(p)^n - 1;
+    Mm = bigint(p)^m - 1;
+    e = Mn div Mm;
+    alpha_e = polyPow(var(1), e, fn);
+    val = polyEval(fm, alpha_e, fn);
     return(int(val == 0));
 }
 example
@@ -393,12 +453,14 @@ example
 
 static proc substPow(poly f, bigint k)
 {
-    poly r = 0; int d; number c;
+    poly r = 0; int d; int exp_int; bigint exp_big; number c;
     while (f != 0)
     {
         d = deg(lead(f));
         c = leadcoef(f);
-        r = r + c * var(1)^int(bigint(d) * k);
+        exp_big = bigint(d) * k;
+        exp_int = checkedIntExponent(exp_big, "substPow");
+        r = r + c * var(1)^exp_int;
         f = f - lead(f);
     }
     return(r);
@@ -434,14 +496,14 @@ static proc gthRoot(poly z0, bigint g, poly modp, int p, int n)
     bigint M = bigint(p)^n - 1;
     bigint ordz = M div g;
     bigint gmod = g mod ordz;
-    bigint mcd_val; bigint e; ideal I; list primesM;
+    bigint gcd_val; bigint e; ideal I; list primesM;
     poly gamma; poly step; poly cur; poly z0_red; bigint j; bigint limit;
 
     if (gmod == 0) { gmod = g; }
-    mcd_val = mcdBigint(gmod, ordz);
+    gcd_val = gcdBigint(gmod, ordz);
     I = std(ideal(modp));
 
-    if (mcd_val == 1)
+    if (gcd_val == 1)
     {
         e = modInverse(gmod, ordz);
         return(fastPow(z0, e, I));
@@ -474,7 +536,8 @@ static proc gthRootOfUnity(bigint g, poly modp, int p, int n, bigint M, list pri
 static proc findIrred(int p, int n)
 {
     poly candidate; int k; int is_irred; list facs;
-    int i; int j; int m; int a0; int max_val; int c; int coef_val; int rem;
+    int i; int j; int m; int a0; int max_val; bigint max_val_big;
+    int c; int coef_val; int rem;
 
     for (i = 1; i < n; i++)
     {
@@ -502,7 +565,13 @@ static proc findIrred(int p, int n)
         }
     }
 
-    max_val = p^(n-1);
+    max_val_big = bigint(p)^(n-1);
+    if (max_val_big > (bigint(2)^31 - 1))
+    {
+        ERROR("findIrred: exhaustive fallback exceeds int range.");
+    }
+    max_val = int(max_val_big);
+
     for (c = 1; c < max_val; c++)
     {
         if ((c mod p) == 0) { continue; }
@@ -727,7 +796,7 @@ static proc casePrimeExhaust(int n, int p, poly C1)
 {
     int a0_C1; int gamma_val; int const_term; bigint M; list primesM;
     int i; list cnt; poly candidate; int coef_val; int is_irred; 
-    int done = 0; int debug_contador = 0;
+    int done = 0; int debug_counter = 0;
 
     "//   [PRIME] Exhaustive Parker search for n=" + string(n);
     
@@ -747,10 +816,10 @@ static proc casePrimeExhaust(int n, int p, poly C1)
 
     while (!done)
     {
-        debug_contador = debug_contador + 1;
-        if (debug_contador mod 100 == 0) 
+        debug_counter = debug_counter + 1;
+        if (debug_counter mod 100 == 0)
         { 
-            "// Progress: tested " + string(debug_contador) + " Parker candidates."; 
+            "// Progress: tested " + string(debug_counter) + " Parker candidates.";
         }
 
         candidate = var(1)^n + number(const_term);
@@ -763,7 +832,7 @@ static proc casePrimeExhaust(int n, int p, poly C1)
         is_irred = isIrreducibleBenOr(candidate, n);
         if (is_irred)
         {
-            if (isPrimitivePoly(candidate, n, list(primesM)))
+            if (isPrimitiveIrredPoly(candidate, n, list(primesM)))
             {
                 if (isCompatible(candidate, C1, n, 1))
                 {
@@ -872,7 +941,7 @@ EXAMPLE:  example conwayPoly; shows an example
     int p = char(basering);
     list known; poly result;
 
-    if (p == 0) { ERROR("char(basering) must be prime > 0."); }
+    checkConwayInput(n, p);
     if (size(#) > 0) { known = #[1]; }
 
     result = conwayRec(n, p, known);
@@ -891,7 +960,7 @@ example
 
 static proc conwayRec(int n, int p, list known)
 {
-    poly c1; list facN; int s; list di; list qi; int i; list Cpdi; 
+    poly c1; poly cached; list facN; int s; list di; list qi; int i; list Cpdi;
     int sz; int kk; list mi; bigint g; poly result;
 
     
@@ -911,7 +980,29 @@ static proc conwayRec(int n, int p, list known)
 
     for (i = 1; i <= s; i++)
     {
-        Cpdi[i] = conwayRec(di[i], p, known);
+        cached = 0;
+        if (size(known) >= di[i])
+        {
+            if (typeof(known[di[i]]) == "poly") { cached = known[di[i]]; }
+        }
+
+        if (cached != 0)
+        {
+            if (deg(cached) != di[i])
+            {
+                ERROR("known[" + string(di[i]) + "] must have degree " + string(di[i]) + ".");
+            }
+            if (leadcoef(cached) != 1)
+            {
+                ERROR("known[" + string(di[i]) + "] must be monic.");
+            }
+            Cpdi[i] = cached;
+        }
+        else
+        {
+            Cpdi[i] = conwayRec(di[i], p, known);
+        }
+
         sz = size(known);
         if (sz < di[i])
         {
@@ -926,7 +1017,7 @@ static proc conwayRec(int n, int p, list known)
     }
     
     g = mi[1];
-    for (i = 2; i <= s; i++) { g = mcdBigint(g, mi[i]); }
+    for (i = 2; i <= s; i++) { g = gcdBigint(g, mi[i]); }
 
     "// ============================================";
     "// C_{" + string(p) + "," + string(n) + "}: s=" + string(s) + ", g=" + string(g);
@@ -981,7 +1072,7 @@ proc conwayPolyMersenne(list #)
 "USAGE:    conwayPolyMersenne([up_to]);
           up_to: int, only Mersenne exponents <= up_to are processed.
                  If omitted, all known Mersenne exponents up to M_136279841
-                 are attempted (very long; degrees > 50000 are skipped).
+                 are attempted (very long, degrees > 50000 are skipped).
 RETURN:   none (prints the computed C_{2,n} for each Mersenne exponent n)
 ASSUME:   characteristic 2, i.e. ring of the form (2, x, dp).
 NOTE:     For Mersenne exponents n, 2^n - 1 is prime, so every irreducible
@@ -1004,6 +1095,10 @@ EXAMPLE:  example conwayPolyMersenne; shows an example
 
     if (size(#) > 0) { up_to = #[1]; }
     if (char(basering) != 2) { ERROR("Characteristic 2 required."); }
+    if (nvars(basering) != 1)
+    {
+        ERROR("conway.lib requires a univariate basering.");
+    }
 
     "";
     "==========================================================";
@@ -1019,7 +1114,7 @@ EXAMPLE:  example conwayPolyMersenne; shows an example
         "// --- C_{2," + string(n) + "} (Mersenne M_" + string(n) + ") ---";
 
         t = timer;
-        result = menorIrredParker(n);
+        result = leastIrredParker(n);
         elapsed = timer - t;
 
         if (result != 0)
@@ -1042,7 +1137,7 @@ example
    conwayPolyMersenne(7);
 }
 
-static proc menorIrredParker(int n)
+static proc leastIrredParker(int n)
 {
     int i; int total = 0; int done = 0; list cnt; poly candidate;
 
@@ -1125,8 +1220,8 @@ static proc isIrreducibleBenOr(poly f, int n)
 //  SECTION 9: CANDIDATE COUNTING
 ///////////////////////////////////////////////////////////////////////////////
 
-proc candidatosConway(int n)
-"USAGE:    candidatosConway(n);  n positive integer
+proc countConwayCandidates(int n)
+"USAGE:    countConwayCandidates(n);  n positive integer
 RETURN:   list L of length 2:
           L[1] = bigint, value of g = gcd_i (p^n-1)/(p^{n/q_i}-1) over the
                  prime divisors q_i of n. This is the number of compatible
@@ -1135,12 +1230,15 @@ RETURN:   list L of length 2:
           L[2] = bigint, phi(p^n-1) / n, the total number of primitive
                  monic irreducible polynomials of degree n over F_p.
 ASSUME:   ring of the form (p, x, dp) with p prime > 0.
-EXAMPLE:  example candidatosConway; shows an example
+EXAMPLE:  example countConwayCandidates; shows an example
 "
 {
-    int p = char(basering); bigint Mn = bigint(p)^n - 1; bigint g;
-    list facN; int s; int i; list mi; list facs_raw; bigint phi_Mn; 
+    int p = char(basering); bigint Mn; bigint g;
+    list facN; int s; int i; int qi; list mi; list facs_raw; bigint phi_Mn;
     int j; bigint q; bigint irred_prim; list result;
+
+    checkConwayInput(n, p);
+    Mn = bigint(p)^n - 1;
 
     if (n == 1) { g = 1; }
     else
@@ -1149,19 +1247,26 @@ EXAMPLE:  example candidatosConway; shows an example
         s = size(facN);
         for (i = 1; i <= s; i++)
         {
-            int qi = facN[i][1];
+            qi = facN[i][1];
             mi[i] = Mn div (bigint(p)^(n div qi) - 1);
         }
         g = mi[1];
-        for (i = 2; i <= s; i++) { g = mcdBigint(g, mi[i]); }
+        for (i = 2; i <= s; i++) { g = gcdBigint(g, mi[i]); }
     }
 
-    facs_raw = primeFactors(Mn, p, n);
-    phi_Mn = Mn;
-    for (j = 1; j <= size(facs_raw); j++)
+    if (Mn == 1)
     {
-        q = facs_raw[j];
-        phi_Mn = phi_Mn div q * (q - 1);
+        phi_Mn = 1;
+    }
+    else
+    {
+        facs_raw = primeFactors(Mn, p, n);
+        phi_Mn = Mn;
+        for (j = 1; j <= size(facs_raw); j++)
+        {
+            q = facs_raw[j];
+            phi_Mn = phi_Mn div q * (q - 1);
+        }
     }
 
     irred_prim = phi_Mn div bigint(n);
@@ -1172,19 +1277,19 @@ EXAMPLE:  example candidatosConway; shows an example
 example
 { "EXAMPLE:"; echo = 2;
    ring R = 2, x, dp;
-   candidatosConway(6);
-   candidatosConway(12);
+   countConwayCandidates(6);
+   countConwayCandidates(12);
 }
 
-proc mostrarCandidatos(int n)
-"USAGE:    mostrarCandidatos(n);  n positive integer
-RETURN:   none (prints g and phi(p^n-1)/n; see candidatosConway).
+proc showConwayCandidates(int n)
+"USAGE:    showConwayCandidates(n);  n positive integer
+RETURN:   none (prints g and phi(p^n-1)/n, see countConwayCandidates).
 ASSUME:   ring of the form (p, x, dp) with p prime > 0.
-SEE ALSO: candidatosConway
-EXAMPLE:  example mostrarCandidatos; shows an example
+SEE ALSO: countConwayCandidates
+EXAMPLE:  example showConwayCandidates; shows an example
 "
 {
-    int p = char(basering); list res = candidatosConway(n);
+    int p = char(basering); list res = countConwayCandidates(n);
     bigint g = res[1]; bigint phi_n = res[2];
     
     "";
@@ -1196,5 +1301,5 @@ EXAMPLE:  example mostrarCandidatos; shows an example
 example
 { "EXAMPLE:"; echo = 2;
    ring R = 2, x, dp;
-   mostrarCandidatos(6);
+   showConwayCandidates(6);
 }
