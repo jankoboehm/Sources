@@ -18,10 +18,16 @@ libGBEngine_la_include_HEADERS=syz.h kstdfac.h kutil.h khstd.h kstd1.h units.h r
 TESTS_ENVIRONMENT = SINGULARPATH='${abs_top_builddir}/libpolys/polys/.libs:${abs_top_builddir}/factory/gftables'
 TESTS_ENVIRONMENT += SINGULAR_ROOT_DIR='${abs_top_builddir}'
 
-TESTS = test
+TESTS = test test_interrupt
 check_PROGRAMS = $(TESTS)
+
+GBENGINE_TEST_LDADD = libGBEngine.la $(OMALLOC_LIBS) ${builddir}/../combinatorics/libcombinatorics.la ${builddir}/../linear_algebra/liblinear_algebra.la ${builddir}/../libkernelCommon.la  ${builddir}/../../Singular/libSingular.la $(RESOURCES_LIBS)
+
 test_SOURCES = test.cc
-test_LDADD   = libGBEngine.la $(OMALLOC_LIBS) ${builddir}/../combinatorics/libcombinatorics.la ${builddir}/../linear_algebra/liblinear_algebra.la ${builddir}/../libkernelCommon.la  ${builddir}/../../Singular/libSingular.la $(RESOURCES_LIBS)
+test_LDADD   = $(GBENGINE_TEST_LDADD)
+
+test_interrupt_SOURCES = test_interrupt.cc
+test_interrupt_LDADD   = $(GBENGINE_TEST_LDADD)
 
 CLEANFILES = $(TESTS)
 
