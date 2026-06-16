@@ -605,7 +605,7 @@ EXAMPLE: example heightZ; shows an example
    //=== find h in Z such that I is the intersection of I:h and I,h
    //=== and I:h =IQ[variables] intersected with Z[variables]
    list H=coefZ(J);
-   int h=H[2];
+   bigint h=H[2];
    J=J,h;
    //=== call height over Z for I,h
    if(h!=1)
@@ -888,7 +888,7 @@ EXAMPLE: example equidimZ; shows an example
    E=coefZ(E)[1];
    //=== find h in Z such that I is the intersection of I:h and I,h
    //=== and I:h =IQ[variables] intersected with Z[variables]
-   int h =coefZ(J)[2];
+   bigint h =coefZ(J)[2];
    J=J,h;
    //=== call equidimensional part over Z for I,h
    ideal M;
