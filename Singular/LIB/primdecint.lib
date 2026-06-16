@@ -707,7 +707,7 @@ EXAMPLE: example radicalZ; shows an example
    //=== find h in Z such that I is the intersection of I:h and I,h
    //=== and I:h =IQ[variables] intersected with Z[variables]
    list H=coefZ(J);
-   int h=H[2];
+   bigint h=H[2];
    J=J,h;
    //=== call radical over Z for I,h
    if(h!=1)
