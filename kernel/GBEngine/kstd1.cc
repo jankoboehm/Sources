@@ -1942,6 +1942,7 @@ ideal mora (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
         deleteInL(strat->L,&strat->Ll,strat->Ll,strat);
       strat->noClearS=TRUE;
     }
+    if (strat->Ll<0) break;
     if (TEST_OPT_DEGBOUND
     && (strat->L[strat->Ll].ecart+strat->L[strat->Ll].GetpFDeg()> Kstd1_deg))
     {
