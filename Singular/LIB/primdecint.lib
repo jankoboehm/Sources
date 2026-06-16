@@ -333,7 +333,7 @@ EXAMPLE: example primdecZ; shows an example
    //=== and I:h = IQ[variables] intersected with Z[variables]
    list H =coefZ(J);
    ideal Y=H[1];
-   int h=H[2];
+   bigint h=H[2];
    J=J,h;
    //=== call primary decomposition over Z for <I,h>
    ideal testid = 1;
