@@ -23,6 +23,9 @@
 
 Changed libraries:
 @itemize
+@item @code{dmod.lib}, @code{dmodapp.lib}: removed obsolete
+@code{annfspecialOld}; @code{annRat} and @code{deRhamCohom} now use
+@code{annfspecial} (@nref{annfspecial}, @nref{annRat}, @nref{deRhamCohom})
 @item @code{homolog.lib}: handling of module weights (@nref{Ext_R})
 @item @code{normaliz.lib}: new version (@nref{normaliz_lib})
 @item @code{polymake.lib}: new version for topcom 1.1 (@nref{polymake_lib})
@@ -34,7 +37,19 @@ Changes in the kernel/build system:
 @itemize
 @item changes for gcc 15
 @item changes for FLINT 3.3
+@item require FLINT 3.0 or newer when FLINT support is enabled; configure now
+fails if FLINT was explicitly requested but could not be found
 @item changes for normaliz 3.10.5
+@item @code{simplex}: support real coefficient fields in addition to long real
+coefficient fields
+@item fix @code{gcd(0,0)} over fields @code{ZZ/n} to return @code{0}
+@item fix short-real precision selection by using the configured
+@code{SIZEOF_DOUBLE} value
+@item update coefficient maps from GAP GMP integer representations
+@item add GitHub Actions workflows for release tarballs and Singular.jl
+downstream testing
+@item extend Sage and regression-test GitHub Actions coverage, including
+additional @code{dmodapp.lib} tests and selected @code{Tst/New} tests
 @item fix @code{quotient} for qring case (@nref{quotient})
 @item @code{nres},@code{mres},@code{prune_map}: allow ring elements as coefficients
 (@nref{nres},@nref{mres},@nref{prune_map})
