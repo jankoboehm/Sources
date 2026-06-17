@@ -1,0 +1,301 @@
+name: Release Tarball
+
+## Build a distribution tarball (with autotools-generated files and optional
+## old documentation) and attach it to the GitHub Release.
+##
+## The tarball reproduces the layout of the tarballs historically published
+## at https://www.singular.uni-kl.de/ftp/pub/Math/Singular/src/ and used
+## by SageMath.
+##
+## Trigger: publishing a GitHub Release whose tag looks like
+##   v4.4.1p5   – patch release  → tarball singular-4.4.1p5.tar.gz
+##   v4.4.1     – major release  → tarball singular-4.4.1.tar.gz
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: What to build
+        required: true
+        default: tarball
+        type: choice
+        options:
+          - tarball
+          - old-docu
+          - tarball-with-old-docu
+      tarball_version:
+        description: >
+          Override tarball version string (e.g. 4.4.1p6).
+          Leave empty to derive from the release tag.
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-tarball:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          # full history so that `git archive` works
+          fetch-depth: 0
+
+      # ── 2. Determine version strings and selected mode ───────────
+      - name: Compute build settings
+        id: settings
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_TARBALL_VERSION: ${{ inputs.tarball_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MODE="${INPUT_MODE:-tarball}"
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            MODE="tarball"
+          fi
+
+          case "$MODE" in
+            tarball|old-docu|tarball-with-old-docu) ;;
+            *)
+              echo "::error::Unknown mode: $MODE"
+              exit 1
+              ;;
+          esac
+
+          # Prefer the manual input, then the release tag, then configure.ac
+          if [[ -n "$INPUT_TARBALL_VERSION" ]]; then
+            TARVERSION="$INPUT_TARBALL_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # strip leading 'v' from tag  (v4.4.1p5 → 4.4.1p5)
+            TARVERSION="${GITHUB_REF_NAME#v}"
+          else
+            TARVERSION="$(sed -n "s/^AC_INIT(\[singular\], \[\(.*\)\],.*/\1/p" configure.ac)-dev"
+          fi
+
+          # Base VERSION is everything up to the first 'p' suffix
+          #   4.4.1p5 → 4.4.1    4.4.1 → 4.4.1
+          VERSION="${TARVERSION%%p*}"
+          BUILD_DOCS=false
+          BUILD_TARBALL=false
+          INCLUDE_DOCS=false
+
+          if [[ "$MODE" == "old-docu" || "$MODE" == "tarball-with-old-docu" ]]; then
+            BUILD_DOCS=true
+          fi
+
+          if [[ "$MODE" == "tarball" || "$MODE" == "tarball-with-old-docu" ]]; then
+            BUILD_TARBALL=true
+          fi
+
+          if [[ "$MODE" == "tarball-with-old-docu" ]]; then
+            INCLUDE_DOCS=true
+          fi
+
+          if [[ "$BUILD_TARBALL" == "true" && ! "$TARVERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(p[0-9]+|-dev)?$ ]]; then
+            echo "::error::Invalid tarball version: $TARVERSION"
+            exit 1
+          fi
+
+          echo "MODE=$MODE" >> "$GITHUB_OUTPUT"
+          echo "TARVERSION=$TARVERSION" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "BUILD_DOCS=$BUILD_DOCS" >> "$GITHUB_OUTPUT"
+          echo "BUILD_TARBALL=$BUILD_TARBALL" >> "$GITHUB_OUTPUT"
+          echo "INCLUDE_DOCS=$INCLUDE_DOCS" >> "$GITHUB_OUTPUT"
+
+      # ── 3. Install build prerequisites ────────────────────────────
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf automake libtool libgmp-dev libmpfr-dev libreadline-dev \
+            libcdd-dev libntl-dev libflint-dev libopenblas-dev \
+            4ti2 normaliz cmake texinfo perl
+
+      # ── 4. Install old documentation prerequisites ────────────────
+      - name: Install old docu dependencies
+        if: steps.settings.outputs.BUILD_DOCS == 'true'
+        run: |
+          sudo apt-get install -y \
+            texlive texlive-latex-extra texlive-plain-generic \
+            latex2html sharutils
+
+      # ── 5. Build Singular ────────────────────────────────────────
+      - name: autogen + configure + build
+        env:
+          BUILD_DOCS: ${{ steps.settings.outputs.BUILD_DOCS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./autogen.sh
+
+          configure_flags=(
+            --enable-gfanlib
+            --with-ntl
+            --with-flint
+          )
+
+          if [[ "$BUILD_DOCS" == "true" ]]; then
+            configure_flags+=(--enable-doc-build)
+          fi
+
+          ./configure "${configure_flags[@]}"
+          make -j"$(nproc)"
+
+      # ── 6. Build old documentation (doc.tbz2) ────────────────────
+      - name: Build old docu
+        if: steps.settings.outputs.BUILD_DOCS == 'true'
+        working-directory: doc
+        shell: bash
+        run: |
+          exclusions="$(sed -n 's/^DOC2TEX_EXAMPLE_EXCLUSIONS = //p' Makefile-docbuild | xargs)"
+          if [[ "$exclusions" != "-exclude crash" ]]; then
+            echo "::warning::Old documentation excludes examples: $exclusions"
+          fi
+          make -j1 -f Makefile-docbuild singular.info html
+          chmod -R a+rX singular.info html
+          cp singular.info singular.idx html
+          (cd html && tar jcf ../doc.tbz2 *)
+          ls -lh doc.tbz2
+
+      # ── 7. Upload old documentation artifact ─────────────────────
+      - name: Upload old docu artifact
+        if: steps.settings.outputs.BUILD_DOCS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-old-docu
+          path: |
+            doc/doc.tbz2
+            doc/singular.info
+            doc/singular.idx
+            doc/html
+
+      # ── 8. Generate spec file ─────────────────────────────────────
+      # configure already expanded redhat/singular.spec from
+      # redhat/singular.spec.in, so it is ready to copy.
+
+      # ── 9. Generate all.lib ───────────────────────────────────────
+      # `make` already built Singular/all.lib via the all-local target.
+
+      # ── 10. Package the tarball (mirrors make_tar.sh) ─────────────
+      - name: Create release tarball
+        if: steps.settings.outputs.BUILD_TARBALL == 'true'
+        env:
+          INCLUDE_DOCS: ${{ steps.settings.outputs.INCLUDE_DOCS }}
+          TARVERSION: ${{ steps.settings.outputs.TARVERSION }}
+          VERSION: ${{ steps.settings.outputs.VERSION }}
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          # --- sanity-check that required build artefacts exist ---
+          required_files=(redhat/singular.spec Singular/all.lib)
+          if [[ "$INCLUDE_DOCS" == "true" ]]; then
+            required_files+=(doc/doc.tbz2)
+          fi
+
+          for f in "${required_files[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Required artefact missing: $f"
+              exit 1
+            fi
+          done
+
+          # --- export a clean tree from git ---
+          rm -rf "singular-${VERSION}"
+          git archive --prefix="singular-${VERSION}/" HEAD | tar xf -
+
+          # --- remove files that should not ship ---
+          # .gdbinit files
+          find "singular-${VERSION}" -name .gdbinit -delete 2>/dev/null || true
+
+          # IntegerProgramming/README conflicts with top-level README
+          rm -f "singular-${VERSION}/IntegerProgramming/README"
+
+          # copy compiled old documentation, if requested
+          if [[ "$INCLUDE_DOCS" == "true" ]]; then
+            cp doc/doc.tbz2 "singular-${VERSION}/doc/"
+          fi
+
+          # run autogen.sh inside the exported tree to generate
+          # configure, Makefile.in, aclocal.m4, etc.
+          (cd "singular-${VERSION}" && ./autogen.sh)
+
+          # remove autom4te caches
+          find "singular-${VERSION}" -type d -name autom4te.cache -exec rm -rf {} + 2>/dev/null || true
+
+          # remove misc unneeded dirs/files
+          rm -rf "singular-${VERSION}/omalloc/Misc"
+          rm -rf "singular-${VERSION}/Singular/LIB/surfex"
+          rm -f  "singular-${VERSION}/Singular/cnf2ideal.py"
+          rm -rf "singular-${VERSION}/kernel/old" "singular-${VERSION}/kernel/sample"
+          rm -f  "singular-${VERSION}/dox/Doxyfile.html.all" \
+                 "singular-${VERSION}/dox/Doxyfile.in1" \
+                 "singular-${VERSION}/dox/Doxyfile.latex.short" \
+                 "singular-${VERSION}/dox/readme"
+          rm -f  "singular-${VERSION}/factory/ConwayList.txt"
+          rm -rf "singular-${VERSION}/logo" \
+                 "singular-${VERSION}/standalone.test" \
+                 "singular-${VERSION}/templates" \
+                 "singular-${VERSION}/tests"
+
+          # remove .git metadata files
+          find "singular-${VERSION}" -name '.git*' -delete 2>/dev/null || true
+
+          # copy generated artefacts produced by the build
+          cp redhat/singular.spec "singular-${VERSION}/redhat/singular.spec"
+          cp Singular/all.lib     "singular-${VERSION}/Singular/LIB/"
+
+          # --- verify the exported tree has key files ---
+          expected_files=(
+            "singular-${VERSION}/configure"
+            "singular-${VERSION}/Singular/LIB/all.lib"
+            "singular-${VERSION}/redhat/singular.spec"
+          )
+
+          if [[ "$INCLUDE_DOCS" == "true" ]]; then
+            expected_files+=("singular-${VERSION}/doc/doc.tbz2")
+          fi
+
+          for f in "${expected_files[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Expected file missing from tarball tree: $f"
+              exit 1
+            fi
+          done
+
+          # --- create the compressed tarball ---
+          tar cf "singular-${TARVERSION}.tar" "singular-${VERSION}"
+          gzip -9 -f "singular-${TARVERSION}.tar"
+          ls -lh "singular-${TARVERSION}.tar.gz"
+
+          # clean up
+          rm -rf "singular-${VERSION}"
+
+      # ── 11. Upload tarball as workflow artifact ───────────────────
+      - name: Upload tarball artifact
+        if: steps.settings.outputs.BUILD_TARBALL == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-tarball
+          path: singular-${{ steps.settings.outputs.TARVERSION }}.tar.gz
+
+      # ── 12. Attach tarball to GitHub Release ─────────────────────
+      - name: Attach tarball to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: singular-${{ steps.settings.outputs.TARVERSION }}.tar.gz
