@@ -169,7 +169,6 @@
     ("annfsLogIdeal" . "annfsLogIdeal.       (line   6")
     ("annfsParamBM" . "annfsParamBM.        (line   6")
     ("annfspecial" . "annfspecial.         (line   6")
-    ("annfspecialOld" . "annfspecialOld.      (line   6")
     ("annfsRB" . "annfsRB.             (line   6")
     ("annihilator of a module" . "Ann.                 (line  18")
     ("annihilator of polynomial" . "dmodapp_lib.         (line 103")

@@ -891,65 +891,22 @@ EXAMPLE:  example annRat; shows examples
   // computes the annihilator of g/f
   def save = basering;
   int ppl = printlevel-voice+2;
-  dbprint(ppl,"// -1-[annRat] computing the ann f^s");
-  def  @R1 = SannfsBM(f);
+  dbprint(ppl,"// -1-[annRat] running annfspecial ");
+  def @R1 = annfspecial(f,-1); // ann f^{-1}
   setring @R1;
-  poly f = imap(save,f);
-  int i,mir;
-  int isr = 0; // checkRoot1(LD,f,1); // roots are negative, have to enter positive int
-  if (!isr)
+  ideal AF = annfalpha;
+  setring save;
+  list U = ringlist(save);
+  list tmp = U[2];
+  int i;
+  for(i=1; i<=nvars(save); i++)
   {
-    // -1 is not the root
-    // find the m.i.r iteratively
-    mir = 0;
-    for(i=nvars(save)+1; i>=1; i--)
-    {
-      isr =  checkRoot1(LD,f,i);
-      if (isr) { mir =-i; break; }
-    }
-    if (mir ==0)
-    {
-      ERROR("No integer root found! Aborting computations, inform the authors!");
-    }
-    // now mir == i is m.i.r.
-  }
-  else
-  {
-    // -1 is the m.i.r
-    mir = -1;
-  }
-  dbprint(ppl,"// -2-[annRat] the minimal integer root is ");
-  dbprint(ppl-1, mir);
-  // use annfspecial
-  dbprint(ppl,"// -3-[annRat] running annfspecial ");
-  ideal AF = annfspecialOld(LD,f,mir,-1); // ann f^{-1}
-  //  LD = subst(LD,s,j);
-  //  LD = engine(LD,0);
-  // modify the ring: throw s away
-  // output ring comes from SannfsBM
-  list U = ringlist(@R1);
-  list tmp; // variables
-  for(i=1; i<=size(U[2])-1; i++)
-  {
-    tmp[i] = U[2][i];
+    tmp[nvars(save)+i] = safeVarName("D"+tmp[i],"cv");
   }
   U[2] = tmp;
-  tmp = 0;
-  tmp[1] = U[3][1]; // x,Dx block
-  tmp[2] = U[3][3]; // module block
-  U[3] = tmp;
-  tmp = 0;
-  tmp = U[1],U[2],U[3],U[4];
-  def @R2 = ring(tmp);
+  def @R2 = ring(U);
   setring @R2;
-  // now supply with Weyl algebra relations
-  int N = nvars(@R2) div 2;
-  matrix @D[2*N][2*N];
-  for(i=1; i<=N; i++)
-  {
-    @D[i,N+i]=1;
-  }
-  def @R3 = nc_algebra(1,@D);
+  def @R3 = Weyl();
   setring @R3;
   dbprint(ppl,"// - -[annRat] ring without s is ready:");
   dbprint(ppl-1,@R3);
@@ -957,9 +914,9 @@ EXAMPLE:  example annRat; shows examples
   matrix G[1][1] = g;
   matrix LL = matrix(imap(@R1,AF));
   kill @R1;   kill @R2;
-  dbprint(ppl,"// -4-[annRat] running modulo");
+  dbprint(ppl,"// -2-[annRat] running modulo");
   ideal LD  = modulo(G,LL);
-  dbprint(ppl,"// -4-[annRat] running GB on the final result");
+  dbprint(ppl,"// -3-[annRat] running GB on the final result");
   LD  = engine(LD,0);
   export LD;
   return(@R3);
@@ -2901,27 +2858,28 @@ EXAMPLE: example deRhamCohom; shows example
     kill v,iv,BS,LDf;
   }
   dbprint(ppl,"// Computing Ann(f^" + string(l0) + ")...");
-  LD = annfspecialOld(LD,f,l0,l0); // Ann(f^l0)
-  // VL dec 2020: since l0 is an integer, no need to update with new annfspecial
-  // create new ring without s
-  list RL = ringlist(A);
-  RL = RL[1..4];
+  setring save;
+  def @AF = annfspecial(f,l0); // Ann(f^l0)
+  setring @AF;
+  ideal @LD = annfalpha;
+  setring save;
+  list RL = ringlist(save);
   list Lt = RL[2];
-  Lt = delete(Lt,2*n+1);
+  for (i=1; i<=n; i++)
+  {
+    Lt[n+i] = safeVarName("D"+Lt[i],"cv");
+  }
   RL[2] = Lt;
-  Lt = RL[3];
-  Lt = delete(Lt,2);
-  RL[3] = Lt;
   def @B = ring(RL);
   setring @B;
   def B = Weyl();
   setring B;
   kill @B;
-  ideal LD = imap(A,LD);
+  ideal LD = imap(@AF,@LD);
   LD = engine(LD,eng);
   dbprint(ppl,"// ...done");
   dbprint(ppl-1,"//    Got: " + string(LD));
-  kill A;
+  kill A, @AF;
   ideal DRJ = deRhamCohomIdeal(LD,w,eng);
   list DR = DRJ,l0;
   export(DR);

@@ -63,6 +63,8 @@ jobs:
         if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Plural/dmod.lst
         if: ${{ always() }}
+      - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Manual/annRat.tst Manual/deRhamCohom.tst Manual/deRhamCohomIdeal.tst
+        if: ${{ always() }}
       - run: cd Tst && ./regress.cmd -s $prefix/bin/Singular Short/ok_s.lst
         if: ${{ always() }}
 
