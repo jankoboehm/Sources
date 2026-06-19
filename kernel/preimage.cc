@@ -11,6 +11,8 @@
 #include "kernel/GBEngine/kstd1.h"
 #include "kernel/GBEngine/khstd.h"
 
+#include <limits.h>
+
 #ifdef HAVE_PLURAL
 #include "polys/nc/nc.h"
 #endif
@@ -45,6 +47,112 @@ static poly pChangeSizeOfPoly(ring p_ring, poly p,int minvar,int maxvar, const r
     }
   }
   return result;
+}
+
+static long maTermWeightedDegree(poly p, const ring r)
+{
+  long d = 0;
+
+  for (int i=1; i<=rVar(r); i++)
+    d += ((long)p_GetExp(p,i,r))*p_Weight(i,r);
+
+  return d;
+}
+
+static long maHomogeneousWeightedDegree(poly p, const ring r)
+{
+  if (p == NULL) return 1;
+
+  long d = maTermWeightedDegree(p,r);
+  pIter(p);
+  while (p != NULL)
+  {
+    if (maTermWeightedDegree(p,r) != d) return -1;
+    pIter(p);
+  }
+  return d;
+}
+
+static BOOLEAN maIdealWeightedHomogeneous(ideal id, const ring r)
+{
+  if (id == NULL) return TRUE;
+
+  for (int i=0; i<IDELEMS(id); i++)
+    if (maHomogeneousWeightedDegree(id->m[i],r) < 0) return FALSE;
+
+  return TRUE;
+}
+
+static BOOLEAN maSetGraphRingWeights(ring tmpR, const ring theImageRing,
+                                     const ring sourcering, map theMap,
+                                     ideal id)
+{
+#ifdef HAVE_PLURAL
+  if (rIsPluralRing(theImageRing) || rIsPluralRing(sourcering)) return FALSE;
+#endif
+
+  if ((theImageRing->OrdSgn != 1) || (sourcering->OrdSgn != 1)) return FALSE;
+  if (!maIdealWeightedHomogeneous(id,theImageRing)) return FALSE;
+  if (!maIdealWeightedHomogeneous(theImageRing->qideal,theImageRing)) return FALSE;
+
+  const int imagepvariables = rVar(theImageRing);
+  const int N = rVar(tmpR);
+
+  if ((tmpR->order == NULL) || (tmpR->block0 == NULL) ||
+      (tmpR->block1 == NULL) || (tmpR->wvhdl == NULL))
+    return FALSE;
+  if ((tmpR->order[0] != ringorder_aa) || (tmpR->order[1] != ringorder_dp) ||
+      (tmpR->block0[0] != 1) || (tmpR->block1[0] != N) ||
+      (tmpR->block0[1] != 1) || (tmpR->block1[1] != N))
+    return FALSE;
+
+  int *weights = (int*)omAlloc0((N+1)*sizeof(int));
+  BOOLEAN weighted = FALSE;
+
+  for (int i=0; i<imagepvariables; i++)
+  {
+    int w = p_Weight(i+1,theImageRing);
+    if (w <= 0)
+    {
+      omFreeSize((ADDRESS)weights,(N+1)*sizeof(int));
+      return FALSE;
+    }
+    weights[i] = w;
+    weighted = weighted || (w != 1);
+  }
+
+  for (int i=0; i<sourcering->N; i++)
+  {
+    long d = 1;
+    if ((i < IDELEMS(theMap)) && (theMap->m[i] != NULL))
+      d = maHomogeneousWeightedDegree(theMap->m[i],theImageRing);
+    if ((d <= 0) || (d > INT_MAX))
+    {
+      omFreeSize((ADDRESS)weights,(N+1)*sizeof(int));
+      return FALSE;
+    }
+    weights[imagepvariables+i] = (int)d;
+    weighted = weighted || (d != 1);
+  }
+
+  if (!weighted)
+  {
+    omFreeSize((ADDRESS)weights,(N+1)*sizeof(int));
+    return TRUE;
+  }
+
+  if (tmpR->wvhdl[1] != NULL)
+  {
+    omFreeSize((ADDRESS)weights,(N+1)*sizeof(int));
+    return FALSE;
+  }
+
+  rUnComplete(tmpR);
+  tmpR->order[1] = ringorder_wp;
+  tmpR->wvhdl[1] = weights;
+  rComplete(tmpR,1);
+
+  return TRUE;
 }
 
 
@@ -91,6 +199,9 @@ ideal maGetPreimage(ring theImageRing, map theMap, ideal id, const ring dst_r)
     return NULL;
   }
 
+  const BOOLEAN homog_graph = maSetGraphRingWeights(tmpR,theImageRing,
+                                                    sourcering,theMap,id);
+
   const ring save_ring = currRing; if (currRing!=tmpR) rChangeCurrRing(tmpR); // due to kStd
 
   if (id==NULL)
@@ -131,10 +242,10 @@ ideal maGetPreimage(ring theImageRing, map theMap, ideal id, const ring dst_r)
                               pChangeSizeOfPoly(theImageRing, theImageRing->qideal->m[i-sourcering->N-j0], 1, imagepvariables, tmpR),
                               tmpR);
   }
-  // we ignore here homogeneity - may be changed later:
   BITSET save;
   SI_SAVE_OPT2(save);
-  temp2 = kStd2(temp1,NULL,isNotHomog,NULL,(bigintmat*)NULL);
+  temp2 = kStd2(temp1,NULL,homog_graph ? testHomog : isNotHomog,
+                NULL,(bigintmat*)NULL);
   SI_RESTORE_OPT2(save);
 
   id_Delete(&temp1,tmpR);
@@ -172,4 +283,3 @@ ideal maGetPreimage(ring theImageRing, map theMap, ideal id, const ring dst_r)
   rDelete(tmpR);
   return temp1;
 }
-
