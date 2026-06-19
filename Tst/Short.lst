@@ -200,6 +200,7 @@ Short/invar.tst
 Short/invarlib.tst
 Short/janet.tst
 Short/jmbtest.tst
+Short/kernel_weighted_homog.tst
 Short/latex.tst
 Short/lift_s.tst
 Short/liftstd_s.tst
