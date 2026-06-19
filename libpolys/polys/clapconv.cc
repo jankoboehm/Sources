@@ -344,7 +344,7 @@ CanonicalForm convSingTrPFactoryP ( poly p, const ring r )
 
   while ( p!=NULL )
   {
-    //n_Normalize(p_GetCoeff(p, r), r->cf);
+    n_Normalize(p_GetCoeff(p, r), r->cf);
 
     // test if denominator is constant
     if (!errorreported && !p_IsConstant(DEN ((fraction)p_GetCoeff (p,r)),r->cf->extRing))
