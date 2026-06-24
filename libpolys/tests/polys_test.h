@@ -6,6 +6,8 @@ using namespace std;
 
 #include "polys/monomials/ring.h"
 #include "polys/monomials/p_polys.h"
+#include "polys/PolyEnumerator.h"
+#include "polys/clapconv.h"
 
 #include "polys/simpleideals.h"
 
@@ -2401,6 +2403,84 @@ public:
     n_Delete(&vOverW_n, cf); n_Delete(&wOverV_n, cf);
 
     rDelete(s); // kills 'cf' and 'r' as well
+  }
+  void test_Q_Ext_exact_content_and_factory_conversion()
+  {
+    char* parameterNames[] = {(char*)"a", (char*)"b"};
+    ring parameterRing = rDefault(0, 2, parameterNames); // Q[a,b]
+    TS_ASSERT_DIFFERS(parameterRing, NULLp);
+
+    n_coeffType type = nRegister(n_transExt, ntInitChar);
+    TS_ASSERT_EQUALS(type, n_transExt);
+
+    TransExtInfo extParam;
+    extParam.r = parameterRing;
+    const coeffs cf = nInitChar(type, &extParam);          // Q(a,b)
+    TS_ASSERT_DIFFERS(cf, NULLp);
+
+    char* variableNames[] = {(char*)"x"};
+    ring r = rDefault(cf, 1, variableNames);               // Q(a,b)[x]
+    TS_ASSERT_DIFFERS(r, NULLp);
+
+    poly common = NULL;
+    plusTerm(common, 1, 1, 1, parameterRing);              // a
+    plusTerm(common, 1, 2, 1, parameterRing);              // a+b
+
+    // n_ClearContent knows that division by common is exact.  It must not
+    // leave common behind as a lazy denominator in either coefficient.
+    poly factor1 = p_Copy(common, parameterRing);
+    plusTerm(factor1, 1, 1, 0, parameterRing);             // a+b+1
+    poly factor2 = p_Copy(common, parameterRing);
+    plusTerm(factor2, 2, 1, 0, parameterRing);             // a+b+2
+
+    number coeff1 = toFractionNumber(
+      p_Mult_q(p_Copy(common, parameterRing), factor1, parameterRing), cf);
+    number coeff2 = toFractionNumber(
+      p_Mult_q(p_Copy(common, parameterRing), factor2, parameterRing), cf);
+
+    poly clearMe = p_ISet(1, r);
+    p_SetExp(clearMe, 1, 1, r);
+    p_Setm(clearMe, r);
+    p_SetCoeff(clearMe, coeff1, r);
+    poly constantTerm = p_ISet(1, r);
+    p_SetCoeff(constantTerm, coeff2, r);
+    clearMe = p_Add_q(clearMe, constantTerm, r);
+
+    CPolyCoeffsEnumerator coefficients(clearMe);
+    number content = NULL;
+    n_ClearContent(coefficients, content, cf);
+    for (poly term = clearMe; term != NULL; pIter(term))
+      TS_ASSERT_EQUALS(DEN((fraction)p_GetCoeff(term, r)), NULLp);
+
+    n_Delete(&content, cf);
+    p_Delete(&clearMe, r);
+
+    // The Factory converter is a second line of defence: normalize a lazy,
+    // reducible fraction even when it did not originate in n_ClearContent.
+    factor1 = p_Copy(common, parameterRing);
+    plusTerm(factor1, 1, 1, 0, parameterRing);             // a+b+1
+    number lazyCoefficient = toFractionNumber(
+      p_Mult_q(p_Copy(common, parameterRing), factor1, parameterRing), cf);
+    fraction lazyFraction = (fraction)lazyCoefficient;
+    DEN(lazyFraction) = p_Copy(common, parameterRing);
+    lazyFraction->complexity = 2;
+    TS_ASSERT_DIFFERS(DEN((fraction)lazyCoefficient), NULLp);
+
+    poly convertMe = p_ISet(1, r);
+    p_SetExp(convertMe, 1, 1, r);
+    p_Setm(convertMe, r);
+    p_SetCoeff(convertMe, lazyCoefficient, r);
+
+    CanonicalForm converted = convSingTrPFactoryP(convertMe, r);
+    TS_ASSERT_EQUALS(DEN((fraction)p_GetCoeff(convertMe, r)), NULLp);
+    CanonicalForm expected =
+      (CanonicalForm(Variable(1)) + CanonicalForm(Variable(2)) + 1)
+      * CanonicalForm(Variable(3));
+    TS_ASSERT(converted == expected);
+
+    p_Delete(&convertMe, r);
+    p_Delete(&common, parameterRing);
+    rDelete(r); // kills cf and parameterRing as well
   }
   void test_Q_Ext_Performance()
   {
