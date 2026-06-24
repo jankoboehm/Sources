@@ -2399,7 +2399,10 @@ static void ntClearContent(ICoeffsEnumerator& numberCollectionEnumerator, number
     while (numberCollectionEnumerator.MoveNext() )
     {
       number &n = numberCollectionEnumerator.Current();
-      const number t = ntDiv(n, c, cf); // TODO: rewrite!?
+      // cand is the gcd of the numerators, hence this division is exact.
+      // Normalize it here so n_ClearContent keeps its integer-coefficient
+      // postcondition instead of leaving cand as a lazy denominator.
+      const number t = ntExactDiv(n, c, cf);
       ntDelete(&n, cf);
       n = t;
     }
