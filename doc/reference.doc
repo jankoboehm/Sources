@@ -105,6 +105,7 @@ and @code{LIB} no brackets are allowed.
 * gcd::
 * gen::
 * getdump::
+* getValue::
 * groebner::
 * help::
 * highcorner::
@@ -169,6 +170,7 @@ and @code{LIB} no brackets are allowed.
 * par::
 * pardeg::
 * parstr::
+* parentOfValue::
 * preimage::
 * prime::
 * primefactors::
@@ -214,6 +216,7 @@ and @code{LIB} no brackets are allowed.
 * trace::
 * transpose::
 * type::
+* typeOfValue::
 * typeof::
 * univariate::
 * uressolve::
@@ -2629,7 +2632,7 @@ See
 @ref{vector}.
 @c ref
 @c ---------------------------------------
-@node getdump, groebner, gen, Functions
+@node getdump, getValue, gen, Functions
 @subsection getdump
 @cindex getdump
 @table @code
@@ -2665,7 +2668,40 @@ See
 @ref{read}.
 @c ref
 @c ---------------------------------------
-@node groebner, help, getdump, Functions
+@node getValue, groebner, getdump, Functions
+@subsection getValue
+@cindex getValue
+@table @code
+@item @strong{Syntax:}
+@code{getValue (} htable_expression@code{,} string_expression @code{)}
+@item @strong{Type:}
+the type of the stored value
+@item @strong{Purpose:}
+returns the value stored in an htable under the given key.  If the stored
+value has a parent ring and this ring is not the current basering,
+@code{getValue} switches to the parent ring before returning the value.
+@item @strong{Example:}
+@smallexample
+@c example
+  ring r = 0,(x,y),dp;
+  htable H = htable("p" -> x+y, "n" -> 3);
+  ring s = 0,a,dp;
+  setring s;
+  getValue(H, "n");
+  varstr(basering);
+  getValue(H, "p");
+  varstr(basering);
+@c example
+@end smallexample
+@end table
+@c ref
+See
+@ref{htable};
+@ref{parentOfValue};
+@ref{typeOfValue}.
+@c ref
+@c ---------------------------------------
+@node groebner, help, getValue, Functions
 @subsection groebner
 @cindex groebner
 @c lib standard.lib:groebner lib_fun lib_ex subsection
@@ -5922,7 +5958,7 @@ See
 @ref{var}.
 @c ref
 @c ---------------------------------------
-@node parstr, preimage, pardeg, Functions
+@node parstr, parentOfValue, pardeg, Functions
 @subsection parstr
 @cindex parstr
 @table @code
@@ -5957,7 +5993,37 @@ See
 @ref{varstr}.
 @c ref
 @c ---------------------------------------
-@node preimage, prime, parstr, Functions
+@node parentOfValue, preimage, parstr, Functions
+@subsection parentOfValue
+@cindex parentOfValue
+@table @code
+@item @strong{Syntax:}
+@code{parentOfValue (} htable_expression@code{,} string_expression @code{)}
+@item @strong{Type:}
+ring or int
+@item @strong{Purpose:}
+for an htable entry, returns the stored parent ring of the value under the
+given key.  Returns @code{0} if the stored value has no parent ring.
+This command does not change the current basering.
+@item @strong{Example:}
+@smallexample
+@c example
+  ring r = 0,(x,y),dp;
+  htable H = htable("p" -> x+y, "n" -> 3);
+  typeof(parentOfValue(H, "p"));
+  varstr(parentOfValue(H, "p"));
+  parentOfValue(H, "n");
+@c example
+@end smallexample
+@end table
+@c ref
+See
+@ref{htable};
+@ref{getValue};
+@ref{typeOfValue}.
+@c ref
+@c ---------------------------------------
+@node preimage, prime, parentOfValue, Functions
 @subsection preimage
 @cindex preimage
 
@@ -7285,6 +7351,7 @@ See
 @*@code{size (} list_expression @code{)}
 @*@code{size (} resolution_expression @code{)}
 @*@code{size (} ring_expression @code{)}
+@*@code{size (} htable_expression @code{)}
 @item @strong{Type:}
 int
 @item @strong{Purpose:}
@@ -7303,6 +7370,8 @@ returns the number of elements in the ground field
 (for Z/p and algebraic extensions) or -1
 @item number or bigint
 returns 0 for 0 or the number of words
+@item htable
+returns the number of entries
 @end table
 @item @strong{Example:}
 @smallexample
@@ -7337,6 +7406,7 @@ See
 @ref{vector};
 @ref{ideal};
 @ref{module};
+@ref{htable};
 @ref{ncols};
 @ref{nrows}.
 @c ref
@@ -8335,7 +8405,7 @@ See
 @ref{module}.
 @c ref
 @c ---------------------------------------
-@node type, typeof, transpose, Functions
+@node type, typeOfValue, transpose, Functions
 @subsection type
 @cindex type
 @table @code
@@ -8364,7 +8434,36 @@ See
 @ref{Data types}.
 @c ref
 @c ---------------------------------------
-@node typeof, univariate, type, Functions
+@node typeOfValue, typeof, type, Functions
+@subsection typeOfValue
+@cindex typeOfValue
+@table @code
+@item @strong{Syntax:}
+@code{typeOfValue (} htable_expression@code{,} string_expression @code{)}
+@item @strong{Type:}
+string
+@item @strong{Purpose:}
+returns the type of the value stored in an htable under the given key.
+The value itself is not returned, and the current basering is not changed.
+@item @strong{Example:}
+@smallexample
+@c example
+  ring r = 0,(x,y),dp;
+  htable H = htable("p" -> x+y, "n" -> 3);
+  typeOfValue(H, "p");
+  typeOfValue(H, "n");
+@c example
+@end smallexample
+@end table
+@c ref
+See
+@ref{htable};
+@ref{getValue};
+@ref{parentOfValue};
+@ref{typeof}.
+@c ref
+@c ---------------------------------------
+@node typeof, univariate, typeOfValue, Functions
 @subsection typeof
 @cindex typeof
 @table @code
@@ -8380,6 +8479,7 @@ expression list.
 
 Possible types are:
 @code{"ideal"},
+@code{"htable"},
 @code{"int"},
 @code{"intmat"},
 @code{"intvec"},
