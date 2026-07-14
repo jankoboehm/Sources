@@ -5,50 +5,86 @@ info="
 LIBRARY: enumnf.lib  Enumeration of normal-form series with non-degenerate Newton boundary
 AUTHORS:               Janko Boehm,      Department of Mathematics, RPTU Kaiserslautern-Landau, email: boehm@mathematik.uni-kl.de
                        Mathias Koehler,  Department of Mathematics, RPTU Kaiserslautern-Landau, email: koehlerm@rptu.de
-                       Magdaleen Marais, Analytics and Computing, Fraunhofer ITWM, Department of Mathematics and Applied Mathematics, University of Stellenbosch, email: magdaleen.suzanne.boehmmarais@fraunhofer.de
+                       Magdaleen Marais, Analytics and Computing, Fraunhofer ITWM, Department of Mathematics and Applied Mathematics, University of Stellenbosch, email: magdaleen.suzanne.boehm-marais@itwm.fraunhofer.de
                        Gerhard Pfister,  Department of Mathematics, RPTU Kaiserslautern-Landau, email: pfister@mathematik.uni-kl.de
                        Danial Shirazi,   Department of Mathematics, RPTU Kaiserslautern-Landau, email: danial.sh1378@gmail.com
 
 OVERVIEW:
-This library implements a tree-traversal algorithm to enumerate all normal forms
-of corank <=2 singularities with non-degenerate Newton boundary up to a Milnor
-number bound and/or up to a modality bound. Enumeration up to modality is the
-canonical question. The algorithm turns this into a finite problem by arranging
-normal forms into series, similar to those in Arnold's lists up to modality 2.
+This library implements a tree-traversal algorithm to enumerate normal-form
+representatives of corank <=2 singularities with non-degenerate Newton boundary
+up to a Milnor-number bound and/or up to a modality bound. Enumeration up to
+modality is the canonical question. The algorithm turns this into a finite
+problem by arranging representatives into series, similar to those in Arnold's
+lists up to modality 2.
 The data structures are ring independent, except that evaluating
-a normal form as an actual polynomial uses var(1), var(2) of the current basering.
+a representative as an actual polynomial uses var(1), var(2) of the current basering.
 The current basering should have characteristic zero and at least two variables.
 
 Main user-facing procedures:
-NNBenumerate(mu0,m0[,p]); enumerate.  Use mu0>=0,m0=-1 for bounded Milnor number,
-                          or mu0=-1,m0>=0 for the modality-series mode.  If p<>0,
-                          print grouped normal forms.  Returns list(V,S).
-NNBenumerateBounded(mu0,m0[,p]); enumerate individual normal forms with a
+NNBenumerate(m[,p]);     enumerate series of normal-form representatives up to the
+                          modality bound m.  If p<>0, print the representative
+                          series grouped by modality.  Returns a list grouped
+                          by modalities 0..m, with NNBNormalFormSeries entries,
+                          not Arnold NormalForm objects.
+
+NNBenumerateBounded(mu0,m0[,p]); enumerate individual actual normal forms with a
                           Milnor-number bound and optional modality bound.
                           Use mu0>=0,m0=-1 for Milnor-only, or mu0>=0,m0>=0
                           for both bounds.  Returns a list grouped by
                           modality, with Arnold NormalForm entries whose
                           parameters store the regular basis on/above the
                           Newton boundary.
-NNBnormalForms(E,m[,p]);  group/print the normal forms in the enumeration result E.
-NNBnormalFormString(f);   string representation of an NNBNormalForm.
-NNBprintNormalForm(f);    print one NNBNormalForm.
-NNBnormalFormSeriesString(s);
-                          string representation of an NNBNormalFormSeries.
-NNBprintNormalFormSeries(s);
-                          print one NNBNormalFormSeries.
+
+NNBevaluateNormalFormSeries(s[,k,l]);
+                          substitute the exponent parameters k,l in the
+                          normal-form series s and evaluate the resulting
+                          representative polynomial.
+
+NNBevaluateNormalFormSeriesToNormalForm(s[,k,l]);
+                          substitute the exponent parameters k,l in the
+                          normal-form series s and convert the result to an
+                          Arnold NormalForm, with regular-basis parameters
+                          filled.  Use NNBenumerateBounded when actual Arnold
+                          NormalForm objects are required directly.
+
 NNBnormalFormSeriesParameters(s);
-                          list the series exponent parameters, among k,l.
-NNBevaluateNormalFormSeries(s[,k,l,i]);
-                          evaluate representative i of a series as a polynomial.
-NNBnormalFormSeriesToNormalForm(s[,i]);
-                          convert a concrete series representative to Arnold
-                          NormalForm, with regular-basis parameters filled.
-NNBevaluateNormalForm(f[,k,l]); evaluate a normal form as a polynomial in var(1),var(2).
-NNBregularBasis(f);       return exponent vectors of the regular basis on/above
-                          the Newton boundary.
-NNBtermsAsExponents(f);   return the exponent data of a normal form as a list.
-NNBhashFunction(f);       return (area-like hash, number of terms, sum of coordinates).
+                          return the series parameters.
+
+User-facing procedures:
+NNBenumerateRaw(mu0,m0[,p]); enumerate normal-form representatives.  Use
+                          mu0>=0,m0=-1 for bounded Milnor number, or
+                          mu0=-1,m0>=0 for the modality-series mode.  If p<>0,
+                          print the series of normal-form representatives grouped by modality;
+                          Returns raw enumeration data list(V,S), not Arnold
+                          NormalForm objects.  Here V is the enumeration tree
+                          of NNBVertex objects, while S is the storage list of
+                          buckets [flag vector, signature, representatives].
+
+NNBnormalFormsRaw(E,m[,p]);  group the raw enumeration result, a list
+                          E=list(V,S) returned by NNBenumerateRaw, into normal-form
+                          series of normal-form representatives by modality.
+                          Returns NNBNormalFormSeries entries, not Arnold
+                          NormalForm objects.
+
+NNBnormalFormSeriesString(s);
+                          turn a series of normal-form representatives into a string.
+NNBprintNormalFormSeries(s);
+                          print a given series of normal-form representatives.
+
+For commands with exponent parameters k,l, the values required by the series
+must be given.  The arguments are positional as k,l; hence a series depending
+only on l must be called with a placeholder for k, for example (s,0,l).
+If the series has no exponent parameter, no exponent values are accepted.
+
+NNBregularBasis(s[,k,l]); substitute the exponent parameters k,l in the
+                          normal-form series s and return exponent vectors of
+                          the regular basis on/above the Newton boundary.
+NNBtermsAsExponents(s[,k,l]);
+                          substitute the exponent parameters k,l in the
+                          normal-form series s and return the term exponents.
+NNBhashFunction(s[,k,l]); substitute the exponent parameters k,l in the
+                          normal-form series s and return the tuple (area-like hash,
+                          number of terms, sum of coordinates).
 
 Data types:
 NNBRatExpr      symbolic rational expression in parameters k,l, used for bounds.
@@ -57,14 +93,18 @@ NNBMonomial     a monomial x^a y^b with optional parameter constraint.
 NNBVertex       an enumeration-tree vertex.
 NNBNormalForm   internal Newton-boundary representation used by the enumerator.
 NNBNormalFormSeries
-                a symbolic normal-form series; its entries are internal
+                a symbolic normal-form series; its members are internal
                 NNBNormalForm representatives with parameter bounds.
+NormalForm      Arnold-library normal-form object returned by
+                NNBenumerateBounded and NNBevaluateNormalFormSeriesToNormalForm.  Its
+                normalForm field contains the polynomial normal form and its
+                parameters field stores the regular-basis monomials on/above
+                the Newton boundary.
 
 EXAMPLE:
   ring R=0,(x,y),ds;
-  LIB \"enumnf.lib\";
-  list E=NNBenumerate(4,-1,1);
-  list M=NNBnormalForms(E,4,0);
+  list S=NNBenumerate(1,1);
+  list M=NNBenumerateBounded(6,1,0);
 ";
 
 LIB "arnold.lib";
@@ -1029,12 +1069,18 @@ static proc NNBextensions(NNBVertex v, list V, int vertexName, list leaves, int 
   return(list(V,vertexName,leaves));
 }
 
-proc NNBenumerate(int mu0, int m0, list #)
-"USAGE: NNBenumerate(mu0,m0[,p]); int mu0, int m0, optional int p
-RETURN: list E=list(V,S), where V is the enumeration tree and S stores the normal forms.
+proc NNBenumerateRaw(int mu0, int m0, list #)
+"USAGE: NNBenumerateRaw(mu0,m0[,p]); int mu0, int m0, optional int p
+RETURN: raw enumeration data E=list(V,S), not Arnold NormalForm objects.
+        V is the enumeration tree of NNBVertex objects.  S is the storage list
+        of buckets [flag vector, signature, representatives], where the
+        representatives are stored as terminal vertex/internal NNBNormalForm
+        pairs.  Use NNBnormalFormsRaw(E,m[,p]) to obtain series of normal-form representatives
+        grouped by modality.
         Use mu0>=0,m0=-1 for a Milnor-number bound; use mu0=-1,m0>=0 for
-        the modality-series mode.  If p is non-zero, print grouped normal forms.
-EXAMPLE: example NNBenumerate; shows a small enumeration"
+        the modality-series mode.  If p is non-zero, print the grouped
+        series of normal-form representatives.
+EXAMPLE: example NNBenumerateRaw; shows a small enumeration"
 {
   int printFlag=0; if (size(#)>0) { printFlag=#[1]; }
   list S; list leaves; list V;
@@ -1179,15 +1225,18 @@ EXAMPLE: example NNBenumerate; shows a small enumeration"
     leaves=updated;
   }
   list E=list(V,S);
-  if (printFlag) { int mm=m0; if (mm<0) { mm=mu0; } NNBnormalForms(E, mm, 1); }
+  if (printFlag)
+  {
+    int mm=m0; if (mm<0) { mm=mu0; }
+    list printedGroups=NNBnormalFormsRaw(E, mm, 1);
+  }
   return(E);
 }
 example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,1);
+  list E=NNBenumerateRaw(4,-1,1);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1288,7 +1337,7 @@ proc NNBnormalFormSeriesParameters(NNBNormalFormSeries s)
 RETURN: list of strings naming the series exponent parameters occurring in s.
         The possible names are k and l; an empty list means that the series is
         represented by concrete normal form exponents.
-EXAMPLE: example NNBnormalFormSeriesParameters; shows a modality-series example"
+EXAMPLE: example NNBnormalFormSeriesParameters; shows the common series workflow"
 {
   intvec flags=NNBiv2(0,0);
   for (int i=1;i<=size(s.normalForms);i++)
@@ -1304,10 +1353,9 @@ example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(-1,1,0);
-  list G=NNBnormalForms(E,1,0);
-  NNBnormalFormSeriesParameters(G[1][1]);
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
 }
 
 static proc NNBnormalFormSeriesParameterString(NNBNormalFormSeries s)
@@ -1342,9 +1390,7 @@ example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(-1,1,0);
-  list G=NNBnormalForms(E,1,0);
+  list G=NNBenumerate(1,0);
   NNBnormalFormSeriesString(G[1][1]);
 }
 
@@ -1359,16 +1405,11 @@ example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(-1,1,0);
-  list G=NNBnormalForms(E,1,0);
+  list G=NNBenumerate(1,0);
   NNBprintNormalFormSeries(G[1][1]);
 }
 
-proc NNBnormalFormString(NNBNormalForm f)
-"USAGE: NNBnormalFormString(f); f NNBNormalForm
-RETURN: string representation of f, including parameter bounds and regular basis if present
-EXAMPLE: example NNBnormalFormString; shows a small example"
+static proc NNBnormalFormString(NNBNormalForm f)
 {
   string s="";
   int i;
@@ -1420,30 +1461,10 @@ EXAMPLE: example NNBnormalFormString; shows a small example"
   if (size(f.regularBasis)>0) { s=s+"; regular basis: "+NNBregularBasisString(f.regularBasis); }
   return(s);
 }
-example
-{
-  "EXAMPLE:"; echo=2;
-  ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,0);
-  list S=E[2];
-  NNBnormalFormString(S[1][3][1][2]);
-}
 
-proc NNBprintNormalForm(NNBNormalForm f)
-"USAGE: NNBprintNormalForm(f); f NNBNormalForm
-RETURN: prints f
-EXAMPLE: example NNBprintNormalForm; shows a small example"
+static proc NNBprintNormalForm(NNBNormalForm f)
 {
   NNBnormalFormString(f);
-}
-example
-{
-  "EXAMPLE:"; echo=2;
-  ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,0);
-  NNBprintNormalForm(E[2][1][3][1][2]);
 }
 
 static proc NNBfamilyContainsSymbolic(list fam)
@@ -1455,10 +1476,10 @@ static proc NNBfamilyContainsSymbolic(list fam)
   return(0);
 }
 
-proc NNBnormalForms(list E, int m, list #)
-"USAGE: NNBnormalForms(E,m[,p]); E=list(V,S) returned by NNBenumerate, m int, p optional int
+proc NNBnormalFormsRaw(list E, int m, list #)
+"USAGE: NNBnormalFormsRaw(E,m[,p]); E a list E=list(V,S) returned by NNBenumerateRaw, m int, p optional int
 RETURN: list grouped by modality 0..m.  If p is non-zero, print the groups.
-EXAMPLE: example NNBnormalForms; shows a small enumeration"
+EXAMPLE: example NNBnormalFormsRaw; shows a small enumeration"
 {
   int p=1; if (size(#)>0) { p=#[1]; }
   list S=E[2]; list modalities;
@@ -1516,15 +1537,37 @@ example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,0);
-  NNBnormalForms(E,4,1);
+  list E=NNBenumerateRaw(4,-1,0);
+  list G=NNBnormalFormsRaw(E,4,1);
 }
 
-proc NNBevaluateNormalForm(NNBNormalForm f, list #)
-"USAGE: NNBevaluateNormalForm(f[,k,l]); f NNBNormalForm, optional integer/rational k,l
-RETURN: polynomial in var(1),var(2) obtained by substituting k,l in f.  Defaults are k=0,l=0.
-EXAMPLE: example NNBevaluateNormalForm; shows a small example"
+proc NNBenumerate(int m, list #)
+"USAGE: NNBenumerate(m[,p]); int m, optional int p
+RETURN: list grouped by modalities 0..m.  Each entry is an
+        NNBNormalFormSeries.  This is the main modality-bound enumerator and
+        returns series of normal-form representatives, not Arnold NormalForm
+        objects.  If p is non-zero, print the grouped series of normal-form representatives.
+EXAMPLE: example NNBenumerate; shows the common series workflow"
+{
+  int p=0; if (size(#)>0) { p=#[1]; }
+  if (m<0) { ERROR("NNBenumerate needs a non-negative modality bound"); }
+  list E=NNBenumerateRaw(-1,m,0);
+  return(NNBnormalFormsRaw(E,m,p));
+}
+example
+{
+  "EXAMPLE:"; echo=2;
+  ring R=0,(x,y),ds;
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
+  poly f=NNBevaluateNormalFormSeries(s,0,5);
+  f;
+  NormalForm nf=NNBevaluateNormalFormSeriesToNormalForm(s,0,5);
+  nf;
+}
+
+static proc NNBevaluateNormalForm(NNBNormalForm f, list #)
 {
   number kval=0; number lval=0;
   if (size(#)>=1) { kval=#[1]; }
@@ -1542,44 +1585,44 @@ EXAMPLE: example NNBevaluateNormalForm; shows a small example"
   }
   return(p);
 }
-example
-{
-  "EXAMPLE:"; echo=2;
-  ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,0);
-  NNBevaluateNormalForm(E[2][1][3][1][2]);
-}
 
-proc NNBevaluateNormalFormSeries(NNBNormalFormSeries s, list #)
-"USAGE: NNBevaluateNormalFormSeries(s[,k,l,i]); s NNBNormalFormSeries,
-        optional integer/rational k,l and optional representative index i
-RETURN: polynomial in var(1),var(2), obtained from representative i of s by
-        substituting the series exponent parameters k,l.  The defaults are
-        k=0, l=0, and i=1.  For a series with no series parameter, k and l are
-        ignored.
-EXAMPLE: example NNBevaluateNormalFormSeries; shows a symbolic specialization"
+static proc NNBevaluateNormalFormSeriesEntryWithValues(NNBNormalFormSeries s, int representativeIndex, number kval, number lval)
 {
-  number kval=0;
-  number lval=0;
-  int representativeIndex=1;
-  if (size(#)>=1) { kval=#[1]; }
-  if (size(#)>=2) { lval=#[2]; }
-  if (size(#)>=3) { representativeIndex=#[3]; }
   if (representativeIndex<1 || representativeIndex>size(s.normalForms))
   {
-    ERROR("representative index out of range");
+    ERROR("internal representative index out of range");
   }
   return(NNBevaluateNormalForm(s.normalForms[representativeIndex],kval,lval));
 }
+
+proc NNBevaluateNormalFormSeries(NNBNormalFormSeries s, list #)
+"USAGE: NNBevaluateNormalFormSeries(s[,k,l]); s NNBNormalFormSeries,
+        integer/rational exponent parameters k,l if required by s
+RETURN: polynomial in var(1),var(2), obtained by substituting k,l in the
+        normal-form series s.  If s contains exponent parameters, their values
+        must be supplied positionally as k,l; for an l-only series pass a k
+        placeholder first.  For a series with no exponent parameter, no
+        exponent values are accepted.
+EXAMPLE: example NNBevaluateNormalFormSeries; shows the common series workflow"
+{
+  list values=NNBseriesParameterValues(s,#,"NNBevaluateNormalFormSeries");
+  number kval=values[1];
+  number lval=values[2];
+  if (size(s.normalForms)<>1)
+  {
+    ERROR("NNBevaluateNormalFormSeries cannot evaluate this grouped internal series directly");
+  }
+  return(NNBevaluateNormalFormSeriesEntryWithValues(s,1,kval,lval));
+}
 example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(-1,2,0);
-  list G=NNBnormalForms(E,2,0);
-  NNBevaluateNormalFormSeries(G[3][10],0,5);
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
+  poly f=NNBevaluateNormalFormSeries(s,0,5);
+  f;
 }
 
 static proc NNBnormalFormConcrete(NNBNormalForm f)
@@ -1593,20 +1636,108 @@ static proc NNBnormalFormConcrete(NNBNormalForm f)
   return(1);
 }
 
-static proc NNBregularBasisAboveBoundary(NNBNormalForm f)
+static proc NNBevaluateMonomial(NNBMonomial m, number kval, number lval)
 {
-  poly p=NNBevaluateNormalForm(f);
+  number xe=NNBexprEval(m.monx,kval,lval);
+  number ye=NNBexprEval(m.mony,kval,lval);
+  if (xe<>NNBfloor(xe) || ye<>NNBfloor(ye)) { ERROR("evaluated exponent is not integral"); }
+  return(NNBmonConst(xe,ye));
+}
+
+static proc NNBevaluateInternalNormalForm(NNBNormalForm f, number kval, number lval)
+{
+  list T;
+  for (int i=1;i<=size(f.terms);i++)
+  {
+    T[i]=NNBevaluateMonomial(f.terms[i],kval,lval);
+  }
+  return(NNBmakeNF(T,NNBevaluateMonomial(f.rhomon,kval,lval),NNBexprConst(NNBexprEval(f.area,kval,lval))));
+}
+
+static proc NNBnormalFormSeriesInternalForm(NNBNormalFormSeries s, number kval, number lval, string commandName)
+{
+  if (size(s.normalForms)<>1)
+  {
+    ERROR(commandName+" cannot use this grouped internal series directly");
+  }
+  return(NNBevaluateInternalNormalForm(s.normalForms[1],kval,lval));
+}
+
+static proc NNBseriesParameterValues(NNBNormalFormSeries s, list args, string commandName)
+{
+  if (size(args)>2) { ERROR(commandName+" expects at most the exponent parameters k,l"); }
+  list params=NNBnormalFormSeriesParameters(s);
+  int hasK=0;
+  int hasL=0;
+  int i;
+  for (i=1;i<=size(params);i++)
+  {
+    if (params[i]=="k") { hasK=1; }
+    if (params[i]=="l") { hasL=1; }
+  }
+  if (!hasK && !hasL && size(args)>0)
+  {
+    ERROR(commandName+" expects no exponent parameters for this series");
+  }
+  if (hasK && size(args)<1)
+  {
+    ERROR(commandName+" needs a value for exponent parameter k");
+  }
+  if (hasL && size(args)<2)
+  {
+    ERROR(commandName+" needs a value for exponent parameter l; pass a k value first because arguments are positional");
+  }
+  if (!hasL && size(args)>1)
+  {
+    ERROR(commandName+" got a value for unused exponent parameter l");
+  }
+  number kval=0;
+  number lval=0;
+  if (size(args)>=1) { kval=args[1]; }
+  if (size(args)>=2) { lval=args[2]; }
+  return(list(kval,lval));
+}
+
+static proc NNBregularBasisForPoly(poly p)
+{
   Poly P=makePoly(p);
   return(regularBasis(P,1));
 }
 
-proc NNBregularBasis(NNBNormalForm f)
-"USAGE: NNBregularBasis(f); f NNBNormalForm with constant exponents
+static proc NNBregularBasisAboveBoundary(NNBNormalForm f)
+{
+  return(NNBregularBasisForPoly(NNBevaluateNormalForm(f)));
+}
+
+proc NNBregularBasis(def s, list #)
+"USAGE: NNBregularBasis(s[,k,l]); s NNBNormalFormSeries,
+        integer/rational exponent parameters k,l if required by s
 RETURN: list of intvec exponent pairs for the regular basis on or above the
         Newton boundary, following the convention of arnold.lib regularBasis(F,1).
-EXAMPLE: example NNBregularBasis; shows a small example"
+        If s contains exponent parameters, their values must be supplied
+        positionally as k,l; for an l-only series pass a k placeholder first.
+        For a series with no exponent parameter, no exponent values are accepted.
+        For an already evaluated polynomial p, NNBregularBasis(p) is also accepted.
+EXAMPLE: example NNBregularBasis; shows the common series workflow"
 {
-  list M=NNBregularBasisAboveBoundary(f);
+  list M;
+  if (typeof(s)=="poly")
+  {
+    if (size(#)>0) { ERROR("NNBregularBasis expects no exponent parameters for polynomial input"); }
+    M=NNBregularBasisForPoly(s);
+  }
+  else
+  {
+    if (typeof(s)=="NNBNormalFormSeries")
+    {
+      list values=NNBseriesParameterValues(s,#,"NNBregularBasis");
+      M=NNBregularBasisAboveBoundary(NNBnormalFormSeriesInternalForm(s,values[1],values[2],"NNBregularBasis"));
+    }
+    else
+    {
+      ERROR("NNBregularBasis expects a normal-form series or an evaluated polynomial");
+    }
+  }
   list B;
   intvec e;
   for (int i=1;i<=size(M);i++)
@@ -1620,10 +1751,12 @@ example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(15,2,0);
-  list G=NNBnormalForms(E,2,0);
-  NNBregularBasis(G[3][1].normalForms[1]);
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
+  NNBregularBasis(s,0,5);
+  poly p=NNBevaluateNormalFormSeries(s,0,5);
+  NNBregularBasis(p);
 }
 
 static proc NNBsingularityTypeString(NNBNormalForm f)
@@ -1707,34 +1840,32 @@ static proc NNBtoArnoldNormalForm(NNBNormalForm f)
   return(N);
 }
 
-proc NNBnormalFormSeriesToNormalForm(NNBNormalFormSeries s, list #)
-"USAGE: NNBnormalFormSeriesToNormalForm(s[,i]); s NNBNormalFormSeries,
-        optional representative index i
-RETURN: Arnold NormalForm for representative i of s, with regular-basis
-        parameters filled.  This is only allowed when that representative has
-        no series exponent parameters.
-EXAMPLE: example NNBnormalFormSeriesToNormalForm; shows a concrete series entry"
+proc NNBevaluateNormalFormSeriesToNormalForm(NNBNormalFormSeries s, list #)
+"USAGE: NNBevaluateNormalFormSeriesToNormalForm(s[,k,l]); s NNBNormalFormSeries,
+        integer/rational exponent parameters k,l if required by s
+RETURN: Arnold NormalForm obtained by substituting k,l in the normal-form
+        series s, with regular-basis parameters filled.  If s contains exponent
+        parameters, their values must be supplied positionally as k,l; for an
+        l-only series pass a k placeholder first.  For a series with no
+        exponent parameter, no exponent values are accepted.
+EXAMPLE: example NNBevaluateNormalFormSeriesToNormalForm; shows the common series workflow"
 {
-  int representativeIndex=1;
-  if (size(#)>=1) { representativeIndex=#[1]; }
-  if (representativeIndex<1 || representativeIndex>size(s.normalForms))
+  list values=NNBseriesParameterValues(s,#,"NNBevaluateNormalFormSeriesToNormalForm");
+  if (size(s.normalForms)<>1)
   {
-    ERROR("representative index out of range");
+    ERROR("NNBevaluateNormalFormSeriesToNormalForm cannot convert this grouped internal series directly");
   }
-  if (!NNBnormalFormConcrete(s.normalForms[representativeIndex]))
-  {
-    ERROR("series representative still has series exponent parameters");
-  }
-  return(NNBtoArnoldNormalForm(s.normalForms[representativeIndex]));
+  return(NNBtoArnoldNormalForm(NNBevaluateInternalNormalForm(s.normalForms[1],values[1],values[2])));
 }
 example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(-1,2,0);
-  list G=NNBnormalForms(E,2,0);
-  NNBnormalFormSeriesToNormalForm(G[3][1]);
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
+  NormalForm nf=NNBevaluateNormalFormSeriesToNormalForm(s,0,5);
+  nf;
 }
 
 static proc NNBappendWithRegularBasis(list L, NNBNormalForm f)
@@ -1793,15 +1924,15 @@ RETURN: list grouped by modality.  Every entry is an individual
         Use m0=-1 for only the Milnor-number bound; then the
         result is grouped by modalities 0..mu0.  Pure modality-series mode
         mu0=-1 is intentionally rejected.  If p is non-zero, print the groups.
-EXAMPLE: example NNBenumerateBounded; shows a small bounded enumeration"
+EXAMPLE: example NNBenumerateBounded; shows direct bounded NormalForm enumeration"
 {
   int p=0; if (size(#)>0) { p=#[1]; }
   if (mu0<0) { ERROR("NNBenumerateBounded needs a non-negative Milnor-number bound"); }
   if (m0<-1) { ERROR("NNBenumerateBounded expects m0=-1 or a non-negative modality bound"); }
   int groupBound=m0;
   if (groupBound<0) { groupBound=mu0; }
-  list E=NNBenumerate(mu0,m0,0);
-  list G=NNBnormalForms(E,groupBound,0);
+  list E=NNBenumerateRaw(mu0,m0,0);
+  list G=NNBnormalFormsRaw(E,groupBound,0);
   list R;
   list L;
   int modalityPos;
@@ -1819,33 +1950,41 @@ example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  NNBenumerateBounded(6,1,1);
+  list B=NNBenumerateBounded(15,2,0);
+  B[3][1];
 }
 
-proc NNBtermsAsExponents(NNBNormalForm f)
-"USAGE: NNBtermsAsExponents(f); f NNBNormalForm
-RETURN: list of exponent strings of the terms of f
-EXAMPLE: example NNBtermsAsExponents; shows a small example"
+static proc NNBtermsAsExponentsForNormalForm(NNBNormalForm f)
 {
   list L;
   for (int i=1;i<=size(f.terms);i++) { L[i]=list(NNBexprString(f.terms[i].monx),NNBexprString(f.terms[i].mony)); }
   return(L);
 }
+
+proc NNBtermsAsExponents(NNBNormalFormSeries s, list #)
+"USAGE: NNBtermsAsExponents(s[,k,l]); s NNBNormalFormSeries,
+        integer/rational exponent parameters k,l if required by s
+RETURN: list of exponent pairs of the terms obtained by substituting k,l in
+        the normal-form series s.  If s contains exponent parameters, their
+        values must be supplied positionally as k,l; for an l-only series pass
+        a k placeholder first.  For a series with no exponent parameter, no
+        exponent values are accepted.
+EXAMPLE: example NNBtermsAsExponents; shows the common series workflow"
+{
+  list values=NNBseriesParameterValues(s,#,"NNBtermsAsExponents");
+  return(NNBtermsAsExponentsForNormalForm(NNBnormalFormSeriesInternalForm(s,values[1],values[2],"NNBtermsAsExponents")));
+}
 example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,0);
-  NNBtermsAsExponents(E[2][1][3][1][2]);
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
+  NNBtermsAsExponents(s,0,5);
 }
 
-proc NNBhashFunction(NNBNormalForm f)
-"USAGE: NNBhashFunction(f); f NNBNormalForm with constant exponents
-RETURN: list(area2,N,S).  area2 is twice the Euclidean area of the convex hull of
-        the term exponents and the lower-left closing point.
-EXAMPLE: example NNBhashFunction; shows a small example"
+static proc NNBhashFunctionForNormalForm(NNBNormalForm f)
 {
   if (size(f.terms)==0) { return(list(0,0,0)); }
   list P; int imin; int jmin; int S=0;
@@ -1879,11 +2018,28 @@ EXAMPLE: example NNBhashFunction; shows a small example"
   if (area2<0) { area2=-area2; }
   return(list(area2,size(f.terms),S));
 }
+
+proc NNBhashFunction(NNBNormalFormSeries s, list #)
+"USAGE: NNBhashFunction(s[,k,l]); s NNBNormalFormSeries,
+        integer/rational exponent parameters k,l if required by s
+RETURN: list(area2,N,S).  The values are computed from the term exponents
+        obtained by substituting k,l in the normal-form series s.  Here area2
+        is twice the Euclidean area of the convex hull of the term exponents
+        and the lower-left closing point.  If s contains exponent parameters,
+        their values must be supplied positionally as k,l; for an l-only series
+        pass a k placeholder first.  For a series with no exponent parameter,
+        no exponent values are accepted.
+EXAMPLE: example NNBhashFunction; shows the common series workflow"
+{
+  list values=NNBseriesParameterValues(s,#,"NNBhashFunction");
+  return(NNBhashFunctionForNormalForm(NNBnormalFormSeriesInternalForm(s,values[1],values[2],"NNBhashFunction")));
+}
 example
 {
   "EXAMPLE:"; echo=2;
   ring R=0,(x,y),ds;
-  LIB "enumnf.lib";
-  list E=NNBenumerate(4,-1,0);
-  NNBhashFunction(E[2][1][3][1][2]);
+  list G=NNBenumerate(2,0);
+  NNBNormalFormSeries s=G[3][10];
+  NNBnormalFormSeriesParameters(s);
+  NNBhashFunction(s,0,5);
 }

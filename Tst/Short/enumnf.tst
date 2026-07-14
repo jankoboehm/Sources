@@ -56,13 +56,13 @@ proc nnb_tst_assert_poly(poly got, poly expected, string msg)
 
 "enumnf.tst: finite Milnor-bound mode";
 
-list E4 = NNBenumerate(4, -1, 0);
-nnb_tst_assert_int(size(E4), 2, "NNBenumerate(4,-1,0) returns list(V,S)");
-nnb_tst_assert_int(size(E4[1]), 16, "NNBenumerate(4,-1,0) vertex count");
-nnb_tst_assert_int(size(E4[2]), 4, "NNBenumerate(4,-1,0) normal-form bucket count");
+list E4 = NNBenumerateRaw(4, -1, 0);
+nnb_tst_assert_int(size(E4), 2, "NNBenumerateRaw(4,-1,0) returns list(V,S)");
+nnb_tst_assert_int(size(E4[1]), 16, "NNBenumerateRaw(4,-1,0) vertex count");
+nnb_tst_assert_int(size(E4[2]), 4, "NNBenumerateRaw(4,-1,0) normal-form bucket count");
 
-list G4 = NNBnormalForms(E4, 4, 0);
-nnb_tst_assert_int(size(G4), 5, "NNBnormalForms(E4,4,0) returns modalities 0..4");
+list G4 = NNBnormalFormsRaw(E4, 4, 0);
+nnb_tst_assert_int(size(G4), 5, "NNBnormalFormsRaw(E4,4,0) returns modalities 0..4");
 nnb_tst_assert_int(size(G4[1]), 4, "mu0=4 modality-zero grouped entries");
 nnb_tst_assert(typeof(G4[1][1]) == "NNBNormalFormSeries",
                "grouped entries are represented uniformly as series");
@@ -73,33 +73,49 @@ for (int i = 2; i <= 5; i++)
   nnb_tst_assert_int(size(G4[i]), 0, "mu0=4 has no grouped entries in positive modality");
 }
 
-// The first finite normal form is x^2+y^3.  This exercises formatting,
-// exponent extraction, polynomial evaluation and the convex-geometry hash key.
-NNBNormalForm f0 = E4[2][1][3][1][2];
-nnb_tst_assert_str(NNBnormalFormString(f0), "y^(3) + x^(2)",
-                   "NNBnormalFormString on first finite normal form");
+// The first grouped finite series contains two internal representatives, so it
+// is intentionally not directly evaluated by the public series API.
+NNBNormalFormSeries f0 = G4[1][1];
+nnb_tst_assert_int(size(f0.normalForms), 2,
+                   "first finite grouped series has two representatives");
+nnb_tst_assert_str(NNBnormalFormSeriesString(f0),
+                   "normal form series of modality 0; no series parameter; normal forms: y^(3) + x^(2); y^(5) + x^(2)",
+                   "NNBnormalFormSeriesString on first finite grouped series");
 
-"enumnf.tst: NNBprintNormalForm output";
-NNBprintNormalForm(f0);
+"enumnf.tst: NNBprintNormalFormSeries output";
+NNBprintNormalFormSeries(f0);
 
-list X0 = NNBtermsAsExponents(f0);
-nnb_tst_assert_int(size(X0), 2, "first finite normal form has two terms");
+// Use a single-representative series for public evaluation/manipulation.
+NNBNormalFormSeries f1 = G4[1][2];
+nnb_tst_assert_int(size(f1.normalForms), 1,
+                   "second finite grouped series has one representative");
+nnb_tst_assert_str(NNBnormalFormSeriesString(f1),
+                   "normal form series of modality 0; no series parameter; normal forms: y^(3) + x^(1) * y^(1) + x^(3)",
+                   "NNBnormalFormSeriesString on a finite single-representative series");
+
+list X0 = NNBtermsAsExponents(f1);
+nnb_tst_assert_int(size(X0), 3, "finite single-representative series has three terms");
 nnb_tst_assert_str(X0[1][1], "0", "first finite term x exponent");
 nnb_tst_assert_str(X0[1][2], "3", "first finite term y exponent");
-nnb_tst_assert_str(X0[2][1], "2", "second finite term x exponent");
-nnb_tst_assert_str(X0[2][2], "0", "second finite term y exponent");
+nnb_tst_assert_str(X0[2][1], "1", "second finite term x exponent");
+nnb_tst_assert_str(X0[2][2], "1", "second finite term y exponent");
+nnb_tst_assert_str(X0[3][1], "3", "third finite term x exponent");
+nnb_tst_assert_str(X0[3][2], "0", "third finite term y exponent");
 
-poly p0 = NNBevaluateNormalForm(f0);
-nnb_tst_assert_poly(p0, x^2 + y^3, "NNBevaluateNormalForm on first finite normal form");
+poly p0 = NNBevaluateNormalFormSeries(f1);
+nnb_tst_assert_poly(p0, x^3 + x*y + y^3,
+                    "NNBevaluateNormalFormSeries on finite single-representative series");
 
-list h0 = NNBhashFunction(f0);
+list h0 = NNBhashFunction(f1);
 nnb_tst_assert_int(size(h0), 3, "NNBhashFunction returns three components");
-nnb_tst_assert_int(h0[1], 6, "NNBhashFunction area component for x^2+y^3");
-nnb_tst_assert_int(h0[2], 2, "NNBhashFunction term-count component for x^2+y^3");
-nnb_tst_assert_int(h0[3], 5, "NNBhashFunction coordinate-sum component for x^2+y^3");
+nnb_tst_assert_int(h0[1], 6, "NNBhashFunction area component for x^3+x*y+y^3");
+nnb_tst_assert_int(h0[2], 3, "NNBhashFunction term-count component for x^3+x*y+y^3");
+nnb_tst_assert_int(h0[3], 8, "NNBhashFunction coordinate-sum component for x^3+x*y+y^3");
 
-list RB0 = NNBregularBasis(f0);
-nnb_tst_assert_int(size(RB0), 0, "NNBregularBasis returns no moduli monomials for x^2+y^3");
+list RB0 = NNBregularBasis(f1);
+nnb_tst_assert_int(size(RB0), 0, "NNBregularBasis returns no moduli monomials for x^3+x*y+y^3");
+list RB0p = NNBregularBasis(p0);
+nnb_tst_assert_int(size(RB0p), 0, "NNBregularBasis also accepts an evaluated polynomial");
 
 tst_status("finite-milnor-mode");
 
@@ -174,13 +190,13 @@ tst_status("bounded-individual-mode");
 
 "enumnf.tst: modality-series mode";
 
-list E2 = NNBenumerate(-1, 1, 0);
-nnb_tst_assert_int(size(E2), 2, "NNBenumerate(-1,1,0) returns list(V,S)");
-nnb_tst_assert_int(size(E2[1]), 56, "NNBenumerate(-1,1,0) vertex count");
-nnb_tst_assert_int(size(E2[2]), 21, "NNBenumerate(-1,1,0) normal-form bucket count");
+list E2 = NNBenumerateRaw(-1, 1, 0);
+nnb_tst_assert_int(size(E2), 2, "NNBenumerateRaw(-1,1,0) returns list(V,S)");
+nnb_tst_assert_int(size(E2[1]), 56, "NNBenumerateRaw(-1,1,0) vertex count");
+nnb_tst_assert_int(size(E2[2]), 21, "NNBenumerateRaw(-1,1,0) normal-form bucket count");
 
-list G2 = NNBnormalForms(E2, 1, 0);
-nnb_tst_assert_int(size(G2), 2, "NNBnormalForms(E2,1,0) returns modalities 0..1");
+list G2 = NNBenumerate(1, 0);
+nnb_tst_assert_int(size(G2), 2, "NNBenumerate(1,0) returns modalities 0..1");
 nnb_tst_assert_int(size(G2[1]), 8, "m0=1 modality-zero grouped entries");
 nnb_tst_assert_int(size(G2[2]), 13, "m0=1 modality-one grouped entries");
 
@@ -195,22 +211,35 @@ nnb_tst_assert_str(NNBnormalFormSeriesString(G2[1][1]),
                    "NNBNormalFormSeries has a nice show string");
 "enumnf.tst: NNBprintNormalFormSeries output";
 NNBprintNormalFormSeries(G2[1][1]);
-NNBNormalForm g0 = G2[1][1].normalForms[1];
-nnb_tst_assert_str(NNBnormalFormString(g0),
-                   "y^(2*l-1) + x^(2) with l > 1",
-                   "NNBnormalFormString on symbolic one-parameter family");
 
-list Y0 = NNBtermsAsExponents(g0);
+list Y0 = NNBtermsAsExponents(G2[1][1], 0, 2);
 nnb_tst_assert_int(size(Y0), 2, "symbolic family has two terms");
 nnb_tst_assert_str(Y0[1][1], "0", "symbolic family first term x exponent");
-nnb_tst_assert_str(Y0[1][2], "2*l-1", "symbolic family first term y exponent");
+nnb_tst_assert_str(Y0[1][2], "3", "symbolic family first term y exponent after l=2");
 nnb_tst_assert_str(Y0[2][1], "2", "symbolic family second term x exponent");
 nnb_tst_assert_str(Y0[2][2], "0", "symbolic family second term y exponent");
 
-poly pg = NNBevaluateNormalForm(g0, 0, 2);
-nnb_tst_assert_poly(pg, x^2 + y^3, "NNBevaluateNormalForm after substituting l=2");
+poly pg = NNBevaluateNormalFormSeries(G2[1][1], 0, 2);
+nnb_tst_assert_poly(pg, x^2 + y^3, "NNBevaluateNormalFormSeries after substituting l=2");
 nnb_tst_assert_poly(NNBevaluateNormalFormSeries(G2[1][1], 0, 2), x^2 + y^3,
                     "NNBevaluateNormalFormSeries substitutes l into a symbolic series");
+list hg = NNBhashFunction(G2[1][1], 0, 2);
+nnb_tst_assert_int(hg[1], 6, "NNBhashFunction after substituting l=2");
+nnb_tst_assert_int(hg[2], 2, "NNBhashFunction term-count after substituting l=2");
+nnb_tst_assert_int(hg[3], 5, "NNBhashFunction coordinate-sum after substituting l=2");
+list RBg = NNBregularBasis(G2[1][1], 0, 2);
+nnb_tst_assert_int(size(RBg), 0, "NNBregularBasis after substituting l=2");
+NormalForm g0nf = NNBevaluateNormalFormSeriesToNormalForm(G2[1][1], 0, 2);
+nnb_tst_assert(typeof(g0nf) == "NormalForm",
+               "symbolic series can be converted after exponent substitution");
+nnb_tst_assert_str(g0nf.singularityType, "(0,3),(2,0)",
+                   "converted symbolic modality-zero series stores the singularity type");
+nnb_tst_assert_int(size(g0nf.parameters), 0,
+                   "converted symbolic modality-zero series has no regular-basis parameters");
+
+"enumnf.tst: exponent-parameter validation";
+NNBevaluateNormalFormSeries(G2[1][1]);
+NNBevaluateNormalFormSeries(G2[1][3],0);
 
 tst_status("modality-series-mode");
 
@@ -220,13 +249,13 @@ tst_status("modality-series-mode");
 
 "enumnf.tst: modality-two series";
 
-list E3 = NNBenumerate(-1, 2, 0);
-nnb_tst_assert_int(size(E3), 2, "NNBenumerate(-1,2,0) returns list(V,S)");
-nnb_tst_assert_int(size(E3[1]), 95, "NNBenumerate(-1,2,0) vertex count");
-nnb_tst_assert_int(size(E3[2]), 38, "NNBenumerate(-1,2,0) normal-form bucket count");
+list E3 = NNBenumerateRaw(-1, 2, 0);
+nnb_tst_assert_int(size(E3), 2, "NNBenumerateRaw(-1,2,0) returns list(V,S)");
+nnb_tst_assert_int(size(E3[1]), 95, "NNBenumerateRaw(-1,2,0) vertex count");
+nnb_tst_assert_int(size(E3[2]), 38, "NNBenumerateRaw(-1,2,0) normal-form bucket count");
 
-list G3 = NNBnormalForms(E3, 2, 0);
-nnb_tst_assert_int(size(G3), 3, "NNBnormalForms(E3,2,0) returns modalities 0..2");
+list G3 = NNBenumerate(2, 0);
+nnb_tst_assert_int(size(G3), 3, "NNBenumerate(2,0) returns modalities 0..2");
 nnb_tst_assert_int(size(G3[1]), 8, "m0=2 modality-zero grouped entries");
 nnb_tst_assert_int(size(G3[2]), 13, "m0=2 modality-one grouped entries");
 nnb_tst_assert_int(size(G3[3]), 17, "m0=2 modality-two grouped entries");
@@ -240,19 +269,24 @@ nnb_tst_assert_str(NNBnormalFormSeriesString(G3[3][1]),
                    "concrete series show string names the absence of parameters");
 nnb_tst_assert_poly(NNBevaluateNormalFormSeries(G3[3][1]), x^4 + y^6,
                     "NNBevaluateNormalFormSeries evaluates a concrete series");
-NormalForm m2nf = NNBnormalFormSeriesToNormalForm(G3[3][1]);
+NormalForm m2nf = NNBevaluateNormalFormSeriesToNormalForm(G3[3][1]);
 nnb_tst_assert(typeof(m2nf) == "NormalForm",
                "concrete series can be converted to Arnold NormalForm");
 nnb_tst_assert_str(m2nf.singularityType, "(0,6),(4,0)",
                    "converted concrete series stores the singularity type");
 nnb_tst_assert_int(size(m2nf.parameters), 2,
                    "converted concrete series stores regular-basis parameters");
-NNBNormalForm m2c = G3[3][1].normalForms[1];
-nnb_tst_assert_str(NNBnormalFormString(m2c), "y^(6) + x^(4)",
-                   "first modality-two normal form string");
-nnb_tst_assert_poly(NNBevaluateNormalForm(m2c), x^4 + y^6,
-                    "first modality-two normal form evaluates");
-list RB2 = NNBregularBasis(m2c);
+list X2 = NNBtermsAsExponents(G3[3][1]);
+nnb_tst_assert_int(size(X2), 2, "first modality-two series has two terms");
+nnb_tst_assert_str(X2[1][1], "0", "first modality-two first term x exponent");
+nnb_tst_assert_str(X2[1][2], "6", "first modality-two first term y exponent");
+nnb_tst_assert_str(X2[2][1], "4", "first modality-two second term x exponent");
+nnb_tst_assert_str(X2[2][2], "0", "first modality-two second term y exponent");
+list H2 = NNBhashFunction(G3[3][1]);
+nnb_tst_assert_int(H2[1], 24, "first modality-two hash area component");
+nnb_tst_assert_int(H2[2], 2, "first modality-two hash term-count component");
+nnb_tst_assert_int(H2[3], 10, "first modality-two hash coordinate-sum component");
+list RB2 = NNBregularBasis(G3[3][1]);
 nnb_tst_assert_int(size(RB2), 2,
                    "NNBregularBasis uses arnold.lib for x^4+y^6");
 nnb_tst_assert_str(string(RB2[1]), "2,4",
@@ -267,14 +301,44 @@ nnb_tst_assert_str(NNBnormalFormSeriesParameters(G3[3][10])[1], "l",
 nnb_tst_assert_str(NNBnormalFormSeriesString(G3[3][10]),
                    "normal form series of modality 2; series parameters: l; normal forms: y^(2*l) + x^(2) * y^(3) + x^(3) with l > 9/2",
                    "symbolic modality-two series show string names parameter l");
-NNBNormalForm m2f = G3[3][10].normalForms[1];
-nnb_tst_assert_str(NNBnormalFormString(m2f),
-                   "y^(2*l) + x^(2) * y^(3) + x^(3) with l > 9/2",
-                   "modality-two symbolic family string");
-nnb_tst_assert_poly(NNBevaluateNormalForm(m2f, 0, 5), x^3 + x^2*y^3 + y^10,
-                    "modality-two symbolic family evaluates after substituting l=5");
-nnb_tst_assert_poly(NNBevaluateNormalFormSeries(G3[3][10], 0, 5), x^3 + x^2*y^3 + y^10,
+list Y2 = NNBtermsAsExponents(G3[3][10], 0, 5);
+nnb_tst_assert_int(size(Y2), 3, "modality-two symbolic series has three terms after substitution");
+nnb_tst_assert_str(Y2[1][1], "0", "modality-two symbolic first term x exponent");
+nnb_tst_assert_str(Y2[1][2], "10", "modality-two symbolic first term y exponent after l=5");
+nnb_tst_assert_str(Y2[2][1], "2", "modality-two symbolic second term x exponent");
+nnb_tst_assert_str(Y2[2][2], "3", "modality-two symbolic second term y exponent");
+nnb_tst_assert_str(Y2[3][1], "3", "modality-two symbolic third term x exponent");
+nnb_tst_assert_str(Y2[3][2], "0", "modality-two symbolic third term y exponent");
+poly p2s = NNBevaluateNormalFormSeries(G3[3][10], 0, 5);
+nnb_tst_assert_poly(p2s, x^3 + x^2*y^3 + y^10,
                     "NNBevaluateNormalFormSeries evaluates a modality-two symbolic series");
+list H2s = NNBhashFunction(G3[3][10], 0, 5);
+nnb_tst_assert_int(H2s[1], 29, "modality-two symbolic hash area component after l=5");
+nnb_tst_assert_int(H2s[2], 3, "modality-two symbolic hash term-count component after l=5");
+nnb_tst_assert_int(H2s[3], 18, "modality-two symbolic hash coordinate-sum component after l=5");
+list RB2s = NNBregularBasis(G3[3][10], 0, 5);
+nnb_tst_assert_int(size(RB2s), 2,
+                   "NNBregularBasis computes the symbolic series basis after l=5");
+nnb_tst_assert_str(string(RB2s[1]), "3,1",
+                   "first symbolic exponent vector from the Arnold regular basis");
+nnb_tst_assert_str(string(RB2s[2]), "2,3",
+                   "second symbolic exponent vector from the Arnold regular basis");
+list RB2p = NNBregularBasis(p2s);
+nnb_tst_assert_int(size(RB2p), 2,
+                   "NNBregularBasis on evaluated polynomial agrees in size");
+nnb_tst_assert_str(string(RB2p[1]), "3,1",
+                   "first polynomial exponent vector from the Arnold regular basis");
+nnb_tst_assert_str(string(RB2p[2]), "2,3",
+                   "second polynomial exponent vector from the Arnold regular basis");
+NormalForm m2snf = NNBevaluateNormalFormSeriesToNormalForm(G3[3][10], 0, 5);
+nnb_tst_assert(typeof(m2snf) == "NormalForm",
+               "symbolic modality-two series converts to Arnold NormalForm after l=5");
+nnb_tst_assert_str(m2snf.singularityType, "(0,10),(2,3),(3,0)",
+                   "converted symbolic modality-two series stores the singularity type");
+nnb_tst_assert_int(m2snf.milnorNumber, 17,
+                   "converted symbolic modality-two series stores the Milnor number");
+nnb_tst_assert_int(size(m2snf.parameters), 2,
+                   "converted symbolic modality-two series stores regular-basis parameters");
 
 tst_status("modality-two-series");
 
