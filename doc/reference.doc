@@ -2684,7 +2684,8 @@ value has a parent ring and this ring is not the current basering,
 @smallexample
 @c example
   ring r = 0,(x,y),dp;
-  htable H = htable("p" -> x+y, "n" -> 3);
+  poly p = x+y;
+  htable H = htable("p" -> p, "n" -> 3);
   ring s = 0,a,dp;
   setring s;
   getValue(H, "n");
@@ -6009,7 +6010,8 @@ This command does not change the current basering.
 @smallexample
 @c example
   ring r = 0,(x,y),dp;
-  htable H = htable("p" -> x+y, "n" -> 3);
+  poly p = x+y;
+  htable H = htable("p" -> p, "n" -> 3);
   typeof(parentOfValue(H, "p"));
   varstr(parentOfValue(H, "p"));
   parentOfValue(H, "n");
@@ -8449,7 +8451,8 @@ The value itself is not returned, and the current basering is not changed.
 @smallexample
 @c example
   ring r = 0,(x,y),dp;
-  htable H = htable("p" -> x+y, "n" -> 3);
+  poly p = x+y;
+  htable H = htable("p" -> p, "n" -> 3);
   typeOfValue(H, "p");
   typeOfValue(H, "n");
 @c example

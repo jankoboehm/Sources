@@ -822,7 +822,8 @@ value.
 @smallexample
 @c example
   ring r = 0,(x,y),dp;
-  htable H = htable("p" -> x+y, "n" -> 3);
+  poly p = x+y;
+  htable H = htable("p" -> p, "n" -> 3);
   H["p"];
   ring s = 0,a,dp;
   setring s;
