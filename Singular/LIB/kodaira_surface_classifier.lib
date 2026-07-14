@@ -30,7 +30,7 @@
 //   dimGradedPart from sheafcoh.lib, and sat from elim.lib.
 ///////////////////////////////////////////////////////////////////////////////
 
-version="version kodaira_surface_classifier.lib 0.6 Jul_2026";
+version="version kodaira_surface_classifier.lib 0.7 Jul_2026";
 category="Algebraic Geometry";
 
 info="
@@ -87,8 +87,15 @@ HYPOTHESES:
 
 REFERENCES ENCODED IN THE DECISION TREE:
   * The canonical module is computed as Ext^c_S(S/I,S)(-N-1); see [Cha].
-  * The P_12 theorem and the low-order elliptic/quasi-elliptic bounds P_n
-    >1 for some n<=4 and P_n>2 for some n<=8 are from [CL].
+  * The P_12 theorem gives the rough split P_12=0, P_12=1, and
+    positive Kodaira dimension in the remaining branch.  The code routes the
+    borderline P_12=2 through the positive branch instead of treating it as a
+    hard error.
+  * The low-order elliptic/quasi-elliptic bounds in [CL] are stronger than what
+    the algorithm needs: [CL] gives low nonvanishing and a sharp n<=8 bound,
+    while the code only needs the weaker test \"some P_n>=2\" to distinguish
+    kappa=1 from kappa=0 because kappa=0 plurigenera are bounded by 1.
+    The sharp examples in [CL] show why P_1,...,P_6 are not enough.
   * The use of |mK| for m>=5 to detect general type comes from [Bom] in
     characteristic zero and from Ekedahl's positive-characteristic extension
     as cited in [CL, Theorem 2.1 and subsequent discussion].
@@ -252,7 +259,7 @@ static proc KSCexistsGE(intvec v, int a, int b, int bound)
 "USAGE:  KSCexistsGE(v,a,b,bound);  integer vector and bounds.
 RETURN: 1 if some entry v[i] with a<=i<=b is at least bound.
 MATH:   Used to read finite plurigenus tests such as the [CL] statement that
-        for kappa=1 there is an n<=8 with P_n>2.  The function itself does not
+        for kappa=1 there is an n<=8 with P_n>=2.  The function itself does not
         make the classification decision.
 EXAMPLE:
   intvec v=0,1,2,1; KSCexistsGE(v,1,4,2);
@@ -1126,9 +1133,10 @@ RETURN: Exact dimension of the m-canonical image: -1 no map, 0 point, 1 curve,
 MATH:   This is the expensive image certificate used by KSCcomplete after the
         economical path is inconclusive.  It computes omega_X^m, chooses a
         basis of H^0(mK_X), constructs the graph by rank-one membership
-        equations, and eliminates the original projective coordinates.  For
-        P_12>2, the P_12 theorem gives positive Kodaira dimension; the exact
-        image dimension of |12K| then separates kappa=1 from kappa=2.
+        equations, and eliminates the original projective coordinates.  In the
+        complete fallback this is called for |12K| only when P_12>=3; when
+        P_12=2, the image is automatically at most a curve and this expensive
+        elimination is avoided.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -1598,13 +1606,14 @@ proc KSCclassifyWithFallback(ideal I, list #)
 RETURN: ClassifiedSurface.  P has length maxm, with maxm at least 8.
 MATH:   First run KSCclassify.  Only if that is inconclusive compute higher
         plurigenera.  The economical step is P_8: Catanese--Li prove that a
-        kappa=1 surface has some P_n>2 with n<=8, while kappa=0 has all
+        kappa=1 surface has some P_n>=2 with n<=8, while kappa=0 has all
         plurigenera bounded by 1.  If maxm>=12, the P_12 theorem gives the
         final rough split: P_12=0 means kappa=-infinity, P_12=1 means kappa=0,
-        and P_12>2 means kappa is 1 or 2.  The exact image of |12K| then
-        separates kappa=1 from kappa=2.  The value P_12=2 should not occur
-        for a smooth projective surface over an algebraically closed field; if
-        it appears, the routine reports an assumption/computation inconsistency.
+        and the remaining branch has positive Kodaira dimension.  The code
+        deliberately handles P_12=2 as a positive branch rather than as an
+        inconsistency; with only two sections |12K| cannot have surface image,
+        so no expensive phi_|12K| elimination is needed in that subcase.  For
+        P_12>=3, the exact image of |12K| separates kappa=1 from kappa=2.
         Smoothness is assumed unless checkSmooth=1.  If keep=1, ideals already
         computed during the pass are kept in the result.
 EXAMPLE:
@@ -1719,25 +1728,23 @@ EXAMPLE:
 
     if (P[12]==2)
     {
-      return(KSCresult("invariant inconsistency: P_12=2","unknown",P,q,phi5,phi6,
-                  notes+"The P_12 theorem leaves no smooth projective algebraic surface with P_12=2. Check the input hypotheses, coefficient field, or the canonical-module computation.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
+      return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
+                  notes+"P_12=2 is treated as positive Kodaira dimension; since |12K| has only two sections, its image is at most a curve, so kappa=1."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,1,-1,keep));
     }
 
-    if (P[12]>2)
+    if (P[12]>=3)
     {
       // The complete fallback uses the expensive elimination-based image
-      // dimension, not the economical growth estimator.  This is the point at
-      // which we trade performance for theoretical completeness.
+      // dimension, not the economical growth estimator.  We reach this only
+      // when P_12 has enough sections for a possible surface image.
       phiM=KSCphiDimExact(J,12);
       if (phiM==2)
       {
         return(KSCresult("general type","2",P,q,phi5,phi6,
-                    notes+"P_12>2 and the exact |12K| image has dimension 2.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,phiM,phiM,keep));
+                    notes+"P_12>=3 and the exact |12K| image has dimension 2.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,phiM,phiM,keep));
       }
-      // The theorem leaves only kappa=1 or kappa=2.  After the exact |12K|
-      // image fails to be a surface, the remaining case is kappa=1.
       return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
-                  notes+"P_12>2 and the exact |12K| image is not a surface."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,phiM,phiM,keep));
+                  notes+"P_12>=3 and the exact |12K| image is not a surface."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,phiM,phiM,keep));
     }
   }
 
@@ -1755,8 +1762,10 @@ MATH:   KSCcomplete preserves the economical first pass: it calls
         conclusive.  Only after an inconclusive economical pass does it compute
         P_12.  The second step is theorem-driven and complete for smooth
         projective algebraic surfaces: P_12=0 gives kappa=-infinity, P_12=1
-        gives kappa=0, and P_12>2 is separated by the exact 12-canonical image.
-        In characteristics 2 and 3 the kappa=1 label includes quasi-elliptic.
+        gives kappa=0, and the remaining branch has positive Kodaira dimension;
+        P_12=2 is dispatched without image elimination, while for P_12>=3 the
+        exact 12-canonical image separates kappa=1 from kappa=2.  In
+        characteristics 2 and 3 the kappa=1 label includes quasi-elliptic.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
