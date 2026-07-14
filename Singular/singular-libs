@@ -62,6 +62,7 @@ SLIB1 = arr.lib arnold.lib arnoldclassify.lib \
 	sagbiNormaliz0.lib\
 	schreyer.lib sets.lib SingularityDBM.lib symodstd.lib schubert.lib swalk.lib \
 	ssi.lib \
+	surface_type_generics.lib \
 	tateProdCplxNegGrad.lib tasks.lib tropical.lib \
 	tropicalEllipticCovers.lib tropicalNewton.lib \
 	transformation.lib
