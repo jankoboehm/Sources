@@ -202,6 +202,7 @@ Short/invarlib.tst
 Short/janet.tst
 Short/jmbtest.tst
 Short/kernel_weighted_homog.tst
+Short/kodaira_surface_classifier_s.tst
 Short/latex.tst
 Short/lift_s.tst
 Short/liftstd_s.tst

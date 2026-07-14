@@ -3962,6 +3962,13 @@ static BOOLEAN jjTENSOR(leftv res, leftv u, leftv v)
   res->data = (char *)sm_Tensor(A,B,currRing);
   return FALSE;
 }
+static BOOLEAN jjFASTTENSOR(leftv res, leftv u, leftv v)
+{
+  ideal A=(ideal)u->Data();
+  ideal B=(ideal)v->Data();
+  res->data = (char *)sm_FastTensorMod(A,B,currRing);
+  return FALSE;
+}
 static BOOLEAN jjTENSOR_Ma(leftv res, leftv u, leftv v)
 {
   sleftv tmp_u,tmp_v,tmp_res;
