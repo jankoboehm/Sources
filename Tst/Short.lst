@@ -187,6 +187,7 @@ Short/gcdp_s.tst
 Short/gerhard_1_32003_lp.tst
 Short/graphics.tst
 Short/groebner_s.tst
+Short/htable.tst
 Short/highcorner_s.tst
 Short/hilb_weights.tst
 Short/hnoether_s.tst
