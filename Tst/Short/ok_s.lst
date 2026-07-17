@@ -121,6 +121,7 @@ bug_tr874
 bug_genus_etc
 conv_bi
 ; divrem2
+enumnf
 facstd
 fermat_gcd_1var
 fermat_gcd_2var
