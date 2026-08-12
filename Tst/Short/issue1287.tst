@@ -16,4 +16,12 @@ int equal=tst_stdEqual(std(actual),std(expected));
 ASSUME(0,equal);
 equal;
 
+list twoReps;
+twoReps[1]=list(y,1,0,0,0,list(1));
+twoReps[2]=list(y+x,1,0,0,0,list(1));
+int representativesPreserved=
+  (size(getClasses(twoReps,1))==2 and size(getClasses(twoReps))==1);
+ASSUME(0,representativesPreserved);
+representativesPreserved;
+
 tst_status(1);$
