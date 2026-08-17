@@ -24,4 +24,24 @@ int representativesPreserved=
 ASSUME(0,representativesPreserved);
 representativesPreserved;
 
+LIB "integralbasis.lib";
+ring Rib=0,(x,y),dp;
+poly g=(x+y)*(y^5+1)-(x+y)^4*y+((x+y)*y)^2-2*y^3;
+list ib=integralBasis(g,2,"isIrred","noOpti");
+poly expectedDen=x5-5x2+5x;
+ideal expectedIB=
+  x5-5x2+5x,
+  x5y-5x2y+5xy,
+  x5y2-5x2y2+5xy2,
+  x5y3-5x2y3+5xy3,
+  x5y4-5x2y4+5xy4,
+  5x4y4-3x4y3+3x3y4-6x4y2-4x3y3+4x2y4-9x4y-8x3y2
+    -9x2y3-16xy4+11y5+x4-23x3y-51x2y2-30xy3+5x3
+    +6x2y+50xy2+11y3+3x2+42xy-11y2-x-11y;
+int integralBasisOK=
+  (size(ib[1])==6 and ib[2]==expectedDen
+   and tst_stdEqual(std(ib[1]),std(expectedIB)));
+ASSUME(0,integralBasisOK);
+integralBasisOK;
+
 tst_status(1);$
