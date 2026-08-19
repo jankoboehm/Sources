@@ -1,12 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 // kodaira_surface_classifier.lib
 //
-// Economical-first, complete-fallback Enriques--Kodaira classification helpers
+// Economical-first Enriques--Kodaira classification helpers
 // for smooth projective algebraic surfaces given by homogeneous equations in
 // projective space.
 //
-// This library separates a cheap certified first pass from a theorem-driven
-// complete fallback.  The classifiers assume smoothness by default; an explicit
+// This library separates the standard mathematically complete P_<=8 + exact |6K|
+// classifier from an optional P_12 certificate section.  The classifiers assume
+// smoothness by default; an explicit
 // Jacobian smoothness check can be requested, but is off by default so that
 // already-conclusive examples do not pay for it.
 //
@@ -30,7 +31,7 @@
 //   dimGradedPart from sheafcoh.lib, and sat from elim.lib.
 ///////////////////////////////////////////////////////////////////////////////
 
-version="version kodaira_surface_classifier.lib 0.7 Jul_2026";
+version="version kodaira_surface_classifier.lib 0.8 Jul_2026";
 category="Algebraic Geometry";
 
 info="
@@ -39,29 +40,34 @@ LIBRARY: kodaira_surface_classifier.lib
 PURPOSE:
   Classify a homogeneous ideal I defining a smooth projective surface X.
   The automatic routines first run the cheap P_1,...,P_6/pluricanonical-map
-  pass.  If that is conclusive, they return immediately.  Only after an
-  inconclusive first pass do they enter the P_8/P_12 complete fallback.
+  pass.  If that is conclusive, they return immediately.  If not, the standard
+  route uses exact |6K| where necessary and computes P_8 only in the genuine
+  low-plurigenus boundary branch.  P_12 is not used by the standard automatic
+  or hybrid classifiers; it is kept as an explicitly optional certificate in a
+  separate section at the end of the file.
 
 MAIN ONE-CALL ROUTINES:
   KSCauto(I);
       Fully automatic classifier.  It uses P_1,...,P_6 first, then the cheap
       |5K| and |6K| image-growth tests.  If these are inconclusive it enters
-      the complete fallback: P_8 when enough, and P_12 only when necessary.
+      the standard completion: exact |6K| if P_6 leaves a possible general-type
+      branch, then P_8 only in the low-plurigenus boundary branch.  It never
+      computes phi_|8K| automatically and never calls the P_12 routines.
 
   KSChybrid(I);
-      Hybrid classifier.  It first runs the same economical classifier as
-      KSCauto.  If that is conclusive, it returns immediately.  Only after an
-      inconclusive economical pass does it run the adjunction diagnostic and the
-      complete plurigenus/pluricanonical fallback.
+      Hybrid classifier.  It first runs the same standard classifier as
+      KSCauto.  If that is conclusive, it returns immediately and does not
+      compute adjunction data.  Only after an unexpected inconclusive standard
+      result does it run the adjunction diagnostic |K_X+H|.  It never calls the
+      P_12 routines unless the user invokes those optional routines directly.
 
 TYPICAL CALLS:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
-  KSCauto(X);
-  KSChybrid(X);
-  KSCauto(X);                     // cheap first pass, complete fallback only if needed
+  KSCauto(X);                     // standard classifier, no P_12
+  KSChybrid(X);                   // same, with adjunction only if needed
   KSCauto(X,4,1,1);               // same, but turn on smoothness check
-  KSCautoEconomical(X,4,1);       // economical-only mode, check smoothness
+  KSCautoEconomical(X,4,1);       // stop before P_8 standard completion
   KSCautoEconomical(X,4,1,1);     // also retain ideals/diagnostics
 
 RETURN FORMAT:
@@ -87,10 +93,10 @@ HYPOTHESES:
 
 REFERENCES ENCODED IN THE DECISION TREE:
   * The canonical module is computed as Ext^c_S(S/I,S)(-N-1); see [Cha].
-  * The P_12 theorem gives the rough split P_12=0, P_12=1, and
-    positive Kodaira dimension in the remaining branch.  The code routes the
-    borderline P_12=2 through the positive branch instead of treating it as a
-    hard error.
+  * P_12 is not used by the standard path.  The P_12 theorem gives a useful
+    optional independent certificate, kept at the end of the file, but the
+    standard route is P_1,...,P_6, exact |6K| when needed, and P_8 only in the
+    genuine low-plurigenus boundary branch.
   * The low-order elliptic/quasi-elliptic bounds in [CL] are stronger than what
     the algorithm needs: [CL] gives low nonvanishing and a sharp n<=8 bound,
     while the code only needs the weaker test \"some P_n>=2\" to distinguish
@@ -101,6 +107,9 @@ REFERENCES ENCODED IN THE DECISION TREE:
     as cited in [CL, Theorem 2.1 and subsequent discussion].
   * The adjunction prepass uses the adjoint system |K_X+H| and is conservative
     about the exceptional cases described in [Som], [SV], and [Ion].
+  * The optional P_12 routines are deliberately not called by KSCauto,
+    KSCcomplete, or KSChybrid; use them only as an independent check or when a
+    user explicitly wants the classical P_12 theorem certificate.
 ";
 
 LIB "homolog.lib";
@@ -221,10 +230,10 @@ static proc KSCallZero(intvec v)
 "USAGE:  KSCallZero(v);  integer vector.
 RETURN: 1 if every entry of v is zero, otherwise 0.
 MATH:   For a surface, vanishing of all plurigenera means kappa=-infinity only
-        when all plurigenera are known.  In this library the implication from
-        P_1,...,P_6 all zero uses the P_12 theorem and the low elliptic bound
-        of [CL]: kappa=1 has some P_n nonzero for n<=4, while kappa=0 has a
-        nonzero plurigenus of order at most 6 in the classical algebraic cases.
+        when enough plurigenera are known.  In the standard classifier,
+        P_1,...,P_6 all zero excludes kappa=1 by the Catanese--Li n<=4
+        non-vanishing theorem and excludes kappa=0 by the usual torsion
+        possibilities visible by order 6.
 EXAMPLE:
   intvec v=0,0,0; KSCallZero(v);
 "
@@ -258,9 +267,10 @@ EXAMPLE:
 static proc KSCexistsGE(intvec v, int a, int b, int bound)
 "USAGE:  KSCexistsGE(v,a,b,bound);  integer vector and bounds.
 RETURN: 1 if some entry v[i] with a<=i<=b is at least bound.
-MATH:   Used to read finite plurigenus tests such as the [CL] statement that
-        for kappa=1 there is an n<=8 with P_n>=2.  The function itself does not
-        make the classification decision.
+MATH:   Used to read finite plurigenus tests such as the Catanese--Li n<=8
+        bound for low-plurigenus kappa=1.  The standard classifier uses the
+        threshold P_n>=2, because kappa=0 plurigenera are bounded by 1.  The
+        function itself does not make the classification decision.
 EXAMPLE:
   intvec v=0,1,2,1; KSCexistsGE(v,1,4,2);
 "
@@ -280,7 +290,8 @@ static proc KSCfirstPositiveIndex(intvec v)
 RETURN: The first index i with v[i]>0, or 0 if there is none.
 MATH:   In kappa=0 cases, the first nonzero P_i is a cheap proxy for the
         visible torsion order of K_X, but it is only used after kappa=0 has been
-        certified by the P_8 or P_12 branch.
+        certified by the P_8 branch of the standard classifier or by the
+        optional P_12 certificate.
 EXAMPLE:
   intvec v=0,0,1,1; KSCfirstPositiveIndex(v);
 "
@@ -772,7 +783,8 @@ static proc KSCtensorPower(module W, int m)
 RETURN: A saturated presentation for W^{tensor m}.
 MATH:   For W=omega_X, the degree-zero global sections of W^{tensor m} are the
         pluricanonical sections H^0(X,mK_X).  The cost grows quickly with m,
-        which is why the classifiers avoid P_12 unless necessary.
+        which is why the standard classifier stops at P_8 and keeps P_12 only
+        as an explicitly requested optional certificate.
 EXAMPLE:
   // internal: KSCtensorPower(W,5) is used for |5K|.
 "
@@ -1130,13 +1142,14 @@ proc KSCphiDimExact(ideal I, int m)
 "USAGE:  KSCphiDimExact(I,m);  homogeneous surface ideal I and m>0.
 RETURN: Exact dimension of the m-canonical image: -1 no map, 0 point, 1 curve,
         or 2 surface.
-MATH:   This is the expensive image certificate used by KSCcomplete after the
-        economical path is inconclusive.  It computes omega_X^m, chooses a
-        basis of H^0(mK_X), constructs the graph by rank-one membership
-        equations, and eliminates the original projective coordinates.  In the
-        complete fallback this is called for |12K| only when P_12>=3; when
-        P_12=2, the image is automatically at most a curve and this expensive
-        elimination is avoided.
+MATH:   This is the expensive but exact image certificate.  The standard
+        classifier uses it primarily for |6K| when P_6 leaves a possible
+        general-type branch, because the m>5 pluricanonical theorem makes |6K|
+        the earliest theorem-certified image split.  The optional P_12
+        certificate may call it for |12K| when P_12>=3.  The routine computes
+        omega_X^m, chooses a basis of H^0(mK_X), constructs the graph by
+        rank-one membership equations, and eliminates the original projective
+        coordinates.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -1179,7 +1192,8 @@ static proc KSCplurigeneraFromCanonical(module W, int maxm)
 RETURN: intvec P with P[m]=h^0(X,mK_X) for 1<=m<=maxm.
 MATH:   This is the numerical heart of the classifier.  The cost is dominated
         by tensor powers of omega_X and saturation, hence the default tries
-        maxm=6, then maxm=8, and only then maxm=12.
+        maxm=6 and then maxm=8.  P_12 is available only through the explicit
+        certificate routine.
 EXAMPLE:
   // internal: KSCplurigenera calls this after computing omega_X.
 "
@@ -1232,8 +1246,7 @@ static proc KSCbaseCharacteristic()
 "USAGE:  KSCbaseCharacteristic();  no arguments.
 RETURN: The characteristic of the coefficient field when Singular exposes it as
         an integer through ringlist(basering); returns -1 if it cannot be read.
-MATH:   The rough P_12 classification works over algebraically closed fields in
-        arbitrary characteristic, but the interpretation of the output changes.
+MATH:   The Kodaira labels have characteristic-dependent interpretations.
         Quasi-elliptic fibrations occur only in characteristics 2 and 3, and
         positive-characteristic kappa=0 subtypes may require Picard-scheme,
         Albanese, and canonical-torsion data beyond p_g and h^1(O_X).  Singular
@@ -1419,11 +1432,12 @@ proc KSCclassifyNoMaps(ideal I, list #)
 RETURN: ClassifiedSurface with P_1,...,P_6 and q, but no image computation.
 MATH:   This is the cheapest diagnostic pass.  It computes the birational
         invariants P_m and h^1(O_X), but it deliberately avoids deciding kappa
-        in borderline cases because separating kappa=0,1,2 can require image
-        dimensions or P_8/P_12.  Smoothness is assumed unless checkSmooth=1 is
-        supplied.  If keep=1, ideals already computed during the pass are kept
-        in the result; otherwise the result stores only numeric/string summary
-        data.
+        in borderline cases because separating kappa=0,1,2 can require exact
+        image dimensions or the P_8 boundary test.  P_12 is optional and not
+        part of the standard path.  Smoothness is assumed unless checkSmooth=1
+        is supplied.  If keep=1, ideals already computed during the pass are
+        kept in the result; otherwise the result stores only numeric/string
+        summary data.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
@@ -1466,10 +1480,10 @@ MATH:   This is the economical first classifier.  It is exact on certified
         subcanonical cases and on cases where a tested pluricanonical image has
         dimension 1 or 2.  It intentionally leaves low-plurigenus kappa=0/1
         boundary cases to KSCclassifyWithFallback or KSCcomplete: the
-        Catanese--Li low-order theorem makes P_8 the safe economical bound for
-        kappa=1, while P_12 is the final theorem-driven certificate.  Smoothness
-        is assumed unless checkSmooth=1 is supplied.  If keep=1, ideals already
-        computed during the pass are kept in the result.
+        Catanese--Li low-order theorem makes P_8 the safe and sometimes
+        necessary bound for kappa=1.  P_12 is not part of the standard path.
+        Smoothness is assumed unless checkSmooth=1 is supplied.  If keep=1,
+        ideals already computed during the pass are kept in the result.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -1597,30 +1611,48 @@ EXAMPLE:
 
   q=KSCirregularityFromSatIdeal(J);
   return(KSCresult("inconclusive","unknown",P,q,phi5,phi6,
-              notes+"P_1,...,P_6 do not certify the class. This is intentional: the complete fallback starts only after the cheap pass is inconclusive.",I,chk,checkSmooth,ell,6,"economical",subcan,subidx,0,-1,-1,keep));
+              notes+"P_1,...,P_6 do not certify the class. This is intentional: the standard P_8/exact-|6K| completion starts only after the cheap pass is inconclusive.",I,chk,checkSmooth,ell,6,"economical",subcan,subidx,0,-1,-1,keep));
 }
 
 proc KSCclassifyWithFallback(ideal I, list #)
 "USAGE:  KSCclassifyWithFallback(I[,ell,maxm,checkSmooth,keep]);  ell=3 default,
-        maxm=8 default, checkSmooth=0 default, keep=0 default.
-RETURN: ClassifiedSurface.  P has length maxm, with maxm at least 8.
-MATH:   First run KSCclassify.  Only if that is inconclusive compute higher
-        plurigenera.  The economical step is P_8: Catanese--Li prove that a
-        kappa=1 surface has some P_n>=2 with n<=8, while kappa=0 has all
-        plurigenera bounded by 1.  If maxm>=12, the P_12 theorem gives the
-        final rough split: P_12=0 means kappa=-infinity, P_12=1 means kappa=0,
-        and the remaining branch has positive Kodaira dimension.  The code
-        deliberately handles P_12=2 as a positive branch rather than as an
-        inconsistency; with only two sections |12K| cannot have surface image,
-        so no expensive phi_|12K| elimination is needed in that subcase.  For
-        P_12>=3, the exact image of |12K| separates kappa=1 from kappa=2.
-        Smoothness is assumed unless checkSmooth=1.  If keep=1, ideals already
-        computed during the pass are kept in the result.
+        maxm=8 default and capped at 8, checkSmooth=0 default, keep=0 default.
+RETURN: ClassifiedSurface.  P has length 6 or 8 depending on how far the
+        standard completion had to go.
+MATH:   This is the standard mathematically complete route used by KSCauto and
+        KSChybrid.  The name contains \"fallback\" for backwards compatibility,
+        but this procedure no longer enters the optional P_12 certificate.
+
+        (1) It first runs KSCclassify, the P_1,...,P_6 economical pass.  If that
+        is conclusive, the result is returned with no higher plurigenera.
+
+        (2) If P_6 leaves a possible general-type branch, the procedure computes
+        the exact |6K| image before any P_8 computation.  This is the key
+        economy: for surfaces of general type the m>5 pluricanonical theorem
+        makes |6K| a surface-image certificate, so P_8 is not the right next
+        expensive object in that branch.
+
+        (3) P_8 is computed only in the genuine low-plurigenus boundary branch:
+        after P_1,...,P_6 and the necessary exact |6K| check have not decided.
+        This is exactly the branch where properly elliptic surfaces, and in
+        characteristics 2 and 3 quasi-elliptic surfaces, can imitate kappa=0 up
+        to order 6 or even 7.  The Catanese--Li n<=8 bound is the reason P_8 is
+        a mathematically necessary numerical test there.
+
+        (4) The procedure never computes phi_|8K|.  Once P_8 shows some
+        P_n>=2, the Kodaira dimension is positive.  If exact |6K| has not given
+        a surface image, the positive non-general-type case is kappa=1.  Thus
+        the 8-canonical image would be expensive but redundant.
+
+        (5) P_12 is not part of this standard path.  The optional P_12 theorem
+        certificate is kept in KSCclassifyP12Certificate at the end of this
+        file and is never called here.  If keep=1, ideals already computed
+        during the pass are kept in the result.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
-  KSCclassifyWithFallback(X,3,8);       // avoid P_12 when P_8 suffices
-  KSCclassifyWithFallback(X,3,12,1);    // allow P_12 and check smoothness
+  KSCclassifyWithFallback(X,3,8);       // standard path: no P_12, no phi_|8K|
+  KSCclassifyWithFallback(X,3,12,1);    // maxm is capped at 8; checks smoothness
 "
 {
   int ell=3;
@@ -1631,6 +1663,7 @@ EXAMPLE:
   if (size(#)>2) { checkSmooth=#[3]; }
   int keep=0;
   if (size(#)>3) { keep=#[4]; }
+  if (maxm>8) { maxm=8; }
   if (maxm<8) { maxm=8; }
 
   ClassifiedSurface A=KSCclassify(I,ell,checkSmooth,keep);
@@ -1644,133 +1677,98 @@ EXAMPLE:
   if (pdim!=2)
   {
     return(KSCresult("input is not a projective surface","unknown",zbad,-1,-1,-1,
-                "dim(S/I)-1 is not 2.",I,chk,checkSmooth,ell,maxm,"fallback",-1,0,0,-1,-1,keep));
+                "dim(S/I)-1 is not 2.",I,chk,checkSmooth,ell,maxm,"standard",-1,0,0,-1,-1,keep));
   }
   if ((checkSmooth!=0) and (smooth==0))
   {
     return(KSCresult("smoothness check failed","unknown",zbad,-1,-1,-1,
-                KSCsmoothnessAssumptionNote(checkSmooth,smooth),I,chk,checkSmooth,ell,maxm,"fallback",-1,0,0,-1,-1,keep));
+                KSCsmoothnessAssumptionNote(checkSmooth,smooth),I,chk,checkSmooth,ell,maxm,"standard",-1,0,0,-1,-1,keep));
   }
 
-  module W=KSCcanonicalModuleFromSatIdeal(J);
-  intvec P=KSCplurigeneraFromCanonical(W,maxm);
-  int q=KSCirregularityFromSatIdeal(J);
+  intvec P6=A.plurigenera;
+  int q=A.irregularity;
   int phi5=A.phi5Dimension;
   int phi6=A.phi6Dimension;
   int phiM=-1;
-  int mtest=0;
-  int mm;
-  string notes=A.certificate+" Fallback computed P_1,...,P_"+string(maxm)+". ";
+  int phiOrder=0;
+  string notes=A.certificate+" Standard completion entered only after the P_1,...,P_6 economical classifier was inconclusive. ";
+
+  if ((size(P6)>=6) and (P6[6]==2))
+  {
+    return(KSCresult(KSCkappaOneLabel(),"1",P6,q,phi5,phi6,
+                notes+"P_6=2 already gives positive Kodaira dimension but |6K| cannot have surface image; by the m>5 pluricanonical theorem for general type, the remaining positive case is kappa=1."+KSCkappaOneNote(),I,chk,checkSmooth,ell,6,"standard",A.subcanonical,A.subcanonicalIndex,6,1,-1,keep));
+  }
+
+  if ((size(P6)>=6) and (P6[6]>=3))
+  {
+    phiM=KSCphiDimExact(J,6);
+    phi6=phiM;
+    phiOrder=6;
+    if (phiM==2)
+    {
+      return(KSCresult("general type","2",P6,q,phi5,phi6,
+                  notes+"The exact |6K| image has dimension 2; no P_8 and no P_12 were needed.",I,chk,checkSmooth,ell,6,"standard",A.subcanonical,A.subcanonicalIndex,6,phiM,phiM,keep));
+    }
+    if (phiM==1)
+    {
+      return(KSCresult(KSCkappaOneLabel(),"1",P6,q,phi5,phi6,
+                  notes+"The exact |6K| image is a curve; no P_8 and no P_12 were needed."+KSCkappaOneNote(),I,chk,checkSmooth,ell,6,"standard",A.subcanonical,A.subcanonicalIndex,6,phiM,phiM,keep));
+    }
+    notes=notes+"P_6>=3, but the exact |6K| image was not a surface. If higher plurigenera now show positivity, the positive non-general-type branch is kappa=1. ";
+  }
+
+  module W=KSCcanonicalModuleFromSatIdeal(J);
+  intvec P=KSCplurigeneraFromCanonical(W,8);
+  notes=notes+"Computed P_1,...,P_8 as the unique higher-plurigenus step in the standard classifier. ";
 
   if (KSCallZero(P)==1)
   {
     if (q==0)
     {
       return(KSCresult("rational surface","-infinity",P,q,phi5,phi6,
-                  notes+"All tested plurigenera vanish and h^1(O_X)=0.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
+                  notes+"All P_1,...,P_8 vanish; in particular the kappa=0 and kappa=1 alternatives are excluded, and h^1(O_X)=0 gives rational.",I,chk,checkSmooth,ell,maxm,"standard",A.subcanonical,A.subcanonicalIndex,phiOrder,phiM,phiM,keep));
     }
     return(KSCresult("ruled surface over a curve of genus h^1(O_X)","-infinity",P,q,phi5,phi6,
-                notes+"All tested plurigenera vanish and h^1(O_X)>0.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
+                notes+"All P_1,...,P_8 vanish; in particular the kappa=0 and kappa=1 alternatives are excluded, and h^1(O_X)>0 gives ruled.",I,chk,checkSmooth,ell,maxm,"standard",A.subcanonical,A.subcanonicalIndex,phiOrder,phiM,phiM,keep));
   }
 
-  if ((maxm>=8) and (KSCmaxEntry(P)<=1))
+  if (KSCmaxEntry(P)<=1)
   {
     string klass=KSCkappaZeroSubtype(P,q);
     int first=KSCfirstPositiveIndex(P);
     return(KSCresult(klass,"0",P,q,phi5,phi6,
-                notes+"All P_1,...,P_8 are <=1 and some P_"+string(first)+" is nonzero; Catanese--Li excludes kappa 1, and the previous map tests did not show general-type growth."+KSCkappaZeroSubtypeNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
+                notes+"All P_1,...,P_8 are <=1 and some P_"+string(first)+" is nonzero. The Catanese--Li n<=8 bound excludes the low-plurigenus kappa=1 alternative, while the exact |6K| general-type certificate was absent."+KSCkappaZeroSubtypeNote(),I,chk,checkSmooth,ell,maxm,"standard",A.subcanonical,A.subcanonicalIndex,phiOrder,phiM,phiM,keep));
   }
 
-  // Before P_12, try a usable m between 5 and 8.  In the conclusive setting
-  // this is cheaper than P_12.  In complete mode, failure here simply passes
-  // to P_12.
-  if (maxm>=8)
+  if (KSCmaxEntry(P)>=2)
   {
-    for (mm=5; mm<=8; mm++)
-    {
-      if ((mtest==0) and (P[mm]>=2)) { mtest=mm; }
-    }
-    if (mtest>0)
-    {
-      phiM=KSCphiDim(J,mtest,KSCmax(ell,5));
-      if (phiM==2)
-      {
-        return(KSCresult("general type","2",P,q,phi5,phi6,
-                    notes+"The |"+string(mtest)+"K| image has dimension 2.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
-      }
-      if (phiM==1)
-      {
-        return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
-                    notes+"The |"+string(mtest)+"K| image is a curve."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
-      }
-    }
-  }
-
-  if (maxm>=12)
-  {
-    if (P[12]==0)
-    {
-      if (q==0)
-      {
-        return(KSCresult("rational surface","-infinity",P,q,phi5,phi6,
-                    notes+"P_12=0; by the P_12 theorem kappa=-infinity, and h^1(O_X)=0 gives rational.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
-      }
-      return(KSCresult("ruled surface over a curve of genus h^1(O_X)","-infinity",P,q,phi5,phi6,
-                  notes+"P_12=0; by the P_12 theorem kappa=-infinity, and h^1(O_X)>0 gives ruled.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
-    }
-
-    if (P[12]==1)
-    {
-      string klass12=KSCkappaZeroSubtype(P,q);
-      return(KSCresult(klass12,"0",P,q,phi5,phi6,
-                  notes+"P_12=1; by the P_12 theorem kappa=0."+KSCkappaZeroSubtypeNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
-    }
-
-    if (P[12]==2)
-    {
-      return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
-                  notes+"P_12=2 is treated as positive Kodaira dimension; since |12K| has only two sections, its image is at most a curve, so kappa=1."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,1,-1,keep));
-    }
-
-    if (P[12]>=3)
-    {
-      // The complete fallback uses the expensive elimination-based image
-      // dimension, not the economical growth estimator.  We reach this only
-      // when P_12 has enough sections for a possible surface image.
-      phiM=KSCphiDimExact(J,12);
-      if (phiM==2)
-      {
-        return(KSCresult("general type","2",P,q,phi5,phi6,
-                    notes+"P_12>=3 and the exact |12K| image has dimension 2.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,phiM,phiM,keep));
-      }
-      return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
-                  notes+"P_12>=3 and the exact |12K| image is not a surface."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,12,phiM,phiM,keep));
-    }
+    return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
+                notes+"Some P_n with n<=8 is at least 2, so kappa is positive. Since the exact |6K| surface-image certificate for general type was not present, the standard classifier concludes kappa=1 without computing phi_|8K| or P_12."+KSCkappaOneNote(),I,chk,checkSmooth,ell,maxm,"standard",A.subcanonical,A.subcanonicalIndex,phiOrder,phiM,phiM,keep));
   }
 
   return(KSCresult("inconclusive","unknown",P,q,phi5,phi6,
-              notes+"The bounded fallback stopped before the P_12 certificate. Run KSCcomplete or KSCauto with complete=1.",I,chk,checkSmooth,ell,maxm,"fallback",A.subcanonical,A.subcanonicalIndex,mtest,phiM,-1,keep));
+              notes+"Unexpected numerical branch in the standard P_<=8 classifier; check input hypotheses, characteristic, and Singular computations. The optional P_12 certificate may be run manually for debugging.",I,chk,checkSmooth,ell,maxm,"standard",A.subcanonical,A.subcanonicalIndex,phiOrder,phiM,phiM,keep));
 }
 
 proc KSCcomplete(ideal I, list #)
 "USAGE:  KSCcomplete(I[,ell,checkSmooth,keep]);  homogeneous ideal of a smooth projective surface.
-RETURN: ClassifiedSurface.  This routine is intended to classify every smooth
-        input surface over an algebraically closed field, subject to successful
-        polynomial computations.
-MATH:   KSCcomplete preserves the economical first pass: it calls
-        KSCclassifyWithFallback with maxm=8 and returns immediately if that is
-        conclusive.  Only after an inconclusive economical pass does it compute
-        P_12.  The second step is theorem-driven and complete for smooth
-        projective algebraic surfaces: P_12=0 gives kappa=-infinity, P_12=1
-        gives kappa=0, and the remaining branch has positive Kodaira dimension;
-        P_12=2 is dispatched without image elimination, while for P_12>=3 the
-        exact 12-canonical image separates kappa=1 from kappa=2.  In
-        characteristics 2 and 3 the kappa=1 label includes quasi-elliptic.
+RETURN: ClassifiedSurface from the mathematically complete standard route.
+MATH:   This routine now means complete for the preferred classifier, not
+        complete via P_12.  It calls KSCclassifyWithFallback, whose standard
+        route is:
+
+          P_1,...,P_6 -> exact |6K| when P_6 leaves a possible general-type
+          branch -> P_8 only in the low-plurigenus kappa=0/1 boundary branch.
+
+        Under the smooth integral projective-surface hypotheses, and assuming
+        the exact |6K| and P_8 computations succeed, this route is
+        mathematically complete.  The optional P_12 theorem certificate is not
+        called here; it is kept separately at the end of the file.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
-  KSCcomplete(X);       // complete classification, assuming smoothness
-  KSCcomplete(X,4,1);   // complete classification and smoothness test
+  KSCcomplete(X);       // standard complete classification, no P_12
+  KSCcomplete(X,4,1);   // same, with smoothness test
 "
 {
   int ell=3;
@@ -1781,22 +1779,33 @@ EXAMPLE:
   if (size(#)>2) { keep=#[3]; }
 
   ClassifiedSurface A=KSCclassifyWithFallback(I,ell,8,checkSmooth,keep);
-  if (KSCisInconclusive(A)==0)
-  {
-    A=KSCappendNotes(A," Complete mode did not need P_12.");
-    return(A);
-  }
+  A=KSCappendNotes(A," Complete mode used the standard P_<=8 + exact |6K| route; P_12 was not called.");
+  return(A);
+}
 
-  ClassifiedSurface B=KSCclassifyWithFallback(I,ell,12,checkSmooth,keep);
-  B=KSCappendNotes(B," Complete mode used the P_12 / 12-canonical fallback only because the economical classifier was inconclusive.");
-  return(B);
+proc KSCclassifyStandard(ideal I, list #)
+"USAGE:  KSCclassifyStandard(I[,ell,checkSmooth,keep]);  alias for KSCcomplete.
+RETURN: Same as KSCcomplete.
+MATH:   This name avoids the old ambiguity of the word fallback.  It is the
+        preferred theorem-complete standard classifier using P_1,...,P_6,
+        exact |6K| when needed, and P_8 only in the low-plurigenus boundary
+        branch.  It never calls P_12 routines.
+EXAMPLE:
+  ring R=0,(x0,x1,x2,x3),dp; ideal X=x0^4+x1^4+x2^4+x3^4; KSCclassifyStandard(X);
+"
+{
+  if (size(#)==0) { return(KSCcomplete(I)); }
+  if (size(#)==1) { return(KSCcomplete(I,#[1])); }
+  if (size(#)==2) { return(KSCcomplete(I,#[1],#[2])); }
+  return(KSCcomplete(I,#[1],#[2],#[3]));
 }
 
 proc KSCclassifyComplete(ideal I, list #)
-"USAGE:  KSCclassifyComplete(I[,ell,checkSmooth,keep]);  alias for KSCcomplete.
+"USAGE:  KSCclassifyComplete(I[,ell,checkSmooth,keep]);  compatibility alias for KSCcomplete.
 RETURN: Same as KSCcomplete.
-MATH:   This wrapper makes the complete fallback explicit in scripts.  It does
-        not change the mathematical decision tree.
+MATH:   Kept for older scripts.  Despite the name, this does not invoke P_12;
+        it uses the standard complete route.  Call KSCclassifyP12Certificate
+        explicitly for the optional P_12 theorem check.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp; ideal X=x0^4+x1^4+x2^4+x3^4; KSCclassifyComplete(X);
 "
@@ -1811,21 +1820,25 @@ proc KSCauto(ideal I, list #)
 "USAGE:  KSCauto(I[,ell,complete,checkSmooth,keep]);  ell=3 default,
         complete=1 default, checkSmooth=0 default, keep=0 default.
 RETURN: ClassifiedSurface from the fully automatic classifier.
-MATH:   This is the recommended single automatic function.  It first runs the
-        economical path.  If that path is conclusive, no P_12 and no optional
-        smoothness test beyond the requested flag are added later.  If the
-        economical path is inconclusive and complete is nonzero, KSCauto calls
-        KSCcomplete, which uses P_12 and the 12-canonical image.  If complete=0,
-        KSCauto stops after the economical P_8 fallback and may return
-        inconclusive by design.  If keep=1, ideals and diagnostics already
-        computed along the chosen path are retained in the result.  The keep
-        flag does not trigger extra classification computations.
+MATH:   This is the recommended one-call function.  With complete=1 it uses the
+        standard mathematically complete route: first P_1,...,P_6 and the cheap
+        |5K|/|6K| tests, then exact |6K| if the P_6 data leave a possible
+        general-type branch, and finally P_8 only in the low-plurigenus
+        kappa=0/1 boundary branch.  It never computes phi_|8K| and never calls
+        any P_12 routine.
+
+        With complete=0 it stops after KSCclassify, the P_1,...,P_6 economical
+        first pass.  This mode is allowed to return inconclusive; it is for
+        users who explicitly want to avoid the P_8 section count.  If keep=1,
+        ideals and diagnostics already computed along the chosen path are
+        retained in the result.  The keep flag does not trigger extra
+        classification computations.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
-  KSCauto(X);         // fast if conclusive, complete only if needed
-  KSCauto(X,4,0);     // economical mode only, may be inconclusive
-  KSCauto(X,4,1,1);   // complete mode with smoothness test
+  KSCauto(X);         // standard classifier, no P_12
+  KSCauto(X,4,0);     // P_1,...,P_6 economical mode only, may be inconclusive
+  KSCauto(X,4,1,1);   // standard classifier with smoothness test
   KSCauto(X,4,1,1,1); // also retain computed ideals/diagnostics
 "
 {
@@ -1838,38 +1851,33 @@ EXAMPLE:
   int keep=0;
   if (size(#)>3) { keep=#[4]; }
 
-  ClassifiedSurface A=KSCclassifyWithFallback(I,ell,8,checkSmooth,keep);
-  if (KSCisInconclusive(A)==0)
-  {
-    A=KSCappendNotes(A," Automatic mode returned from the economical path; conclusive-case performance is unchanged.");
-    return(A);
-  }
-
   if (complete==0)
   {
-    A=KSCappendNotes(A," Complete fallback was disabled by the caller; this is the only reason an inconclusive result remains.");
-    return(A);
+    ClassifiedSurface E=KSCclassify(I,ell,checkSmooth,keep);
+    E=KSCappendNotes(E," Automatic economical mode stopped before P_8 and never calls P_12.");
+    return(E);
   }
 
-  ClassifiedSurface B=KSCclassifyWithFallback(I,ell,12,checkSmooth,keep);
-  B=KSCappendNotes(B," Automatic mode entered the complete P_12 / 12-canonical fallback only after the economical classifier was inconclusive.");
-  return(B);
+  ClassifiedSurface A=KSCcomplete(I,ell,checkSmooth,keep);
+  A=KSCappendNotes(A," Automatic mode used the standard classifier; P_12 was not called.");
+  return(A);
 }
 
 proc KSCautoEconomical(ideal I, list #)
 "USAGE:  KSCautoEconomical(I[,ell,checkSmooth,keep]);  economical-only automatic mode.
 RETURN: ClassifiedSurface.  The result may be inconclusive by design.
 MATH:   This wrapper calls KSCauto with complete=0.  It is useful when one wants
-        the cheap certified part only: P_1,...,P_6, the |5K| and |6K| tests,
-        and the P_8 fallback, but never the P_12/12-canonical complete branch.
-        Smoothness is still assumed unless checkSmooth=1 is supplied.  If
-        keep=1, ideals and diagnostics already computed along the path are
-        retained in the result.
+        only the cheap first pass: P_1,...,P_6 and the economical |5K|/|6K|
+        growth tests from KSCclassify.  It deliberately stops before the
+        standard completion, so it does not compute the exact |6K| fallback,
+        P_8, phi_|8K|, or P_12.  Smoothness is still assumed unless
+        checkSmooth=1 is supplied.  If keep=1, ideals and diagnostics already
+        computed along the path are retained in the result.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
-  KSCautoEconomical(X);       // no P_12 fallback
-  KSCautoEconomical(X,4,1);   // no P_12 fallback, smoothness checked
+  KSCautoEconomical(X);       // P_1,...,P_6 first pass only
+  KSCautoEconomical(X,4,1);   // same, smoothness checked
   KSCautoEconomical(X,4,1,1); // also retain computed ideals/diagnostics
 "
 {
@@ -1998,23 +2006,24 @@ proc KSChybrid(ideal I, list #)
         complete=1 default, checkSmooth=0 default, keep=0 default.
 RETURN: ClassifiedSurface from the hybrid adjunction/plurigenus classifier.
 MATH:   This routine preserves the performance of the conclusive setting: it
-        first runs exactly the same economical classifier as KSCauto, through
-        P_8 but not P_12.  If that classifier is conclusive, KSChybrid returns
-        immediately and does not compute |K_X+H|.  Only after an inconclusive
-        economical pass does it compute the adjunction diagnostic |K_X+H| and,
-        when complete is nonzero, the P_12/12-canonical complete fallback.
-        The adjunction information is explanatory and useful for exceptional
-        embedded cases, but the final Kodaira label is certified by the
-        canonical/pluricanonical decision tree.  Smoothness is assumed unless
-        checkSmooth=1 is supplied.  In characteristic 2 or 3, kappa=1 is labelled
-        elliptic-or-quasi-elliptic.  If keep=1, ideals and diagnostics already
-        computed along the chosen path are retained in the result.
+        first runs the same standard classifier as KSCauto: P_1,...,P_6, exact
+        |6K| when needed, and P_8 only in the low-plurigenus boundary branch.
+        If that path is conclusive, KSChybrid returns immediately and does not
+        compute |K_X+H|.  Only if the chosen classifier remains inconclusive
+        does it compute the adjunction diagnostic |K_X+H| and attach the
+        diagnostic notes.
+
+        With complete=0 it runs only the economical P_1,...,P_6 classifier
+        before the adjunction diagnostic.  No branch of KSChybrid calls the
+        optional P_12 routines; invoke KSCclassifyP12Certificate manually for
+        that independent certificate.  If keep=1, ideals and diagnostics
+        already computed along the chosen path are retained in the result.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
-  KSChybrid(X);         // fast if conclusive, complete only if needed
-  KSChybrid(X,4,0);     // hybrid economical mode only
-  KSChybrid(X,4,1,1);   // complete hybrid with smoothness test
+  KSChybrid(X);         // standard route first; no P_12
+  KSChybrid(X,4,0);     // economical first pass plus adjunction if needed
+  KSChybrid(X,4,1,1);   // standard hybrid with smoothness test
   KSChybrid(X,4,1,1,1); // also retain computed ideals/diagnostics
 "
 {
@@ -2027,27 +2036,35 @@ EXAMPLE:
   int keep=0;
   if (size(#)>3) { keep=#[4]; }
 
-  ClassifiedSurface A=KSCclassifyWithFallback(I,ell,8,checkSmooth,keep);
+  ClassifiedSurface A;
+  if (complete==0)
+  {
+    A=KSCclassify(I,ell,checkSmooth,keep);
+  }
+  else
+  {
+    A=KSCcomplete(I,ell,checkSmooth,keep);
+  }
+
   if (KSCisInconclusive(A)==0)
   {
-    A=KSCappendNotes(A," Hybrid mode returned from the same economical path as KSCauto; no adjunction computation or P_12 fallback was needed.");
+    A=KSCappendNotes(A," Hybrid mode returned before adjunction; P_12 was not called.");
     return(A);
   }
 
   list H=KSCadjunctionPrepass(I,ell,checkSmooth);
-  string hnotes="Hybrid adjunction diagnostic after the inconclusive economical pass: h0(K+H)="+string(H[1])+", imageDim="+string(H[2])+", label="+H[3]+". "+H[4]+" ";
+  string hnotes="Hybrid adjunction diagnostic after the classifier remained inconclusive: h0(K+H)="+string(H[1])+", imageDim="+string(H[2])+", label="+H[3]+". "+H[4]+" ";
 
   if (complete==0)
   {
-    A=KSCappendNotes(A," "+hnotes+"Complete fallback was disabled by the caller; this is the only reason an inconclusive result remains.");
-    if (keep!=0) { A.diagnostics=H; }
-    return(A);
+    A=KSCappendNotes(A," "+hnotes+"Standard completion was disabled by the caller; no P_12 routine is called automatically.");
   }
-
-  ClassifiedSurface B=KSCclassifyWithFallback(I,ell,12,checkSmooth,keep);
-  B=KSCappendNotes(B," "+hnotes+"Complete hybrid mode used the P_12 / 12-canonical fallback only because the economical classifier was inconclusive.");
-  if (keep!=0) { B.diagnostics=H; }
-  return(B);
+  else
+  {
+    A=KSCappendNotes(A," "+hnotes+"No P_12 routine is called automatically; run KSCclassifyP12Certificate manually only as an independent check or debugging certificate.");
+  }
+  if (keep!=0) { A.diagnostics=H; }
+  return(A);
 }
 
 proc KSCautomaticHybrid(ideal I, list #)
@@ -2070,7 +2087,8 @@ proc KSCclassifyHybrid(ideal I, list #)
 "USAGE:  KSCclassifyHybrid(I[,ell,complete,checkSmooth,keep]);  alias for KSChybrid.
 RETURN: Same as KSChybrid.
 MATH:   Kept for scripts that name classifier routines by the verb classify.
-        It preserves the same economical-first and complete-fallback behavior.
+        It preserves the same economical-first and standard-completion behavior;
+        no P_12 routine is called automatically.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp; ideal X=x0^3+x1^3+x2^3+x3^3; KSCclassifyHybrid(X);
 "
@@ -2096,6 +2114,138 @@ EXAMPLE:
   if (size(#)==2) { return(KSChybrid(I,#[1],#[2])); }
   if (size(#)==3) { return(KSChybrid(I,#[1],#[2],#[3])); }
   return(KSChybrid(I,#[1],#[2],#[3],#[4]));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Optional P_12 theorem certificate.
+//
+// This section is intentionally separated from the standard classifier.  No
+// standard entry point above calls these procedures.  They are available only
+// when a user explicitly wants the classical P_12 theorem check, an independent
+// cross-check, or a debugging certificate after unexpected computational
+// behaviour in the P_<=8 + exact |6K| route.
+///////////////////////////////////////////////////////////////////////////////
+
+proc KSCclassifyP12Certificate(ideal I, list #)
+"USAGE:  KSCclassifyP12Certificate(I[,checkSmooth,keep]);  optional direct P_12 theorem check.
+RETURN: ClassifiedSurface.  P has length 12.  The phi5/phi6 slots are -1
+        because this optional routine does not run the standard lower path.
+MATH:   This is not used by KSCauto, KSCcomplete, or KSChybrid.  It computes
+        P_1,...,P_12 directly and applies the classical P_12 split:
+
+          P_12=0  -> kappa=-infinity,
+          P_12=1  -> kappa=0,
+          P_12>=2 -> positive Kodaira dimension.
+
+        If P_12=2, then |12K| has only two independent sections and maps at
+        most to P^1, so the positive branch cannot be general type; the output
+        is kappa=1.  If P_12>=3, the routine computes the exact |12K| image:
+        surface image gives general type, while non-surface image gives kappa=1.
+        In characteristics 2 and 3 the kappa=1 label includes quasi-elliptic
+        surfaces.  This routine can be very expensive and is deliberately not
+        part of the preferred standard path.  If keep=1, ideals already
+        computed by this explicit pass are retained in the result.
+EXAMPLE:
+  ring R=0,(x0,x1,x2,x3),dp;
+  ideal X=x0^5+x1^5+x2^5+x3^5;
+  KSCclassifyP12Certificate(X);     // explicit optional P_12 certificate
+"
+{
+  int checkSmooth=0;
+  if (size(#)>0) { checkSmooth=#[1]; }
+  int keep=0;
+  if (size(#)>1) { keep=#[2]; }
+
+  list chk=KSCsurfaceData(I,checkSmooth);
+  ideal J=chk[1];
+  int pdim=chk[2];
+  int smooth=chk[5];
+  intvec zbad; zbad[1]=0;
+  if (pdim!=2)
+  {
+    return(KSCresult("input is not a projective surface","unknown",zbad,-1,-1,-1,
+                "dim(S/I)-1 is not 2.",I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,0,-1,-1,keep));
+  }
+  if ((checkSmooth!=0) and (smooth==0))
+  {
+    return(KSCresult("smoothness check failed","unknown",zbad,-1,-1,-1,
+                KSCsmoothnessAssumptionNote(checkSmooth,smooth),I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,0,-1,-1,keep));
+  }
+
+  module W=KSCcanonicalModuleFromSatIdeal(J);
+  intvec P=KSCplurigeneraFromCanonical(W,12);
+  int q=KSCirregularityFromSatIdeal(J);
+  int phi5=-1;
+  int phi6=-1;
+  int phi12=-1;
+  string notes=KSCsmoothnessAssumptionNote(checkSmooth,smooth)+"Base field context: "+KSCcharContext()+". Optional P_12 certificate was requested explicitly; it is not part of the standard path. ";
+
+  if (P[12]==0)
+  {
+    if (q==0)
+    {
+      return(KSCresult("rational surface","-infinity",P,q,phi5,phi6,
+                  notes+"P_12=0; by the P_12 theorem kappa=-infinity, and h^1(O_X)=0 gives the rational branch.",I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,0,-1,-1,keep));
+    }
+    return(KSCresult("ruled surface over a curve of genus h^1(O_X)","-infinity",P,q,phi5,phi6,
+                notes+"P_12=0; by the P_12 theorem kappa=-infinity, and h^1(O_X)>0 gives the ruled branch.",I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,0,-1,-1,keep));
+  }
+
+  if (P[12]==1)
+  {
+    string klass0=KSCkappaZeroSubtype(P,q);
+    return(KSCresult(klass0,"0",P,q,phi5,phi6,
+                notes+"P_12=1; by the P_12 theorem kappa=0."+KSCkappaZeroSubtypeNote(),I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,0,-1,-1,keep));
+  }
+
+  if (P[12]==2)
+  {
+    return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
+                notes+"P_12=2 gives positive Kodaira dimension, and |12K| has only two independent sections, so its image is at most a curve. Thus the positive non-general-type branch is kappa=1."+KSCkappaOneNote(),I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,12,1,-1,keep));
+  }
+
+  if (P[12]>=3)
+  {
+    phi12=KSCphiDimExact(J,12);
+    if (phi12==2)
+    {
+      return(KSCresult("general type","2",P,q,phi5,phi6,
+                  notes+"P_12>=3 and the exact |12K| image has dimension 2.",I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,12,phi12,phi12,keep));
+    }
+    return(KSCresult(KSCkappaOneLabel(),"1",P,q,phi5,phi6,
+                notes+"P_12>=3 but the exact |12K| image is not a surface, so the positive branch is kappa=1."+KSCkappaOneNote(),I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,12,phi12,phi12,keep));
+  }
+
+  return(KSCresult("inconclusive","unknown",P,q,phi5,phi6,
+              notes+"Unexpected P_12 branch; check input hypotheses and computations.",I,chk,checkSmooth,-1,12,"p12-certificate",-1,0,0,-1,-1,keep));
+}
+
+proc KSCp12Certificate(ideal I, list #)
+"USAGE:  KSCp12Certificate(I[,checkSmooth,keep]);  alias for KSCclassifyP12Certificate.
+RETURN: Same as KSCclassifyP12Certificate.
+MATH:   Short explicit name for the optional P_12 theorem certificate.  This is
+        never called by the standard classifier.
+EXAMPLE:
+  ring R=0,(x0,x1,x2,x3),dp; ideal X=x0^5+x1^5+x2^5+x3^5; KSCp12Certificate(X);
+"
+{
+  if (size(#)==0) { return(KSCclassifyP12Certificate(I)); }
+  if (size(#)==1) { return(KSCclassifyP12Certificate(I,#[1])); }
+  return(KSCclassifyP12Certificate(I,#[1],#[2]));
+}
+
+proc KSCclassifyByP12(ideal I, list #)
+"USAGE:  KSCclassifyByP12(I[,checkSmooth,keep]);  alias for KSCclassifyP12Certificate.
+RETURN: Same as KSCclassifyP12Certificate.
+MATH:   Compatibility wrapper for users who explicitly want the P_12 theorem
+        route.  It is separated from, and not used by, KSCauto/KSCcomplete.
+EXAMPLE:
+  ring R=0,(x0,x1,x2,x3),dp; ideal X=x0^4+x1^4+x2^4+x3^4; KSCclassifyByP12(X);
+"
+{
+  if (size(#)==0) { return(KSCclassifyP12Certificate(I)); }
+  if (size(#)==1) { return(KSCclassifyP12Certificate(I,#[1])); }
+  return(KSCclassifyP12Certificate(I,#[1],#[2]));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

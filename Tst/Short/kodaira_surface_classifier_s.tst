@@ -35,4 +35,11 @@ def AQ=KSCautoEconomical(quintic);
 AQ.classification;
 AQ.kodairaDimension;
 
+ring S=0,(y0,y1),dp;
+ideal notsurface=0;
+def P12bad=KSCp12Certificate(notsurface);
+P12bad.classification;
+P12bad.algorithm;
+setring R;
+
 tst_status(1);$
