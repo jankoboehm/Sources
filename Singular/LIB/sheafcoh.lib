@@ -65,6 +65,15 @@ LIB "elim.lib";
 ///////////////////////////////////////////////////////////////////////////////
 static proc mod_init()
 {
+  // Load the optional accelerator only when this Singular executable was
+  // configured with the matching SpaSM library and module.
+  if (!defined(spasm_first_kernel_vector))
+  {
+    if (system("with","spasm"))
+    {
+      load("sispasm.so","try");
+    }
+  }
   newstruct("RankOneSheaf",
             "ring over, module presentation, ideal supportIdeal, ideal trivializationImages, poly trivializationDenom, int trivializationShift, int frameValidated");
   newstruct("SectionSpace",
@@ -1876,13 +1885,35 @@ example
 // the multiplication matrix; dense RREF is substantially slower here.
 static proc sectionBasisFirstRightKernelVector(matrix A)
 {
-  module zeroModule=0;
-  module kernelModule=modulo(module(A),std(zeroModule));
+  module kernelModule;
+  int useSpasm=0;
+  // Singular evaluates Boolean conjunctions eagerly, so guard each optional
+  // C procedure separately.  Unsupported coefficient fields retain the
+  // exact generic-kernel implementation below.
+  if (defined(spasm_supports_current_ring))
+  {
+    if (defined(spasm_first_kernel_vector))
+    {
+      useSpasm=spasm_supports_current_ring();
+    }
+  }
+  if (useSpasm)
+  {
+    kernelModule=spasm_first_kernel_vector(module(A));
+  }
+  else
+  {
+    module zeroModule=0;
+    kernelModule=modulo(module(A),std(zeroModule));
+  }
   if (size(kernelModule)==0) { return(list(0)); }
   matrix kernelMatrix=matrix(kernelModule);
+  if ((nrows(kernelMatrix)!=ncols(A)) || (ncols(kernelMatrix)<1))
+  {
+    ERROR("internal error: the constant-kernel backend returned an incompatible vector");
+  }
   matrix kernelVector[ncols(A)][1];
-  kernelVector[1..nrows(kernelMatrix),1]=
-    kernelMatrix[1..nrows(kernelMatrix),1];
+  kernelVector[1..ncols(A),1]=kernelMatrix[1..ncols(A),1];
   if (deg(kernelVector)>0)
   {
     ERROR("internal error: a constant relation matrix has a nonconstant kernel vector");
@@ -2139,8 +2170,10 @@ NOTE:     This alternative to rankOneTrivialization uses only finite linear
            directsum_j (R/I)_(t+c_j)
          induced by the transpose of the presentation matrix. Quotient bases
          are cached by degree, all products are reduced and scalarized in
-         bulk, and its sparse constant nullspace is computed in the Singular
-         kernel. The scan starts at -max(w_i), stops at its first nonzero
+         bulk. Over a supported odd prime field its sparse constant nullspace
+         automatically uses SpaSM with deterministic all-row elimination when
+         Singular was built with it; otherwise, it uses the generic module kernel.
+         The scan starts at -max(w_i), stops at its first nonzero
          kernel, and has a finite determinantal upper bound: the sum of the
          largest r-1 relation degrees minus sum_i w_i.
          On an integral support, such a nonzero functional induces an
