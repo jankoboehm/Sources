@@ -10,7 +10,7 @@ example multdivisor;
 example isEqualDivisor;
 example globalSectionsIdeal;
 example globalSections;
-example globalSectionsBGG;
+example globalSectionsMultTable;
 example degreeDivisor;
 example linearlyEquivalent;
 example effective;
@@ -25,7 +25,7 @@ ring r=31991,(x,y,z),dp;
 ideal I=y2*z-x*(x-z)*(x+3z);
 qring Q=std(I);
 divisor P=makeDivisor(ideal(x,z),ideal(1));
-list B=globalSectionsBGG(multdivisor(4,P),0);
+list B=globalSectionsMultTable(multdivisor(4,P),0);
 size(B[1]);
 B[3];
 
@@ -41,12 +41,12 @@ for (j=1;j<=size(A[1]);j++)
   if (reduce(A[1][j],std(ideal(0)))==0) { hasZero=1; }
 }
 hasZero;
-B=globalSectionsBGG(multdivisor(8,P),0);
+B=globalSectionsMultTable(multdivisor(8,P),0);
 size(B[1]);
 ideal directCoordinates=A[1]*B[2];
-ideal tailCoordinates=B[1]*A[2];
-size(NF(directCoordinates,std(tailCoordinates)));
-size(NF(tailCoordinates,std(directCoordinates)));
+ideal multTableCoordinates=B[1]*A[2];
+size(NF(directCoordinates,std(multTableCoordinates)));
+size(NF(multTableCoordinates,std(directCoordinates)));
 
 // Reduction alone is insufficient: quotient relations can also make the
 // retained degree slice linearly dependent.  On this smooth conic Q_2 has
@@ -58,11 +58,11 @@ divisor principalConicDivisor=makeDivisor(ideal(z2),ideal(1));
 list conicDirect=globalSections(principalConicDivisor);
 size(conicDirect[1]);
 size(minbase(conicDirect[1]));
-list conicTail=globalSectionsBGG(principalConicDivisor,0);
-size(conicTail[1]);
-ideal conicDirectCoordinates=conicDirect[1]*conicTail[2];
-ideal conicTailCoordinates=conicTail[1]*conicDirect[2];
-size(NF(conicDirectCoordinates,std(conicTailCoordinates)));
-size(NF(conicTailCoordinates,std(conicDirectCoordinates)));
+list conicMultTable=globalSectionsMultTable(principalConicDivisor,0);
+size(conicMultTable[1]);
+ideal conicDirectCoordinates=conicDirect[1]*conicMultTable[2];
+ideal conicMultTableCoordinates=conicMultTable[1]*conicDirect[2];
+size(NF(conicDirectCoordinates,std(conicMultTableCoordinates)));
+size(NF(conicMultTableCoordinates,std(conicDirectCoordinates)));
 
 tst_status(1);$

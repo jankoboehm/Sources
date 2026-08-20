@@ -1169,7 +1169,8 @@ NOTE:     If s is omitted, the procedure uses the stable bound
          max(d,reg(coker(M))+1). An explicit s is an expert override.
          The optional homogeneous g has degree s-d.  Evaluation at g must
          preserve the tail kernel and g must be a non-zero-divisor after
-         sheafification.  Set v nonzero to verify the result with BGG.
+         sheafification. BGG dimension verification is enabled by default;
+         pass v=0 to disable it.
          For a qring, the presentation is lifted to the ambient polynomial
          ring and the quotient ideal is added to its relation module.
 THEORY:   Put a=s-d. The procedure computes
@@ -1265,7 +1266,7 @@ EXAMPLE: example sheafSectionBasis; shows an example
   }
 
   int automaticTail=(size(#)==0);
-  int verify=0;
+  int verify=1;
   int s,reg;
   if (automaticTail)
   {
@@ -1337,7 +1338,7 @@ EXAMPLE: example sheafSectionBasis; shows an example
     module N=sectionBasisZeroModule(nrows(M));
     if (verify && (sectionBasisBGGDimension(M,d)!=0))
     {
-      ERROR("dimension mismatch between tail kernel and BGG cohomology");
+      ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
     }
     return(list(N,g,s));
   }
@@ -1368,7 +1369,7 @@ EXAMPLE: example sheafSectionBasis; shows an example
   module N=module(BB*EK);
   if (verify && (sectionBasisBGGDimension(M,d)!=size(N)))
   {
-    ERROR("dimension mismatch between tail kernel and BGG cohomology");
+    ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
   }
   return(list(N,g,s));
 }

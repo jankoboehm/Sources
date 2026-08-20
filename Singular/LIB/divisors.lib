@@ -44,7 +44,7 @@ normalFormDivisor(divisor)                      normal form of a divisor
 isEqualDivisor(divisor,divisor)                 test whether two divisors are equal
 globalSections(divisor)                         compute the global sections of a divisor
 globalSectionsIdeal(divisor)                    fractional ideal representing the divisor sheaf
-globalSectionsBGG(divisor,int[,int,poly,int])   section representatives and rational-map coordinates
+globalSectionsMultTable(divisor,int[,int,poly,int]) sections from multiplication tables
 degreeDivisor(divisor)                          degree of a divisor
 linearlyEquivalent(divisor,divisor)             test whether two divisors a linearly equivalent
 effective(divisor)                              compute an effective divisor
@@ -343,7 +343,7 @@ RETURN:  a list L. L[1] is a fractional-ideal numerator N and L[2] is a
 THEORY:  If D=(I)-(J), choose a nonzero f in I and compute the purified
          quotient N=(fJ:I). Unlike globalSections, this procedure keeps the
          complete graded fractional ideal rather than extracting one degree.
-SEE ALSO: globalSections, globalSectionsBGG
+SEE ALSO: globalSections, globalSectionsMultTable
 KEYWORDS: divisors, fractional ideals
 EXAMPLE: example globalSectionsIdeal; shows an example
 "
@@ -385,8 +385,8 @@ divisor D = multdivisor(4,P);
 globalSections(D);
 }
 
-proc globalSectionsBGG(divisor D,int d,list #)
-"USAGE:  globalSectionsBGG(D,d[,s,g,v]); D divisor, d,s int, g poly,
+proc globalSectionsMultTable(divisor D,int d,list #)
+"USAGE:  globalSectionsMultTable(D,d[,s,g,v]); D divisor, d,s int, g poly,
         v int
 ASSUME:  D is a homogeneous divisor on a smooth irreducible projective
         variety X in P^n whose qring has the S2 property. The basering is
@@ -401,15 +401,18 @@ NOTE:    The fractional ideal N/f from globalSectionsIdeal is lifted from
         (N+I_X)/I_X over S with generator degrees deg(N[i])-deg(f), applies
         sheafSectionBasis there, scalarizes the vector representatives, and
         maps the result back to the original qring.
-        The optional s, g, and v are the tail degree, evaluation denominator,
-        and BGG verification flag used by sheafSectionBasis.
-THEORY:  This computes the regular multiplication tail
-        Hom(m^(s-d),(N+I_X)/I_X)_d. In the stable range it is the degree-d
+        The optional s, g, and v are the multiplication-table degree,
+        evaluation denominator, and verification flag used by
+        sheafSectionBasis. Independent dimension verification with
+        sheafCohBGG is enabled by default; pass v=0 to disable it.
+THEORY:  This forms the degree-s and degree-(s+1) multiplication tables and
+        their compatibility kernel. It computes
+        Hom(m^(s-d),(N+I_X)/I_X)_d, which in the stable range is the degree-d
         part of the ideal transform and therefore the required H^0.
 SEE ALSO: globalSectionsIdeal, sheafSectionBasis, trivializedSectionBasis,
-          rationalMapFromSections
-KEYWORDS: divisors, sheaf cohomology, rational maps, BGG
-EXAMPLE: example globalSectionsBGG; shows an example
+          rationalMapFromSections, sheafCohBGG
+KEYWORDS: divisors, sheaf cohomology, rational maps, multiplication tables, Hom
+EXAMPLE: example globalSectionsMultTable; shows an example
 "
 {
   if (size(#)>3)
@@ -418,12 +421,12 @@ EXAMPLE: example globalSectionsBGG; shows an example
   }
   if ((!homog(D.num)) || (!homog(D.den)))
   {
-    ERROR("globalSectionsBGG requires homogeneous divisor ideals");
+    ERROR("globalSectionsMultTable requires homogeneous divisor ideals");
   }
 
   int haveTail=(size(#)>=1);
   int haveDenominator=(size(#)>=2);
-  int verify=0;
+  int verify=1;
   int tail;
   poly denominatorQ;
   if (haveTail)
@@ -502,14 +505,15 @@ example
 ring r=0,(x,y,z),dp;
 // D=2(x=0)-(y=0), hence O(D)=O(1):
 divisor D=makeDivisor(ideal(x2),ideal(y));
-list L=globalSectionsBGG(D,0);
+list L=globalSectionsMultTable(D,0);
 L;
 // Singular represents the associated rational map by its homogeneous
 // coordinate ideal; the common denominator L[2] cancels projectively:
 ideal phi=rationalMapFromSections(L);
 phi;
-// Force one more multiplication-tail step:
-L=globalSectionsBGG(D,0,1,z,1);
+// Force one more multiplication-table step and disable the independent
+// BGG dimension check:
+L=globalSectionsMultTable(D,0,1,z,0);
 L;
 }
 
