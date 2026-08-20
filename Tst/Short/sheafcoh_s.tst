@@ -103,5 +103,139 @@ kill r;
    print(M2);
    dimGradedPart(M2,2);
 
-tst_status(1);$
+// Representatives for H^0 from the regular multiplication tail:
+//---------------------------------------------------------------
+   kill R;
+   ring R=0,(x,y,z),dp;
+   module O=0;
+   attrib(O,"isHomog",intvec(0));
+   list SB=sheafSectionBasis(O,2,2);
+   size(SB[1]);
+   SB[1];
+   SB[2];
+   SB[3];
+   SB=sheafSectionBasis(O,0,2,x2,1);
+   SB[1];
+   SB[2];
+   SB[3];
 
+// Finite-length torsion at the regularity boundary must disappear:
+//-----------------------------------------------------------------
+   module T=x*gen(2),y*gen(2),z*gen(2);
+   attrib(T,"isHomog",intvec(0,0));
+   SB=sheafSectionBasis(T,0);
+   size(SB[1]);
+   SB[1];
+   SB[3];
+
+// Scalarization of a presented rank-one module:
+//------------------------------------------------
+   module P=-x*gen(1)+gen(2);
+   attrib(P,"isHomog",intvec(-1,0));
+   list ST=trivializedSectionBasis(P,0,ideal(1,x),1,ideal(0));
+   ST[1];
+   ST[2];
+   ST[3];
+
+// The rational functional can also be chosen from the graded dual:
+//-----------------------------------------------------------------
+   list RT=rankOneTrivialization(P,ideal(0));
+   RT[1];
+   RT[2];
+   RT[3];
+   ST=automaticTrivializedSectionBasis(P,0,ideal(0),0,1,1);
+   ST[1];
+   ST[2];
+   ST[3];
+
+// Dual generators which vanish on the support must not raise the shift:
+//-----------------------------------------------------------------------
+   ideal IXredundant=x;
+   module Redundant=x*gen(1),gen(2);
+   attrib(Redundant,"isHomog",intvec(0,-5));
+   RT=rankOneTrivialization(Redundant,IXredundant);
+   RT[1];
+   RT[2];
+   RT[3];
+
+// Support is a sheaf condition, so irrelevant torsion is saturated away:
+//-----------------------------------------------------------------------
+   module SaturatedSupport=x2*gen(1),x*y*gen(1),x*z*gen(1);
+   attrib(SaturatedSupport,"isHomog",intvec(0));
+   RT=rankOneTrivialization(SaturatedSupport,ideal(x));
+   RT[1];
+   RT[2];
+   RT[3];
+
+// A presentation generator may have zero image under a trivialization:
+//---------------------------------------------------------------------
+   module Z=gen(2);
+   attrib(Z,"isHomog",intvec(0,0));
+   ST=trivializedSectionBasis(Z,0,ideal(1,0),1,ideal(0),0,1,1);
+   size(ST[1]);
+   ST[1];
+   ST[2];
+   ST[3];
+
+// The regularity boundary itself need not yet give the stable Hom tail:
+//-----------------------------------------------------------------------
+   module L=(x+y)*gen(1);
+   attrib(L,"isHomog",intvec(0));
+   SB=sheafSectionBasis(L,-1);
+   size(SB[1]);
+   SB[3];
+
+// A syzygy presentation of m^2 sheafifies to the structure sheaf:
+//-----------------------------------------------------------------
+   ideal J=maxideal(2);
+   module MJ=syz(J);
+   attrib(MJ,"isHomog",intvec(2,2,2,2,2,2));
+   ST=trivializedSectionBasis(MJ,0,J,1,ideal(0));
+   size(ST[1]);
+   ST[1];
+   ST[2];
+   ST[3];
+
+// Reducible support needs a denominator regular on every component:
+//------------------------------------------------------------------
+   kill R;
+   ring Rtail=0,(u,w),dp;
+   module XY=u*w*gen(1);
+   attrib(XY,"isHomog",intvec(0));
+   list SBTail=sheafSectionBasis(XY,0);
+   size(SBTail[1]);
+   SBTail[1];
+   SBTail[2];
+   SBTail[3];
+
+// The same computation accepts a module directly over a qring:
+//--------------------------------------------------------------
+   ideal I=u*w;
+   // Neither dual generator alone covers both components; their sum does.
+   module Split=w*gen(1),u*gen(2);
+   attrib(Split,"isHomog",intvec(0,0));
+   list RTSplit=rankOneTrivialization(Split,I);
+   RTSplit[1];
+   RTSplit[2];
+   RTSplit[3];
+   qring Qtail=std(I);
+   module OQ=0;
+   attrib(OQ,"isHomog",intvec(0));
+   list SBQ=sheafSectionBasis(OQ,0);
+   size(SBQ[1]);
+   SBQ[1];
+   SBQ[2];
+   SBQ[3];
+
+// Qring lifting also preserves twists and stabilization:
+//--------------------------------------------------------
+   ring Rlinear=0,(x,y,z),dp;
+   ideal K=x+y;
+   qring Qlinear=std(K);
+   module OH=0;
+   attrib(OH,"isHomog",intvec(0));
+   list SBLinear=sheafSectionBasis(OH,-1);
+   size(SBLinear[1]);
+   SBLinear[3];
+
+tst_status(1);$

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version divisors.lib 4.2.0.1 Jan_2021 "; // $Id$
+version="version divisors.lib 4.4.1.0 Aug_2026 "; // $Id$
 category = "Commutative Algebra";
 info="
 LIBRARY:  divisors.lib      Divisors and P-Divisors
@@ -43,6 +43,8 @@ negativedivisor(divisor)                        compute the negative of the divi
 normalFormDivisor(divisor)                      normal form of a divisor
 isEqualDivisor(divisor,divisor)                 test whether two divisors are equal
 globalSections(divisor)                         compute the global sections of a divisor
+globalSectionsIdeal(divisor)                    fractional ideal representing the divisor sheaf
+globalSectionsBGG(divisor,int[,int,poly,int])   section representatives and rational-map coordinates
 degreeDivisor(divisor)                          degree of a divisor
 linearlyEquivalent(divisor,divisor)             test whether two divisors a linearly equivalent
 effective(divisor)                              compute an effective divisor
@@ -64,6 +66,7 @@ makePDivisor(List)                              make a formal polyhedral sum of 
 ////////////////////////////////////////////////////////////////////////////////
 
 LIB "primdec.lib";
+LIB "sheafcoh.lib";
 
 static proc mod_init()
 {
@@ -326,6 +329,31 @@ return(I)}
 
 //basis(ideal(x,y^3),2);
 
+proc globalSectionsIdeal(divisor D)
+"USAGE:  globalSectionsIdeal(D); D divisor
+ASSUME:  D is a divisor on a smooth irreducible variety X whose qring has
+         the S2 property, as required by makeDivisor.
+RETURN:  a list L. L[1] is a fractional-ideal numerator N and L[2] is a
+         polynomial f such that N/f represents O_X(D).
+THEORY:  If D=(I)-(J), choose a nonzero f in I and compute the purified
+         quotient N=(fJ:I). Unlike globalSections, this procedure keeps the
+         complete graded fractional ideal rather than extracting one degree.
+SEE ALSO: globalSections, globalSectionsBGG
+KEYWORDS: divisors, fractional ideals
+EXAMPLE: example globalSectionsIdeal; shows an example
+"
+{
+poly f=(simplify(D.num,2))[1];
+ideal N=purify1(quotient(f*D.den,D.num));
+return(list(simplify(N,2),f));
+}
+example
+{ "EXAMPLE:";
+ring r=0,(x,y,z),dp;
+divisor D=makeDivisor(ideal(x2),ideal(y));
+globalSectionsIdeal(D);
+}
+
 
 proc globalSections(divisor D)
 "USAGE:  globalSections(A); A = divisor.@*
@@ -337,9 +365,9 @@ KEYWORDS: divisors
 EXAMPLE: example globalSections; shows an example
 "
 {
-poly f =(simplify(D.num,2))[1];
-ideal LD = basis(purify1(quotient(f*D.den,D.num)),deg(f));
-list L = simplify(LD,2),f;
+list F=globalSectionsIdeal(D);
+ideal LD=basis(F[1],deg(F[2]));
+list L=simplify(LD,2),F[2];
 return(L);
 }
 example
@@ -350,6 +378,129 @@ qring Q = std(I);
 divisor P = makeDivisor(ideal(x,z),ideal(1));
 divisor D = multdivisor(4,P);
 globalSections(D);
+}
+
+proc globalSectionsBGG(divisor D,int d,list #)
+"USAGE:  globalSectionsBGG(D,d[,s,g,v]); D divisor, d,s int, g poly,
+        v int
+ASSUME:  D is a homogeneous divisor on a smooth irreducible projective
+        variety X in P^n whose qring has the S2 property. The basering is
+        the homogeneous qring of X (or a polynomial ring when X=P^n).
+RETURN:  a list L. L[1] is an ideal of homogeneous scalar numerators,
+        L[2] is their common denominator, and L[3] is the tail degree.
+        The fractions L[1][i]/L[2] form a basis of
+        H^0(X,O_X(D)(d)). The ordered entries of L[1] are coordinates for
+        the associated rational map; the denominator cancels projectively.
+NOTE:    The fractional ideal N/f from globalSectionsIdeal is lifted from
+        the qring to its ambient polynomial ring S. The procedure presents
+        (N+I_X)/I_X over S with generator degrees deg(N[i])-deg(f), applies
+        sheafSectionBasis there, scalarizes the vector representatives, and
+        maps the result back to the original qring.
+        The optional s, g, and v are the tail degree, evaluation denominator,
+        and BGG verification flag used by sheafSectionBasis.
+THEORY:  This computes the regular multiplication tail
+        Hom(m^(s-d),(N+I_X)/I_X)_d. In the stable range it is the degree-d
+        part of the ideal transform and therefore the required H^0.
+SEE ALSO: globalSectionsIdeal, sheafSectionBasis, trivializedSectionBasis
+KEYWORDS: divisors, sheaf cohomology, rational maps, BGG
+EXAMPLE: example globalSectionsBGG; shows an example
+"
+{
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+  if ((!homog(D.num)) || (!homog(D.den)))
+  {
+    ERROR("globalSectionsBGG requires homogeneous divisor ideals");
+  }
+
+  int haveTail=(size(#)>=1);
+  int haveDenominator=(size(#)>=2);
+  int verify=0;
+  int tail;
+  poly denominatorQ;
+  if (haveTail)
+  {
+    if (typeof(#[1])!="int") { ERROR("tail degree must be an integer"); }
+    tail=#[1];
+  }
+  if (haveDenominator)
+  {
+    if (typeof(#[2])!="poly")
+    {
+      ERROR("evaluation denominator must be a polynomial");
+    }
+    denominatorQ=#[2];
+  }
+  if (size(#)==3)
+  {
+    if (typeof(#[3])!="int")
+    {
+      ERROR("verification flag must be an integer");
+    }
+    verify=#[3];
+  }
+
+  list fractional=globalSectionsIdeal(D);
+  ideal numeratorQ=fractional[1];
+  poly fractionalDenominatorQ=fractional[2];
+
+  def Q=basering;
+  list RL=ringlist(Q);
+  ideal coordinateIdealQ=RL[4];
+  RL[4]=ideal(0);
+  def S=ring(RL);
+  setring S;
+
+  ideal N=imap(Q,numeratorQ);
+  poly f=imap(Q,fractionalDenominatorQ);
+  ideal IX=imap(Q,coordinateIdealQ);
+  if ((!homog(N)) || (!homog(IX)) || (!homog(f)))
+  {
+    ERROR("the embedded divisor data must be homogeneous");
+  }
+
+  module M=modulo(N,IX);
+  intvec weights;
+  weights[size(N)]=0;
+  int i;
+  for (i=1; i<=size(N); i++)
+  {
+    weights[i]=deg(N[i])-deg(f);
+  }
+  attrib(M,"isHomog",weights);
+
+  list result;
+  if (!haveTail)
+  {
+    result=trivializedSectionBasis(M,d,N,f,IX);
+  }
+  if (haveTail && (!haveDenominator))
+  {
+    result=trivializedSectionBasis(M,d,N,f,IX,tail);
+  }
+  if (haveTail && haveDenominator)
+  {
+    poly g=imap(Q,denominatorQ);
+    result=trivializedSectionBasis(M,d,N,f,IX,tail,
+                                   g,verify);
+  }
+
+  setring Q;
+  def result=imap(S,result);
+  return(result);
+}
+example
+{ "EXAMPLE:";
+ring r=0,(x,y,z),dp;
+// D=2(x=0)-(y=0), hence O(D)=O(1):
+divisor D=makeDivisor(ideal(x2),ideal(y));
+list L=globalSectionsBGG(D,0);
+L;
+// Force one more multiplication-tail step:
+L=globalSectionsBGG(D,0,1,z,1);
+L;
 }
 
 

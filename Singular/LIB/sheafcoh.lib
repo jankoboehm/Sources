@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-version="version sheafcoh.lib 4.3.2.9 Oct_2023 "; // $Id$
+version="version sheafcoh.lib 4.4.1.0 Aug_2026 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  sheafcoh.lib   Procedures for Computing Sheaf Cohomology
@@ -12,6 +12,10 @@ PROCEDURES:
  truncate(phi,d);        truncation of coker(phi) at d
  truncateFast(phi,d);    truncation of coker(phi) at d (fast+ experimental)
  CM_regularity(M);       Castelnuovo-Mumford regularity of coker(M)
+ sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
+ trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
+ rankOneTrivialization(M,I); automatic rational functional for a rank-one module
+ automaticTrivializedSectionBasis(M,d,I[,s,g,v]); scalar sections using it
  sheafCohBGG(M,l,h);     cohomology of sheaf associated to coker(M)
  sheafCohBGGregul(M,l,h,r); cohomology of sheaf associated to coker(M)
                           with given regularity
@@ -33,6 +37,7 @@ KEYWORDS: sheaf cohomology
 LIB "matrix.lib";
 LIB "nctools.lib";
 LIB "homolog.lib";
+LIB "elim.lib";
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -515,6 +520,979 @@ example
   intvec v=2,2,2,2,2,2;
   attrib(M,"isHomog",v);
   CM_regularity(M);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Representatives for H^0 from the regular multiplication tail.
+//
+// At tail degree s and twist d, the finite kernel below is
+// Hom(m^(s-d),coker(M))_d.  In the stable range this is the degree-d
+// component of the ideal transform and hence H^0 of the associated sheaf.
+
+static proc sectionBasisProductOfVariables()
+{
+  poly p=1;
+  for (int i=1; i<=nvars(basering); i++)
+  {
+    p=p*var(i);
+  }
+  return(p);
+}
+
+static proc sectionBasisZeroModule(int r)
+{
+  matrix Z[r][1];
+  module N=Z;
+  return(N);
+}
+
+// Return the canonical standard monomials of degree d in coker(M).
+// Enumerating the ambient monomials avoids a kbase edge case for negatively
+// shifted rows.  Keeping standard monomials (rather than arbitrary quotient
+// representatives) also makes coeffs compute multiplication tables exactly.
+static proc sectionBasisGradedPiece(module G,intvec w,int d)
+{
+  int r=nrows(G);
+  module L,B;
+  int i,j;
+  for (i=1; i<=r; i++)
+  {
+    if (d>w[i])
+    {
+      L=L+maxideal(d-w[i])*gen(i);
+    }
+    else
+    {
+      if (d==w[i]) { L=L+gen(i); }
+    }
+  }
+  for (j=1; j<=size(L); j++)
+  {
+    if (reduce(L[j],G)==L[j]) { B=B+L[j]; }
+  }
+  return(B);
+}
+
+// The columns of the result describe all compatible images of the degree-a
+// monomials in coker(M)_s.  Since the base ring is polynomial, the first
+// syzygies of m^a are linear.
+static proc sectionBasisCompatibilityKernel(module G,module Bs,
+                                            module Bs1,int a)
+{
+  int ds=size(Bs);
+  int ds1=size(Bs1);
+  ideal U=maxideal(a);
+  int nu=size(U);
+  if (a==0)
+  {
+    module KI=unitmat(ds);
+    return(KI);
+  }
+  module SU=syz(U);
+  int nr=size(SU);
+  if ((ds==0) || (nu==0))
+  {
+    module K0;
+    return(K0);
+  }
+  if ((ds1==0) || (nr==0))
+  {
+    module KF=unitmat(ds*nu);
+    return(KF);
+  }
+
+  matrix C[ds1*nr][ds*nu];
+  int r,u,k,i,j;
+  poly c;
+  module P;
+  matrix T;
+  for (r=1; r<=nr; r++)
+  {
+    for (u=1; u<=nu; u++)
+    {
+      c=SU[r][u];
+      if (c!=0)
+      {
+        P=0;
+        for (k=1; k<=ds; k++)
+        {
+          P[k]=reduce(c*Bs[k],G);
+        }
+        // Bs1 is the standard-monomial basis of this homogeneous piece.
+        // Exact lifting preserves zero columns and avoids the unsafe
+        // coordinate assumptions made by coeffs on a general module basis.
+        T=lift(Bs1,P);
+        if ((nrows(T)!=ds1) || (ncols(T)!=ds))
+        {
+          ERROR("internal error while lifting a multiplication map");
+        }
+        for (i=1; i<=ds1; i++)
+        {
+          for (j=1; j<=ds; j++)
+          {
+            if ((T[i,j]!=0) && (deg(T[i,j])!=0))
+            {
+              ERROR("multiplication coordinates are not scalar");
+            }
+          }
+        }
+        C[(r-1)*ds1+1..r*ds1,(u-1)*ds+1..u*ds]=T;
+      }
+    }
+  }
+  module K=modulo(C,std(0));
+  return(K);
+}
+
+static proc sectionBasisEvaluation(module K,ideal U,module Bs,poly g)
+{
+  int ds=size(Bs);
+  int nu=size(U);
+  poly pvars=sectionBasisProductOfVariables();
+  matrix cg=coeffs(g,U,pvars);
+  matrix E[ds][ds*nu];
+  int u,k;
+  for (u=1; u<=nu; u++)
+  {
+    for (k=1; k<=ds; k++)
+    {
+      E[k,(u-1)*ds+k]=cg[u,1];
+    }
+  }
+  return(E*matrix(K));
+}
+
+// Multiplication by g is injective after sheafification iff the saturated
+// relation module agrees with its saturated colon by g.
+static proc sectionBasisRegularDenominator(module M,poly g)
+{
+  if (deg(g)==0) { return(1); }
+  module C=quotient(M,ideal(g));
+  module SC=sat(C,maxideal(1));
+  module SM=sat(M,maxideal(1));
+  return((size(NF(SC,std(SM)))==0) &&
+         (size(NF(SM,std(SC)))==0));
+}
+
+static proc sectionBasisValidateDenominator(module M,module K,ideal U,
+                                            module Bs,poly g,int a)
+{
+  if ((g==0) || (!homog(g)) || (deg(g)!=a))
+  {
+    return(list(0));
+  }
+  matrix EK=sectionBasisEvaluation(K,U,Bs,g);
+  if (rank(EK)!=size(K)) { return(list(0)); }
+  if (!sectionBasisRegularDenominator(M,g)) { return(list(0)); }
+  return(list(1,EK));
+}
+
+static proc sectionBasisAutomaticDenominator(module M,module K,ideal U,
+                                             module Bs,int a)
+{
+  int nu=size(U);
+  poly g=U[1];
+  list V=sectionBasisValidateDenominator(M,K,U,Bs,g,a);
+  if (V[1]) { return(list(g,V[2])); }
+
+  int u,t;
+  g=0;
+  for (u=1; u<=nu; u++) { g=g+U[u]; }
+  V=sectionBasisValidateDenominator(M,K,U,Bs,g,a);
+  if (V[1]) { return(list(g,V[2])); }
+
+  // Deterministic points in a coefficient pencil handle reducible support
+  // while keeping the choice reproducible.
+  for (t=1; t<=8; t++)
+  {
+    g=0;
+    for (u=1; u<=nu; u++) { g=g+(1+t*(u-1))*U[u]; }
+    V=sectionBasisValidateDenominator(M,K,U,Bs,g,a);
+    if (V[1]) { return(list(g,V[2])); }
+  }
+
+  g=U[1];
+  for (u=2; u<nu; u++)
+  {
+    g=g+U[u];
+    V=sectionBasisValidateDenominator(M,K,U,Bs,g,a);
+    if (V[1]) { return(list(g,V[2])); }
+  }
+  for (u=2; u<=nu; u++)
+  {
+    g=U[u];
+    V=sectionBasisValidateDenominator(M,K,U,Bs,g,a);
+    if (V[1]) { return(list(g,V[2])); }
+  }
+  return(list(0));
+}
+
+static proc sectionBasisAutomaticRegularDenominator(module M,ideal U)
+{
+  int nu=size(U);
+  int u,t;
+  poly g=U[1];
+  if (sectionBasisRegularDenominator(M,g)) { return(g); }
+
+  g=0;
+  for (u=1; u<=nu; u++) { g=g+U[u]; }
+  if (sectionBasisRegularDenominator(M,g)) { return(g); }
+
+  for (t=1; t<=8; t++)
+  {
+    g=0;
+    for (u=1; u<=nu; u++) { g=g+(1+t*(u-1))*U[u]; }
+    if (sectionBasisRegularDenominator(M,g)) { return(g); }
+  }
+
+  g=U[1];
+  for (u=2; u<nu; u++)
+  {
+    g=g+U[u];
+    if (sectionBasisRegularDenominator(M,g)) { return(g); }
+  }
+  for (u=2; u<=nu; u++)
+  {
+    g=U[u];
+    if (sectionBasisRegularDenominator(M,g)) { return(g); }
+  }
+  return(poly(0));
+}
+
+static proc sectionBasisBGGDimension(module M,int d)
+{
+  int nv=nvars(basering);
+  intmat H=sheafCohBGG(M,d-nv,d+nv);
+  int h0=H[nv,nv+1];
+  if (h0<0)
+  {
+    ERROR("BGG did not determine H^0 at the requested twist");
+  }
+  return(h0);
+}
+
+proc sheafSectionBasis(module M,int d,list #)
+"USAGE:   sheafSectionBasis(M,d[,s,g,v]); M module, d,s int, g poly,
+         v int
+ASSUME:   M is a graded presentation matrix over a standard graded
+         polynomial ring or its homogeneous qring, with the row degrees
+         assigned as isHomog.
+RETURN:   list L. L[1] is a module of homogeneous numerator vectors,
+         L[2] is their common denominator, and L[3] is the tail degree.
+         The fractions L[1][i]/L[2] represent a basis of
+         H^0(Proj(basering),sheaf(coker(M))(d)).
+NOTE:     If s is omitted, the procedure uses the stable bound
+         max(d,reg(coker(M))+1). An explicit s is an expert override.
+         The optional homogeneous g has degree s-d.  Evaluation at g must
+         preserve the tail kernel and g must be a non-zero-divisor after
+         sheafification.  Set v nonzero to verify the result with BGG.
+         For a qring, the presentation is lifted to the ambient polynomial
+         ring and the quotient ideal is added to its relation module.
+THEORY:   Put a=s-d. The procedure computes
+         Hom(m^a,coker(M))_d from the degree-s and degree-(s+1) pieces and
+         the multiplication maps. In the stable range this finite ideal
+         transform is H^0 of the associated sheaf.
+SEE ALSO: sheafCohBGG, dimH, trivializedSectionBasis
+EXAMPLE: example sheafSectionBasis; shows an example
+"
+{
+  if (typeof(attrib(M,"isHomog"))!="intvec")
+  {
+    if (size(M)==0)
+    {
+      intvec w;
+      w[nrows(M)]=0;
+      attrib(M,"isHomog",w);
+    }
+    else
+    {
+      ERROR("No admissible degree vector assigned");
+    }
+  }
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+
+  list RL=ringlist(basering);
+  if (RL[4]!=0)
+  {
+    int argumentCount=size(#);
+    int qTail,qVerify;
+    poly qDenominator;
+    if (argumentCount>=1)
+    {
+      if (typeof(#[1])!="int") { ERROR("tail degree must be an integer"); }
+      qTail=#[1];
+    }
+    if (argumentCount>=2)
+    {
+      if (typeof(#[2])!="poly")
+      {
+        ERROR("evaluation denominator must be a polynomial");
+      }
+      qDenominator=#[2];
+    }
+    if (argumentCount==3)
+    {
+      if (typeof(#[3])!="int")
+      {
+        ERROR("verification flag must be an integer");
+      }
+      qVerify=#[3];
+    }
+
+    intvec qWeights=attrib(M,"isHomog");
+    def Q=basering;
+    ideal coordinateIdealQ=RL[4];
+    RL[4]=ideal(0);
+    def S=ring(RL);
+    setring S;
+    module MS=imap(Q,M);
+    ideal IX=imap(Q,coordinateIdealQ);
+    MS=MS+IX*freemodule(nrows(MS));
+    attrib(MS,"isHomog",qWeights);
+
+    list qResult;
+    if (argumentCount==0)
+    {
+      qResult=sheafSectionBasis(MS,d);
+    }
+    if (argumentCount==1)
+    {
+      qResult=sheafSectionBasis(MS,d,qTail);
+    }
+    if (argumentCount>=2)
+    {
+      poly g=imap(Q,qDenominator);
+      if (argumentCount==2)
+      {
+        qResult=sheafSectionBasis(MS,d,qTail,g);
+      }
+      else
+      {
+        qResult=sheafSectionBasis(MS,d,qTail,g,qVerify);
+      }
+    }
+
+    setring Q;
+    def qResult=imap(S,qResult);
+    return(qResult);
+  }
+
+  int automaticTail=(size(#)==0);
+  int verify=0;
+  int s,reg;
+  if (automaticTail)
+  {
+    reg=CM_regularity(M);
+    s=max(d,reg+1);
+  }
+  else
+  {
+    if (typeof(#[1])!="int") { ERROR("tail degree must be an integer"); }
+    s=#[1];
+    reg=s;
+  }
+  if (s<d) { ERROR("tail degree must be at least the requested twist"); }
+  if (size(#)==3)
+  {
+    if (typeof(#[3])!="int")
+    {
+      ERROR("verification flag must be an integer");
+    }
+    verify=#[3];
+  }
+
+  module G=std(M);
+  intvec weights=attrib(M,"isHomog");
+  module Bs=sectionBasisGradedPiece(G,weights,s);
+  module Bs1;
+  if (s>d)
+  {
+    Bs1=sectionBasisGradedPiece(G,weights,s+1);
+  }
+
+  int tailGap=s-d;
+  ideal U=maxideal(tailGap);
+  module K;
+  if (tailGap==0)
+  {
+    K=unitmat(size(Bs));
+  }
+  else
+  {
+    if (size(Bs1)==0)
+    {
+      Bs1=sectionBasisGradedPiece(G,weights,s+1);
+    }
+    K=sectionBasisCompatibilityKernel(G,Bs,Bs1,tailGap);
+  }
+
+  poly g;
+  matrix EK;
+  if (size(K)==0)
+  {
+    if (size(#)>=2)
+    {
+      g=#[2];
+      if ((g==0) || (!homog(g)) || (deg(g)!=tailGap) ||
+          (!sectionBasisRegularDenominator(M,g)))
+      {
+        ERROR("invalid or sheaf-zero-divisor denominator");
+      }
+    }
+    else
+    {
+      g=sectionBasisAutomaticRegularDenominator(M,U);
+      if (g==0)
+      {
+        ERROR("could not choose a regular evaluation denominator");
+      }
+    }
+    module N=sectionBasisZeroModule(nrows(M));
+    if (verify && (sectionBasisBGGDimension(M,d)!=0))
+    {
+      ERROR("dimension mismatch between tail kernel and BGG cohomology");
+    }
+    return(list(N,g,s));
+  }
+
+  list denominatorResult;
+  if (size(#)>=2)
+  {
+    g=#[2];
+    denominatorResult=sectionBasisValidateDenominator(M,K,U,Bs,g,tailGap);
+    if (size(denominatorResult)<2)
+    {
+      ERROR("denominator has the wrong degree, loses sections, or is a zero divisor after sheafification");
+    }
+    EK=denominatorResult[2];
+  }
+  else
+  {
+    denominatorResult=sectionBasisAutomaticDenominator(M,K,U,Bs,tailGap);
+    if (size(denominatorResult)<2)
+    {
+      ERROR("could not choose a common evaluation denominator; supply one or increase the tail degree");
+    }
+    g=denominatorResult[1];
+    EK=denominatorResult[2];
+  }
+
+  matrix BB=matrix(Bs);
+  module N=module(BB*EK);
+  if (verify && (sectionBasisBGGDimension(M,d)!=size(N)))
+  {
+    ERROR("dimension mismatch between tail kernel and BGG cohomology");
+  }
+  return(list(N,g,s));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module M=0;
+  attrib(M,"isHomog",intvec(0));
+  // H^0(P^2,O(2)):
+  list B=sheafSectionBasis(M,2,2);
+  B;
+  // The same structure sheaf, evaluated farther out in the tail:
+  B=sheafSectionBasis(M,0,2,x2,1);
+  B;
+}
+
+static proc sectionBasisTrivializationKernelIsM(module M,ideal images,
+                                                 ideal IX)
+{
+  module imageKernel=modulo(images,std(IX));
+  module saturatedImageKernel=sat(imageKernel,maxideal(1));
+  module saturatedM=sat(M,maxideal(1));
+  return((size(NF(saturatedImageKernel,std(saturatedM)))==0) &&
+         (size(NF(saturatedM,std(saturatedImageKernel)))==0));
+}
+
+// Read a weighted-homogeneous functional from a dual-module generator.
+// The returned shift is deg(h_i)-weight(e_i), independent of nonzero i.
+static proc sectionBasisHomogeneousTrivializationCandidate(vector candidate,
+                                                            int r,
+                                                            intvec weights)
+{
+  ideal images;
+  int i,shift,shiftIsSet;
+  for (i=1; i<=r; i++)
+  {
+    images[i]=candidate[i];
+    if (candidate[i]!=0)
+    {
+      if (!homog(candidate[i])) { return(list(0)); }
+      if (!shiftIsSet)
+      {
+        shift=deg(candidate[i])-weights[i];
+        shiftIsSet=1;
+      }
+      else
+      {
+        if (deg(candidate[i])-weights[i]!=shift) { return(list(0)); }
+      }
+    }
+  }
+  if (!shiftIsSet) { return(list(0)); }
+  return(list(1,images,shift));
+}
+
+static proc sectionBasisRegularOnModuleAndSupport(module M,module OX,poly g)
+{
+  return((g!=0) && sectionBasisRegularDenominator(M,g) &&
+         sectionBasisRegularDenominator(OX,g));
+}
+
+// Choose a degree-a form which is regular both on the support and on M.
+static proc sectionBasisTrivializationRegularFactor(module M,module OX,int a)
+{
+  if (a==0) { return(poly(1)); }
+  if (a<0) { return(poly(0)); }
+  ideal U=maxideal(a);
+  int nu=size(U);
+  if (nu==0) { return(poly(0)); }
+
+  int u,t;
+  poly g=U[1];
+  if (sectionBasisRegularOnModuleAndSupport(M,OX,g)) { return(g); }
+
+  g=0;
+  for (u=1; u<=nu; u++) { g=g+U[u]; }
+  if (sectionBasisRegularOnModuleAndSupport(M,OX,g)) { return(g); }
+
+  for (t=1; t<=8; t++)
+  {
+    g=0;
+    for (u=1; u<=nu; u++) { g=g+(1+t*(u-1))*U[u]; }
+    if (sectionBasisRegularOnModuleAndSupport(M,OX,g)) { return(g); }
+  }
+
+  g=U[1];
+  for (u=2; u<nu; u++)
+  {
+    g=g+U[u];
+    if (sectionBasisRegularOnModuleAndSupport(M,OX,g)) { return(g); }
+  }
+  for (u=2; u<=nu; u++)
+  {
+    g=U[u];
+    if (sectionBasisRegularOnModuleAndSupport(M,OX,g)) { return(g); }
+  }
+  return(poly(0));
+}
+
+static proc sectionBasisCheckTrivialization(module M,ideal images,poly f,
+                                            ideal IX)
+{
+  int imageCount=ncols(matrix(images));
+  if (imageCount!=nrows(M))
+  {
+    ERROR("one trivialization image is required for each presentation generator");
+  }
+  if ((f==0) || (!homog(f)) || (!homog(IX)))
+  {
+    ERROR("the support ideal and trivialization denominator must be homogeneous, and the denominator nonzero");
+  }
+  if (typeof(attrib(M,"isHomog"))!="intvec")
+  {
+    if (size(M)==0)
+    {
+      intvec zeroWeights;
+      zeroWeights[nrows(M)]=0;
+      attrib(M,"isHomog",zeroWeights);
+    }
+    else
+    {
+      ERROR("No admissible degree vector assigned");
+    }
+  }
+
+  module OX=IX;
+  attrib(OX,"isHomog",intvec(0));
+  if (!sectionBasisRegularDenominator(OX,f))
+  {
+    ERROR("the trivialization denominator is a zero divisor on the support");
+  }
+  if (!sectionBasisRegularDenominator(M,f))
+  {
+    ERROR("the trivialization denominator is a zero divisor on the sheaf");
+  }
+
+  module GM=std(M);
+  module saturatedM=sat(M,maxideal(1));
+  module GsaturatedM=std(saturatedM);
+  ideal GIX=std(IX);
+  intvec weights=attrib(M,"isHomog");
+  int i,j;
+  int shiftIsSet=0;
+  int trivializationShift,currentShift;
+  int nonzeroOnSupport=0;
+  poly h;
+  for (i=1; i<=imageCount; i++)
+  {
+    if (images[i]!=0)
+    {
+      if (!homog(images[i]))
+      {
+        ERROR("the trivialization images must be homogeneous");
+      }
+      currentShift=deg(images[i])-deg(f)-weights[i];
+      if (!shiftIsSet)
+      {
+        trivializationShift=currentShift;
+        shiftIsSet=1;
+      }
+      else
+      {
+        if (currentShift!=trivializationShift)
+        {
+          ERROR("the trivialization images do not have a common grading shift");
+        }
+      }
+      if (reduce(images[i],GIX)!=0) { nonzeroOnSupport=1; }
+    }
+  }
+  if (!nonzeroOnSupport)
+  {
+    ERROR("the trivialization is zero on the support");
+  }
+
+  // The coordinate ideal must annihilate the sheafification of coker(M).
+  // Use the saturated presentation module so irrelevant torsion in the
+  // chosen graded presentation does not cause a false rejection.
+  for (j=1; j<=size(GIX); j++)
+  {
+    if (GIX[j]!=0)
+    {
+      for (i=1; i<=nrows(M); i++)
+      {
+        if (reduce(GIX[j]*gen(i),GsaturatedM)!=0)
+        {
+          ERROR("the module is not supported on the supplied coordinate ideal");
+        }
+      }
+    }
+  }
+
+  // The generator images must respect every presentation relation modulo IX.
+  for (j=1; j<=size(GM); j++)
+  {
+    h=0;
+    for (i=1; i<=nrows(M); i++)
+    {
+      h=h+GM[j][i]*images[i];
+    }
+    if (reduce(h,GIX)!=0)
+    {
+      ERROR("the trivialization images do not satisfy the module relations on the support");
+    }
+  }
+
+  // The induced map coker(M) -> (images)/(IX) must have no sheaf kernel.
+  // This rules out a putative trivialization which vanishes generically on
+  // one irreducible component of the support.
+  if (!sectionBasisTrivializationKernelIsM(M,images,IX))
+  {
+    ERROR("the supplied images do not define a generically injective trivialization on every support component");
+  }
+}
+
+proc rankOneTrivialization(module M,ideal IX)
+"USAGE:   rankOneTrivialization(M,I); M module, I ideal
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         whose associated sheaf is torsion-free and generically of rank one
+         (in particular, a line bundle), and M has its row degrees assigned
+         as isHomog.
+RETURN:   list T. T[1] is an ideal containing one image for each presentation
+         generator, T[2] is their common denominator (currently 1), and T[3]
+         is the degree shift deg(T[1][i])-deg(T[2])-isHomog[i] for every
+         nonzero image.
+NOTE:     The procedure computes the graded dual Hom(coker(M),basering/I),
+         homogenizes its generators to a common shift using factors regular
+         both on the support and on the sheaf, and searches deterministic
+         linear combinations. A result is accepted only when its kernel and
+         M agree after saturation, so the functional is generically injective
+         on every support component. The deterministic candidate search is
+         finite; if it misses a suitable functional, pass an explicit
+         trivialization to trivializedSectionBasis.
+SEE ALSO: trivializedSectionBasis, automaticTrivializedSectionBasis
+EXAMPLE: example rankOneTrivialization; shows an example
+"
+{
+  if (!homog(IX)) { ERROR("the support ideal must be homogeneous"); }
+  if (typeof(attrib(M,"isHomog"))!="intvec")
+  {
+    if (size(M)==0)
+    {
+      intvec zeroWeights;
+      zeroWeights[nrows(M)]=0;
+      attrib(M,"isHomog",zeroWeights);
+    }
+    else
+    {
+      ERROR("No admissible degree vector assigned");
+    }
+  }
+
+  int r=nrows(M);
+  intvec weights=attrib(M,"isHomog");
+  ideal GIX=std(IX);
+  module relationTranspose=transpose(matrix(M));
+  module targetRelations=IX*freemodule(nrows(relationTranspose));
+  module dualGenerators=modulo(relationTranspose,targetRelations);
+  if (size(dualGenerators)==0)
+  {
+    ERROR("the graded dual has no generators; pass an explicit trivialization");
+  }
+
+  list candidateImages,candidateShifts,C;
+  int candidateCount=0;
+  int i,j,nonzeroOnSupport;
+  ideal H,Hj;
+  for (j=1; j<=size(dualGenerators); j++)
+  {
+    C=sectionBasisHomogeneousTrivializationCandidate(dualGenerators[j],r,
+                                                      weights);
+    if (C[1])
+    {
+      H=C[2];
+      nonzeroOnSupport=0;
+      for (i=1; i<=r; i++)
+      {
+        if (reduce(H[i],GIX)!=0) { nonzeroOnSupport=1; }
+      }
+      if (nonzeroOnSupport)
+      {
+        candidateCount++;
+        candidateImages[candidateCount]=H;
+        candidateShifts[candidateCount]=C[3];
+      }
+    }
+  }
+  if (candidateCount==0)
+  {
+    ERROR("the graded dual has no homogeneous generators; pass an explicit trivialization");
+  }
+
+  // Prefer a native dual generator before raising every candidate to a
+  // common shift.  This keeps the trivialization degree small on integral
+  // support and ignores redundant high-degree generators of the dual.
+  for (j=1; j<=candidateCount; j++)
+  {
+    H=candidateImages[j];
+    if (sectionBasisTrivializationKernelIsM(M,H,IX))
+    {
+      sectionBasisCheckTrivialization(M,H,1,IX);
+      return(list(H,poly(1),candidateShifts[j]));
+    }
+  }
+
+  int commonShift=candidateShifts[1];
+  for (j=2; j<=candidateCount; j++)
+  {
+    commonShift=max(commonShift,candidateShifts[j]);
+  }
+
+  module OX=IX;
+  attrib(OX,"isHomog",intvec(0));
+  list normalizedImages;
+  int normalizedCount=0;
+  poly factor;
+  for (j=1; j<=candidateCount; j++)
+  {
+    factor=sectionBasisTrivializationRegularFactor(
+             M,OX,commonShift-candidateShifts[j]);
+    if (factor!=0)
+    {
+      Hj=candidateImages[j];
+      H=ideal(0);
+      for (i=1; i<=r; i++) { H[i]=factor*Hj[i]; }
+      normalizedCount++;
+      normalizedImages[normalizedCount]=H;
+    }
+  }
+  if (normalizedCount==0)
+  {
+    ERROR("could not homogenize the dual generators with regular factors; pass an explicit trivialization");
+  }
+
+  // On reducible support, combine generators which cover different
+  // components.  All summands have the same shift at this point.
+  int t;
+  for (t=0; t<=8; t++)
+  {
+    H=ideal(0);
+    for (i=1; i<=r; i++)
+    {
+      H[i]=0;
+      for (j=1; j<=normalizedCount; j++)
+      {
+        Hj=normalizedImages[j];
+        H[i]=H[i]+(1+t*(j-1))*Hj[i];
+      }
+    }
+    if (sectionBasisTrivializationKernelIsM(M,H,IX))
+    {
+      sectionBasisCheckTrivialization(M,H,1,IX);
+      return(list(H,poly(1),commonShift));
+    }
+  }
+
+  ERROR("could not choose a generically injective homogeneous functional; pass an explicit trivialization");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  rankOneTrivialization(M,ideal(0));
+}
+
+proc trivializedSectionBasis(module M,int d,ideal images,poly f,ideal IX,
+                             list #)
+"USAGE:   trivializedSectionBasis(M,d,h,f,I[,s,g,v]); M module, d,s int,
+         h,I ideal, f,g poly, v int
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M).
+         The entries h[i]/f give a homogeneous rational trivialization of
+         its generators, and coker(M) is generically of rank one.
+RETURN:   list L. L[1] is an ideal of scalar section numerators, L[2] is
+         their common denominator f*g, and L[3] is the tail degree.
+         The entries of L[1] are homogeneous coordinates for the associated
+         rational map; the common denominator cancels projectively.
+NOTE:     The procedure verifies support, grading, presentation relations,
+         generic injectivity on every support component, denominator
+         regularity, and independence of the scalarized basis.
+         The optional arguments are passed to sheafSectionBasis.
+SEE ALSO: sheafSectionBasis
+EXAMPLE: example trivializedSectionBasis; shows an example
+"
+{
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+  sectionBasisCheckTrivialization(M,images,f,IX);
+
+  list B;
+  if (size(#)==0) { B=sheafSectionBasis(M,d); }
+  if (size(#)==1) { B=sheafSectionBasis(M,d,#[1]); }
+  if (size(#)==2) { B=sheafSectionBasis(M,d,#[1],#[2]); }
+  if (size(#)==3) { B=sheafSectionBasis(M,d,#[1],#[2],#[3]); }
+
+  module N=B[1];
+  ideal H;
+  int i,j;
+  int first=1;
+  int commonDegree;
+  poly h;
+  ideal GIX=std(IX);
+  for (j=1; j<=size(N); j++)
+  {
+    h=0;
+    for (i=1; i<=nrows(M); i++)
+    {
+      h=h+N[j][i]*images[i];
+    }
+    if ((h==0) || (!homog(h)) || (reduce(h,GIX)==0))
+    {
+      ERROR("a scalarized section is zero on the support or nonhomogeneous");
+    }
+    if (first)
+    {
+      commonDegree=deg(h);
+      first=0;
+    }
+    else
+    {
+      if (deg(h)!=commonDegree)
+      {
+        ERROR("the scalarized section numerators have different degrees");
+      }
+    }
+    H[j]=h;
+  }
+
+  // A rational trivialization must preserve linear independence of H^0.
+  if (size(H)>0)
+  {
+    module IXmodule=IX;
+    attrib(IXmodule,"isHomog",intvec(0));
+    module GIXmodule=std(IXmodule);
+    module degreeBasis=sectionBasisGradedPiece(GIXmodule,intvec(0),
+                                               commonDegree);
+    module reducedH=reduce(module(H),GIXmodule);
+    matrix coordinates=coeffs(reducedH,degreeBasis,
+                              sectionBasisProductOfVariables());
+    if (rank(coordinates)!=size(H))
+    {
+      ERROR("the supplied trivialization does not inject the computed section space");
+    }
+  }
+  return(list(H,f*B[2],B[3]));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  // e2=x*e1 presents O(1), with generator images 1 and x:
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  trivializedSectionBasis(M,0,ideal(1,x),1,ideal(0));
+}
+
+proc automaticTrivializedSectionBasis(module M,int d,ideal IX,list #)
+"USAGE:   automaticTrivializedSectionBasis(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         whose associated sheaf is torsion-free and generically of rank one.
+RETURN:   the same scalar section list as trivializedSectionBasis.
+NOTE:     A homogeneous rational functional is first constructed by
+         rankOneTrivialization. Use that procedure separately to inspect its
+         generator images and degree shift. The optional tail arguments are
+         passed unchanged to sheafSectionBasis.
+SEE ALSO: rankOneTrivialization, trivializedSectionBasis, sheafSectionBasis
+EXAMPLE: example automaticTrivializedSectionBasis; shows an example
+"
+{
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+  list T=rankOneTrivialization(M,IX);
+  list B;
+  if (size(#)==0)
+  {
+    B=trivializedSectionBasis(M,d,T[1],T[2],IX);
+  }
+  if (size(#)==1)
+  {
+    B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1]);
+  }
+  if (size(#)==2)
+  {
+    B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1],#[2]);
+  }
+  if (size(#)==3)
+  {
+    B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1],#[2],#[3]);
+  }
+  return(B);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(u,v,w),dp;
+  ideal IX=u*v;
+  // The two dual generators cover different components of Proj(R/IX).
+  module M=v*gen(1),u*gen(2);
+  attrib(M,"isHomog",intvec(0,0));
+  automaticTrivializedSectionBasis(M,0,IX);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
