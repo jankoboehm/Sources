@@ -131,6 +131,13 @@ kill r;
    SB[1];
    SB[3];
 
+// Verification is on by default and rejects an explicitly unstable tail:
+//-------------------------------------------------------------------------
+   poly unitDenominator=1;
+   SB=sheafSectionBasis(T,0,0,unitDenominator,0);
+   size(SB[1]);
+   SB=sheafSectionBasis(T,0,0,unitDenominator);
+
 // Scalarization of a presented rank-one module:
 //------------------------------------------------
    module P=-x*gen(1)+gen(2);
@@ -292,5 +299,16 @@ kill r;
    list SBLinear=sheafSectionBasis(OH,-1);
    size(SBLinear[1]);
    SBLinear[3];
+
+// The verification default and explicit opt-out survive qring lifting:
+//---------------------------------------------------------------------
+   ring Rverify=0,(x,y,z),dp;
+   qring Qverify=std(z);
+   module Tverify=x*gen(2),y*gen(2);
+   attrib(Tverify,"isHomog",intvec(0,0));
+   poly qUnitDenominator=1;
+   list SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator,0);
+   size(SBVerify[1]);
+   SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator);
 
 tst_status(1);$
