@@ -10,6 +10,7 @@ AUTHORS:  Janko Boehm, boehm@mathematik.uni-kl.de
           Gerhard Pfister,  pfister@mathematik.uni-kl.de
 
 TYPES:
+ RankOneSheaf; a presented rank-one sheaf with a cached rational frame
  SectionSpace; a scalar rational basis of H^0 of a rank-one sheaf
  Section; an individual basis section together with its parent space
 
@@ -20,11 +21,16 @@ PROCEDURES:
  sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
  trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
  trivializedSectionBasisDirect(M,d,h,f,I); direct scalar rational representatives
+ rankOneSheaf(M,I[,h,f]); cache a frame for a presented rank-one sheaf
+ lineBundle(M,I[,h,f]); line-bundle name for rankOneSheaf
  rankOneTrivialization(M,I); choose a rational functional for a rank-one module
- rankOneSheafSectionBasis(M,d,I[,s,g,v]); rational representatives for sections
- lineBundleSectionBasis(M,d,I[,s,g,v]); the same interface for line bundles
- rankOneSheafSectionBasisDirect(M,d,I); direct rank-one section space
- lineBundleSectionBasisDirect(M,d,I); direct line-bundle section space
+ rankOneTrivialization(F); return the cached frame of a RankOneSheaf
+ rankOneSheafSectionBasis(F,d[,s,g,v]); rational representatives for sections
+ lineBundleSectionBasis(F,d[,s,g,v]); the same interface for line bundles
+ rankOneSheafSectionBasisMultTable(...); explicit multiplication-table alias
+ lineBundleSectionBasisMultTable(...); explicit line-bundle alias
+ rankOneSheafSectionBasisDirect(F,d); direct rank-one section space
+ lineBundleSectionBasisDirect(F,d); direct line-bundle section space
  sectionBasis(V);           list of Section objects in a SectionSpace
  sectionNumerator(s);       rational numerator of a Section
  sectionDenominator(s);     rational denominator of a Section
@@ -56,13 +62,31 @@ LIB "elim.lib";
 ///////////////////////////////////////////////////////////////////////////////
 static proc mod_init()
 {
+  newstruct("RankOneSheaf",
+            "ring over, module presentation, ideal supportIdeal, ideal trivializationImages, poly trivializationDenom, int trivializationShift, int frameValidated");
   newstruct("SectionSpace",
             "ring over, module presentation, ideal supportIdeal, ideal basis, poly denom, ideal trivializationImages, poly trivializationDenom, int twist, int trivializationShift, int tailDegree");
   newstruct("Section","SectionSpace space, poly num");
+  system("install","RankOneSheaf","print",printRankOneSheaf,1);
   system("install","SectionSpace","print",printSectionSpace,1);
   system("install","SectionSpace","size",sizeSectionSpace,1);
   system("install","SectionSpace","[",sectionSpaceGet,2);
   system("install","Section","print",printSection,1);
+}
+
+static proc printRankOneSheaf(RankOneSheaf F)
+{
+  def currentRing=basering;
+  def R=F.over;
+  setring R;
+  "RankOneSheaf with cached rational frame";
+  "presentation generators = "+string(nrows(F.presentation));
+  "support ideal = "+string(F.supportIdeal);
+  "trivialization images = "+string(F.trivializationImages);
+  "trivialization denominator = "+string(F.trivializationDenom);
+  "trivialization shift = "+string(F.trivializationShift);
+  "frame validated = "+string(F.frameValidated);
+  setring currentRing;
 }
 
 static proc sizeSectionSpace(SectionSpace V)
@@ -1648,8 +1672,25 @@ static proc sectionBasisCheckTrivialization(module M,ideal images,poly f,
   }
 }
 
-proc rankOneTrivialization(module M,ideal IX)
+// A RankOneSheaf is deliberately a transparent Singular newstruct, so guard
+// both its ring ownership and explicit trust bit on every trusted public
+// entry point. Constructors set the bit only after validating or canonically
+// constructing the frame; users must not mutate cached frame fields.
+static proc sectionBasisRequireCachedFrame(RankOneSheaf F)
+{
+  if (F.over!=basering)
+  {
+    ERROR("set the basering to the coordinate ring of the RankOneSheaf first");
+  }
+  if (F.frameValidated!=1)
+  {
+    ERROR("the RankOneSheaf does not contain a validated rational frame");
+  }
+}
+
+proc rankOneTrivialization(def data,list #)
 "USAGE:   rankOneTrivialization(M,I); M module, I ideal
+         rankOneTrivialization(F); F RankOneSheaf
 ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
          whose associated sheaf is torsion-free and generically of rank one
          (in particular, a line bundle), and M has its row degrees assigned
@@ -1666,10 +1707,37 @@ NOTE:     The procedure computes the graded dual Hom(coker(M),basering/I),
          on every support component. The deterministic candidate search is
          finite; if it misses a suitable functional, pass an explicit
          trivialization to trivializedSectionBasis.
+         For a RankOneSheaf, the already validated cached frame is returned
+         immediately; no graded dual or saturation is recomputed.
 SEE ALSO: trivializedSectionBasis, rankOneSheafSectionBasis, lineBundleSectionBasis
 EXAMPLE: example rankOneTrivialization; shows an example
 "
 {
+  if (typeof(data)=="RankOneSheaf")
+  {
+    if (size(#)!=0)
+    {
+      ERROR("rankOneTrivialization(F) expects no support ideal");
+    }
+    RankOneSheaf F=data;
+    sectionBasisRequireCachedFrame(F);
+    return(list(F.trivializationImages,F.trivializationDenom,
+                F.trivializationShift));
+  }
+  if (typeof(data)!="module")
+  {
+    ERROR("expected a module or a RankOneSheaf");
+  }
+  if (size(#)!=1)
+  {
+    ERROR("rankOneTrivialization(M,I) expects one support ideal");
+  }
+  module M=data;
+  if (typeof(#[1])!="ideal")
+  {
+    ERROR("the support must be an ideal");
+  }
+  ideal IX=#[1];
   if (!homog(IX)) { ERROR("the support ideal must be homogeneous"); }
   if (typeof(attrib(M,"isHomog"))!="intvec")
   {
@@ -1798,6 +1866,145 @@ example
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
   rankOneTrivialization(M,ideal(0));
+}
+
+// Assemble the cache only after the frame has been validated by its
+// constructor.  All trusted section routines require frameValidated=1.
+static proc sectionBasisMakeRankOneSheaf(module M,ideal IX,list T)
+{
+  RankOneSheaf F;
+  F.over=basering;
+  F.presentation=M;
+  F.supportIdeal=IX;
+  F.trivializationImages=T[1];
+  F.trivializationDenom=T[2];
+  F.trivializationShift=T[3];
+  F.frameValidated=1;
+  return(F);
+}
+
+proc rankOneSheaf(def data,list #)
+"USAGE:   rankOneSheaf(M,I); M module, I ideal
+         rankOneSheaf(M,I,h,f); h ideal, f poly
+         rankOneSheaf(D); D divisor (after loading divisors.lib)
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         whose associated sheaf is torsion-free and generically of rank one,
+         and M has its row degrees assigned as isHomog. In the explicit form,
+         h[i]/f is a homogeneous rational trivialization of its generators.
+RETURN:   RankOneSheaf F containing M, I, and one validated rational frame.
+NOTE:     The two-argument module form discovers the frame once with
+         rankOneTrivialization. The four-argument form validates the supplied
+         frame once. Section computations from F reuse this cache for every
+         twist and do not recompute Hom or the frame saturation checks.
+         Do not modify the frame fields of F after construction.
+         When divisors.lib is loaded, rankOneSheaf(D) delegates to its
+         divisor-to-fractional-ideal constructor and retains the canonical
+         frame produced there.
+SEE ALSO: lineBundle, rankOneTrivialization, rankOneSheafSectionBasis,
+          rankOneSheafSectionBasisDirect
+EXAMPLE: example rankOneSheaf; shows an example
+"
+{
+  if (typeof(data)=="divisor")
+  {
+    if (size(#)!=0) { ERROR("rankOneSheaf(D) expects no further arguments"); }
+    if (!defined(rankOneSheafFromDivisor))
+    {
+      ERROR("load divisors.lib before calling rankOneSheaf(D)");
+    }
+    return(rankOneSheafFromDivisor(data));
+  }
+  if (typeof(data)!="module")
+  {
+    ERROR("expected a module or a divisor");
+  }
+  if ((size(#)!=1) && (size(#)!=3))
+  {
+    ERROR("expected rankOneSheaf(M,I) or rankOneSheaf(M,I,h,f)");
+  }
+  if (typeof(#[1])!="ideal") { ERROR("the support must be an ideal"); }
+  module M=data;
+  ideal IX=#[1];
+  // Preserve the grading normalized by the frame routines in the cached
+  // presentation, including the zero presentation of a free rank-one sheaf.
+  if ((typeof(attrib(M,"isHomog"))!="intvec") && (size(M)==0))
+  {
+    intvec zeroWeights;
+    zeroWeights[nrows(M)]=0;
+    attrib(M,"isHomog",zeroWeights);
+  }
+
+  list T;
+  if (size(#)==1)
+  {
+    T=rankOneTrivialization(M,IX);
+  }
+  else
+  {
+    if (typeof(#[2])!="ideal")
+    {
+      ERROR("the trivialization images must be an ideal");
+    }
+    if ((typeof(#[3])!="poly") && (typeof(#[3])!="int") &&
+        (typeof(#[3])!="number"))
+    {
+      ERROR("the trivialization denominator must be a polynomial");
+    }
+    ideal images=#[2];
+    poly f=#[3];
+    sectionBasisCheckTrivialization(M,images,f,IX);
+    int shift=sectionBasisCheckedTrivializationShift(M,images,f);
+    T=list(images,f,shift);
+  }
+  RankOneSheaf F=sectionBasisMakeRankOneSheaf(M,IX,T);
+  return(F);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  RankOneSheaf F=rankOneSheaf(M,ideal(0));
+  // The cached frame is reused for arbitrary twists:
+  rankOneSheafSectionBasis(F,0);
+  rankOneSheafSectionBasis(F,2);
+}
+
+proc lineBundle(def data,list #)
+"USAGE:   lineBundle(M,I); M module, I ideal
+         lineBundle(M,I,h,f); h ideal, f poly
+         lineBundle(D); D divisor (after loading divisors.lib)
+RETURN:   RankOneSheaf containing a cached validated rational frame.
+NOTE:     This is the line-bundle name for rankOneSheaf. Local freeness is an
+         input assumption and is not tested separately. The returned object
+         can be used for any twist without rediscovering its frame.
+SEE ALSO: rankOneSheaf, lineBundleSectionBasis,
+          lineBundleSectionBasisDirect
+EXAMPLE: example lineBundle; shows an example
+"
+{
+  if (typeof(data)=="divisor")
+  {
+    if (size(#)!=0) { ERROR("lineBundle(D) expects no further arguments"); }
+    if (!defined(lineBundleFromDivisor))
+    {
+      ERROR("load divisors.lib before calling lineBundle(D)");
+    }
+    return(lineBundleFromDivisor(data));
+  }
+  if (size(#)==1) { return(rankOneSheaf(data,#[1])); }
+  if (size(#)==3) { return(rankOneSheaf(data,#[1],#[2],#[3])); }
+  ERROR("expected lineBundle(M,I), lineBundle(M,I,h,f), or lineBundle(D)");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  RankOneSheaf L=lineBundle(O,ideal(0));
+  lineBundleSectionBasis(L,2);
 }
 
 // Scalarize a multiplication-table basis after rankOneTrivialization has
@@ -2032,8 +2239,9 @@ static proc sectionBasisDirectSpace(module M,int d,ideal IX,list T)
   return(V);
 }
 
-proc rankOneSheafSectionBasisDirect(module M,int d,ideal IX)
+proc rankOneSheafSectionBasisDirect(def data,int d,list #)
 "USAGE:   rankOneSheafSectionBasisDirect(M,d,I); M module, d int, I ideal
+         rankOneSheafSectionBasisDirect(F,d); F RankOneSheaf
 ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
          which has depth at least two at the irrelevant ideal. Its associated
          sheaf is torsion-free and generically of rank one, and M has its row
@@ -2046,13 +2254,45 @@ NOTE:     The procedure chooses and validates a homogeneous rational frame,
          ideal. It applies to line bundles and also to rank-one torsion-free
          sheaves which are not locally free. It neither purifies the image
          ideal nor takes a reflexive hull.
+         For a RankOneSheaf, the cached frame is used directly, so neither
+         Hom nor any frame validation is repeated. Any integer twist d may be
+         requested from the same F.
 SEE ALSO: lineBundleSectionBasisDirect, trivializedSectionBasisDirect,
           rankOneTrivialization, rankOneSheafSectionBasis, sectionBasis,
           rationalMapFromSections
 EXAMPLE: example rankOneSheafSectionBasisDirect; shows an example
 "
 {
-  list T=rankOneTrivialization(M,IX);
+  module M;
+  ideal IX;
+  list T;
+  if (typeof(data)=="RankOneSheaf")
+  {
+    if (size(#)!=0)
+    {
+      ERROR("rankOneSheafSectionBasisDirect(F,d) expects no support ideal");
+    }
+    RankOneSheaf F=data;
+    sectionBasisRequireCachedFrame(F);
+    M=F.presentation;
+    IX=F.supportIdeal;
+    T=list(F.trivializationImages,F.trivializationDenom,
+           F.trivializationShift);
+  }
+  else
+  {
+    if (typeof(data)!="module")
+    {
+      ERROR("expected a module or a RankOneSheaf");
+    }
+    if ((size(#)!=1) || (typeof(#[1])!="ideal"))
+    {
+      ERROR("rankOneSheafSectionBasisDirect(M,d,I) expects one support ideal");
+    }
+    M=data;
+    IX=#[1];
+    T=rankOneTrivialization(M,IX);
+  }
   SectionSpace V=sectionBasisDirectSpace(M,d,IX,T);
   return(V);
 }
@@ -2070,22 +2310,28 @@ example
   sectionBasis(V);
 }
 
-proc lineBundleSectionBasisDirect(module M,int d,ideal IX)
+proc lineBundleSectionBasisDirect(def data,int d,list #)
 "USAGE:   lineBundleSectionBasisDirect(M,d,I); M module, d int, I ideal
+         lineBundleSectionBasisDirect(F,d); F RankOneSheaf
 ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
          which has depth at least two at the irrelevant ideal. The associated
          sheaf is a line bundle and M has its row degrees assigned as isHomog.
 RETURN:   SectionSpace V containing a basis of global sections of the twist d.
 NOTE:     This is the line-bundle name for rankOneSheafSectionBasisDirect and
          has the same implementation. Local freeness is an input assumption;
-         this alias does not test it separately.
+         this alias does not test it separately. A cached F avoids frame
+         rediscovery and can be reused at every twist.
 SEE ALSO: rankOneSheafSectionBasisDirect, trivializedSectionBasisDirect,
           lineBundleSectionBasis, sectionBasis, rationalMapFromSections
 EXAMPLE: example lineBundleSectionBasisDirect; shows an example
 "
 {
-  SectionSpace V=rankOneSheafSectionBasisDirect(M,d,IX);
-  return(V);
+  if (size(#)==0) { return(rankOneSheafSectionBasisDirect(data,d)); }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisDirect(data,d,#[1]));
+  }
+  ERROR("expected lineBundleSectionBasisDirect(F,d) or lineBundleSectionBasisDirect(M,d,I)");
 }
 example
 {"EXAMPLE:";
@@ -2098,33 +2344,14 @@ example
   rationalMapFromSections(V);
 }
 
-proc rankOneSheafSectionBasis(module M,int d,ideal IX,list #)
-"USAGE:   rankOneSheafSectionBasis(M,d,I[,s,g,v]); M module,
-         d,s int, I ideal, g poly, v int
-ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
-         whose associated sheaf is torsion-free and generically of rank one,
-         and M has its row degrees assigned as isHomog.
-RETURN:   SectionSpace V. The entries V[i] are Section objects forming a
-         basis of global sections of the twist d. Their rational
-         representatives are V.basis[i]/V.denom; V.tailDegree records the
-         multiplication-tail degree used.
-NOTE:     The procedure chooses a homogeneous rational trivialization and
-         computes the section basis in one call. It applies both to line
-         bundles and to rank-one torsion-free sheaves which are not locally
-         free, including non-invertible divisorial sheaves. To supply a known
-         trivialization instead, call
-         trivializedSectionBasis directly. The optional tail arguments are
-         passed unchanged to sheafSectionBasis.
-SEE ALSO: lineBundleSectionBasis, sectionBasis, rationalMapFromSections,
-          rankOneTrivialization, trivializedSectionBasis, sheafSectionBasis
-EXAMPLE: example rankOneSheafSectionBasis; shows an example
-"
+// Run the multiplication-table algorithm and build its typed result from a
+// frame which has already been validated or canonically constructed.
+static proc sectionBasisMultTableSpace(module M,int d,ideal IX,list T,list #)
 {
   if (size(#)>3)
   {
     ERROR("expected at most tail degree, denominator, and verification flag");
   }
-  list T=rankOneTrivialization(M,IX);
   list B;
   if (size(#)==0)
   {
@@ -2174,6 +2401,86 @@ EXAMPLE: example rankOneSheafSectionBasis; shows an example
   V.tailDegree=B[3];
   return(V);
 }
+
+proc rankOneSheafSectionBasis(def data,int d,list #)
+"USAGE:   rankOneSheafSectionBasis(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+         rankOneSheafSectionBasis(F,d[,s,g,v]); F RankOneSheaf
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         whose associated sheaf is torsion-free and generically of rank one,
+         and M has its row degrees assigned as isHomog.
+RETURN:   SectionSpace V. The entries V[i] are Section objects forming a
+         basis of global sections of the twist d. Their rational
+         representatives are V.basis[i]/V.denom; V.tailDegree records the
+         multiplication-tail degree used.
+NOTE:     The procedure chooses a homogeneous rational trivialization and
+         computes the section basis in one call. It applies both to line
+         bundles and to rank-one torsion-free sheaves which are not locally
+         free, including non-invertible divisorial sheaves. To supply a known
+         trivialization instead, call
+         trivializedSectionBasis directly. The optional tail arguments are
+         passed unchanged to sheafSectionBasis.
+         For a RankOneSheaf, its cached frame is used directly, with no Hom
+         computation or repeated frame validation. The same F can be used
+         for any integer twist d. Verification is off unless v is explicitly
+         nonzero.
+SEE ALSO: lineBundleSectionBasis, sectionBasis, rationalMapFromSections,
+          rankOneTrivialization, trivializedSectionBasis, sheafSectionBasis
+EXAMPLE: example rankOneSheafSectionBasis; shows an example
+"
+{
+  if (typeof(data)=="RankOneSheaf")
+  {
+    if (size(#)>3)
+    {
+      ERROR("expected at most tail degree, denominator, and verification flag");
+    }
+    RankOneSheaf F=data;
+    sectionBasisRequireCachedFrame(F);
+    list T=list(F.trivializationImages,F.trivializationDenom,
+                F.trivializationShift);
+    if (size(#)==0)
+    {
+      return(sectionBasisMultTableSpace(F.presentation,d,F.supportIdeal,T));
+    }
+    if (size(#)==1)
+    {
+      return(sectionBasisMultTableSpace(F.presentation,d,F.supportIdeal,T,
+                                        #[1]));
+    }
+    if (size(#)==2)
+    {
+      return(sectionBasisMultTableSpace(F.presentation,d,F.supportIdeal,T,
+                                        #[1],#[2]));
+    }
+    return(sectionBasisMultTableSpace(F.presentation,d,F.supportIdeal,T,
+                                      #[1],#[2],#[3]));
+  }
+  if (typeof(data)!="module")
+  {
+    ERROR("expected a module or a RankOneSheaf");
+  }
+  if ((size(#)<1) || (size(#)>4) || (typeof(#[1])!="ideal"))
+  {
+    ERROR("expected M,d,I followed by at most tail degree, denominator, and verification flag");
+  }
+  module M=data;
+  ideal IX=#[1];
+  list T=rankOneTrivialization(M,IX);
+  if (size(#)==1)
+  {
+    return(sectionBasisMultTableSpace(M,d,IX,T));
+  }
+  if (size(#)==2)
+  {
+    return(sectionBasisMultTableSpace(M,d,IX,T,#[2]));
+  }
+  if (size(#)==3)
+  {
+    return(sectionBasisMultTableSpace(M,d,IX,T,#[2],#[3]));
+  }
+  return(sectionBasisMultTableSpace(M,d,IX,T,#[2],#[3],#[4]));
+}
 example
 {"EXAMPLE:";
   echo=2;
@@ -2188,9 +2495,10 @@ example
   V[1];
 }
 
-proc lineBundleSectionBasis(module M,int d,ideal IX,list #)
+proc lineBundleSectionBasis(def data,int d,list #)
 "USAGE:   lineBundleSectionBasis(M,d,I[,s,g,v]); M module,
          d,s int, I ideal, g poly, v int
+         lineBundleSectionBasis(F,d[,s,g,v]); F RankOneSheaf
 ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
          whose associated sheaf is a line bundle, and M has its row degrees
          assigned as isHomog.
@@ -2198,34 +2506,28 @@ RETURN:   SectionSpace V containing a basis of global sections of the twist d.
          The i-th Section is V[i], represented by V.basis[i]/V.denom.
 NOTE:     This is the line-bundle name for rankOneSheafSectionBasis and has
          the same implementation and optional arguments. Local freeness is
-         an input assumption; this alias does not test it separately.
+         an input assumption; this alias does not test it separately. A
+         cached F avoids frame rediscovery and can be reused at every twist.
 SEE ALSO: rankOneSheafSectionBasis, sectionBasis, rationalMapFromSections,
           sheafSectionBasis, trivializedSectionBasis
 EXAMPLE: example lineBundleSectionBasis; shows an example
 "
 {
-  if (size(#)>3)
-  {
-    ERROR("expected at most tail degree, denominator, and verification flag");
-  }
-  SectionSpace V;
-  if (size(#)==0)
-  {
-    V=rankOneSheafSectionBasis(M,d,IX);
-  }
-  if (size(#)==1)
-  {
-    V=rankOneSheafSectionBasis(M,d,IX,#[1]);
-  }
+  if (size(#)==0) { return(rankOneSheafSectionBasis(data,d)); }
+  if (size(#)==1) { return(rankOneSheafSectionBasis(data,d,#[1])); }
   if (size(#)==2)
   {
-    V=rankOneSheafSectionBasis(M,d,IX,#[1],#[2]);
+    return(rankOneSheafSectionBasis(data,d,#[1],#[2]));
   }
   if (size(#)==3)
   {
-    V=rankOneSheafSectionBasis(M,d,IX,#[1],#[2],#[3]);
+    return(rankOneSheafSectionBasis(data,d,#[1],#[2],#[3]));
   }
-  return(V);
+  if (size(#)==4)
+  {
+    return(rankOneSheafSectionBasis(data,d,#[1],#[2],#[3],#[4]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasis");
 }
 example
 {"EXAMPLE:";
@@ -2246,6 +2548,92 @@ example
   phi;
   // A list of Sections defines the corresponding subsystem:
   rationalMapFromSections(list(V[1],V[3]));
+}
+
+proc rankOneSheafSectionBasisMultTable(def data,int d,list #)
+"USAGE:   rankOneSheafSectionBasisMultTable(F,d[,s,g,v]); F RankOneSheaf
+         rankOneSheafSectionBasisMultTable(M,d,I[,s,g,v]); M module,
+         I ideal, d,s int, g poly, v int
+RETURN:   SectionSpace containing a scalar rational basis of global sections.
+NOTE:     This is the explicit multiplication-table name for
+         rankOneSheafSectionBasis and has exactly the same implementation.
+         Verification is off unless v is explicitly nonzero. A cached F can
+         be reused at every twist without rediscovering its rational frame.
+SEE ALSO: rankOneSheafSectionBasis,
+          lineBundleSectionBasisMultTable,
+          rankOneSheafSectionBasisDirect
+EXAMPLE: example rankOneSheafSectionBasisMultTable; shows an example
+"
+{
+  if (size(#)==0) { return(rankOneSheafSectionBasis(data,d)); }
+  if (size(#)==1) { return(rankOneSheafSectionBasis(data,d,#[1])); }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasis(data,d,#[1],#[2]));
+  }
+  if (size(#)==3)
+  {
+    return(rankOneSheafSectionBasis(data,d,#[1],#[2],#[3]));
+  }
+  if (size(#)==4)
+  {
+    return(rankOneSheafSectionBasis(data,d,#[1],#[2],#[3],#[4]));
+  }
+  ERROR("too many arguments for rankOneSheafSectionBasisMultTable");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  RankOneSheaf F=rankOneSheaf(O,ideal(0));
+  rankOneSheafSectionBasisMultTable(F,1);
+}
+
+proc lineBundleSectionBasisMultTable(def data,int d,list #)
+"USAGE:   lineBundleSectionBasisMultTable(F,d[,s,g,v]); F RankOneSheaf
+         lineBundleSectionBasisMultTable(M,d,I[,s,g,v]); M module,
+         I ideal, d,s int, g poly, v int
+RETURN:   SectionSpace containing a scalar rational basis of global sections.
+NOTE:     This is the line-bundle name for
+         rankOneSheafSectionBasisMultTable. Local freeness is an input
+         assumption and is not tested separately.
+SEE ALSO: rankOneSheafSectionBasisMultTable, lineBundleSectionBasis,
+          lineBundleSectionBasisDirect
+EXAMPLE: example lineBundleSectionBasisMultTable; shows an example
+"
+{
+  if (size(#)==0)
+  {
+    return(rankOneSheafSectionBasisMultTable(data,d));
+  }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisMultTable(data,d,#[1]));
+  }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasisMultTable(data,d,#[1],#[2]));
+  }
+  if (size(#)==3)
+  {
+    return(rankOneSheafSectionBasisMultTable(data,d,#[1],#[2],#[3]));
+  }
+  if (size(#)==4)
+  {
+    return(rankOneSheafSectionBasisMultTable(data,d,#[1],#[2],#[3],#[4]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasisMultTable");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  RankOneSheaf L=lineBundle(O,ideal(0));
+  lineBundleSectionBasisMultTable(L,2);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

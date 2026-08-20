@@ -391,4 +391,147 @@ kill r;
    list P0ZeroSections=sheafSectionBasis(ZP0,1);
    size(P0ZeroSections[1]);
 
+// A supplied frame is validated once and then reused without rediscovery:
+//-----------------------------------------------------------------------
+   kill RP0;
+   ring Rcached=2,(x,y,z),dp;
+   proc cachedFrameEntriesEqual(ideal A,ideal B)
+   {
+     if (ncols(matrix(A))!=ncols(matrix(B))) { return(0); }
+     int cachedFrameIndex;
+     for (cachedFrameIndex=1;
+          cachedFrameIndex<=ncols(matrix(A)); cachedFrameIndex++)
+     {
+       if (A[cachedFrameIndex]!=B[cachedFrameIndex]) { return(0); }
+     }
+     return(1);
+   }
+   poly cachedA=x*y*z;
+   poly cachedB=(x+y)*(x+z)*(x+y+z);
+   ideal cachedSupport=cachedA*cachedB;
+   module cachedPresentation=cachedA*gen(1),cachedB*gen(2);
+   attrib(cachedPresentation,"isHomog",intvec(1,0));
+   ideal cachedImages=(y+z)*cachedB,cachedA;
+   // Automatic frame recovery cannot find the regular factor y+z here:
+   // over F_2 its finite search only encounters the other six linear forms,
+   // all zero divisors on cachedSupport. Hence these calls also regress that
+   // an explicitly cached frame is never rediscovered internally.
+   RankOneSheaf cachedSheaf=rankOneSheaf(cachedPresentation,cachedSupport,
+                                         cachedImages,1);
+   SectionSpace cachedMinus=rankOneSheafSectionBasis(cachedSheaf,-1);
+   SectionSpace cachedZero=rankOneSheafSectionBasis(cachedSheaf,0);
+   SectionSpace cachedOne=rankOneSheafSectionBasis(cachedSheaf,1);
+   size(cachedMinus);
+   size(cachedZero);
+   size(cachedOne);
+   cachedFrameEntriesEqual(cachedMinus.trivializationImages,cachedImages);
+   cachedFrameEntriesEqual(cachedZero.trivializationImages,cachedImages);
+   cachedFrameEntriesEqual(cachedOne.trivializationImages,cachedImages);
+   cachedMinus.trivializationDenom==1;
+   cachedZero.trivializationDenom==1;
+   cachedOne.trivializationDenom==1;
+   cachedZero.trivializationShift;
+   SectionSpace cachedMultTable=rankOneSheafSectionBasisMultTable(
+                                  cachedSheaf,0);
+   size(cachedMultTable);
+   ideal cachedMultTableCoordinates=cachedMultTable.basis*cachedZero.denom;
+   ideal cachedDefaultCoordinates=cachedZero.basis*cachedMultTable.denom;
+   size(NF(cachedMultTableCoordinates,
+           std(cachedDefaultCoordinates+cachedSupport)));
+   size(NF(cachedDefaultCoordinates,
+           std(cachedMultTableCoordinates+cachedSupport)));
+   SectionSpace cachedDirect=rankOneSheafSectionBasisDirect(cachedSheaf,0);
+   size(cachedDirect);
+   cachedFrameEntriesEqual(cachedDirect.trivializationImages,cachedImages);
+   // The old explicit-frame API remains equivalent to the cached one.
+   list cachedOld=trivializedSectionBasis(cachedPresentation,0,cachedImages,
+                                          1,cachedSupport);
+   ideal cachedNewCoordinates=cachedZero.basis*cachedOld[2];
+   ideal cachedOldCoordinates=cachedOld[1]*cachedZero.denom;
+   size(NF(cachedNewCoordinates,std(cachedOldCoordinates+cachedSupport)));
+   size(NF(cachedOldCoordinates,std(cachedNewCoordinates+cachedSupport)));
+
+// Automatic recovery is performed by the constructor and reused for twists:
+//--------------------------------------------------------------------------
+   kill Rcached;
+   ring Rautomatic=0,(x,y,z),dp;
+   module automaticPresentation=-x*gen(1)+gen(2);
+   attrib(automaticPresentation,"isHomog",intvec(-1,0));
+   RankOneSheaf automaticSheaf=rankOneSheaf(automaticPresentation,ideal(0));
+   ideal automaticImages=automaticSheaf.trivializationImages;
+   poly automaticDenom=automaticSheaf.trivializationDenom;
+   int automaticShift=automaticSheaf.trivializationShift;
+   list automaticCachedFrame=rankOneTrivialization(automaticSheaf);
+   cachedFrameEntriesEqual(automaticCachedFrame[1],automaticImages);
+   automaticCachedFrame[2]==automaticDenom;
+   automaticCachedFrame[3]==automaticShift;
+   SectionSpace automaticZero=rankOneSheafSectionBasis(automaticSheaf,0);
+   SectionSpace automaticOne=rankOneSheafSectionBasis(automaticSheaf,1);
+   SectionSpace automaticZeroAgain=rankOneSheafSectionBasis(automaticSheaf,0);
+   size(automaticZero);
+   size(automaticOne);
+   size(automaticZeroAgain);
+   cachedFrameEntriesEqual(automaticZero.trivializationImages,automaticImages);
+   cachedFrameEntriesEqual(automaticOne.trivializationImages,automaticImages);
+   cachedFrameEntriesEqual(automaticZeroAgain.trivializationImages,
+                           automaticImages);
+   automaticZero.trivializationDenom==automaticDenom;
+   automaticOne.trivializationDenom==automaticDenom;
+   automaticZeroAgain.trivializationDenom==automaticDenom;
+   automaticZero.trivializationShift==automaticShift;
+   automaticOne.trivializationShift==automaticShift;
+   // The module-input API is retained and gives the same rational span.
+   SectionSpace automaticOld=rankOneSheafSectionBasis(
+                               automaticPresentation,0,ideal(0));
+   ideal automaticNewCoordinates=automaticZero.basis*automaticOld.denom;
+   ideal automaticOldCoordinates=automaticOld.basis*automaticZero.denom;
+   size(NF(automaticNewCoordinates,std(automaticOldCoordinates)));
+   size(NF(automaticOldCoordinates,std(automaticNewCoordinates)));
+   // lineBundle is the intended-use alias, not a second cached data model.
+   RankOneSheaf automaticLineBundle=lineBundle(automaticPresentation,
+                                                ideal(0),ideal(z,x*z),z);
+   typeof(automaticLineBundle);
+   SectionSpace automaticLineSections=lineBundleSectionBasis(
+                                        automaticLineBundle,0);
+   size(automaticLineSections);
+   cachedFrameEntriesEqual(automaticLineSections.trivializationImages,
+                           ideal(z,x*z));
+   automaticLineSections.trivializationDenom==z;
+   SectionSpace automaticLineMultTable=lineBundleSectionBasisMultTable(
+                                         automaticLineBundle,0);
+   size(automaticLineMultTable);
+   ideal automaticLineCoordinates=automaticLineSections.basis*
+                                   automaticLineMultTable.denom;
+   ideal automaticLineMultTableCoordinates=automaticLineMultTable.basis*
+                                            automaticLineSections.denom;
+   size(NF(automaticLineCoordinates,std(automaticLineMultTableCoordinates)));
+   size(NF(automaticLineMultTableCoordinates,std(automaticLineCoordinates)));
+
+// Cached qring frames retain zero image rows and also handle empty H^0:
+//---------------------------------------------------------------------
+   kill Rautomatic;
+   ring RcachedQAmbient=0,(x,y,z),dp;
+   ideal cachedQEquation=z;
+   qring RcachedQ=std(cachedQEquation);
+   module cachedQPresentation=gen(2);
+   attrib(cachedQPresentation,"isHomog",intvec(0,0));
+   ideal cachedQImages=1,0;
+   RankOneSheaf cachedQSheaf=rankOneSheaf(cachedQPresentation,ideal(0),
+                                          cachedQImages,1);
+   SectionSpace cachedQZero=rankOneSheafSectionBasis(cachedQSheaf,0);
+   SectionSpace cachedQOne=rankOneSheafSectionBasis(cachedQSheaf,1);
+   SectionSpace cachedQMinus=rankOneSheafSectionBasis(cachedQSheaf,-1);
+   size(cachedQZero);
+   size(cachedQOne);
+   size(cachedQMinus);
+   cachedFrameEntriesEqual(cachedQZero.trivializationImages,cachedQImages);
+   cachedFrameEntriesEqual(cachedQOne.trivializationImages,cachedQImages);
+   cachedFrameEntriesEqual(cachedQMinus.trivializationImages,cachedQImages);
+   cachedQZero.trivializationImages;
+   cachedQZero.trivializationDenom!=0;
+   cachedQMinus.trivializationDenom!=0;
+   SectionSpace cachedQDirect=rankOneSheafSectionBasisDirect(cachedQSheaf,0);
+   size(cachedQDirect);
+   cachedFrameEntriesEqual(cachedQDirect.trivializationImages,cachedQImages);
+
 tst_status(1);$

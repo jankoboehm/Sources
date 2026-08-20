@@ -44,6 +44,8 @@ normalFormDivisor(divisor)                      normal form of a divisor
 isEqualDivisor(divisor,divisor)                 test whether two divisors are equal
 globalSections(divisor)                         compute the global sections of a divisor
 globalSectionsIdeal(divisor)                    fractional ideal representing the divisor sheaf
+rankOneSheafFromDivisor(divisor)                cached rank-one sheaf with its fractional frame
+lineBundleFromDivisor(divisor)                  line-bundle alias for the cached divisor sheaf
 globalSectionsMultTable(divisor,int[,int,poly,int]) sections from multiplication tables
 degreeDivisor(divisor)                          degree of a divisor
 linearlyEquivalent(divisor,divisor)             test whether two divisors a linearly equivalent
@@ -357,6 +359,98 @@ example
 ring r=0,(x,y,z),dp;
 divisor D=makeDivisor(ideal(x2),ideal(y));
 globalSectionsIdeal(D);
+}
+
+
+proc rankOneSheafFromDivisor(divisor D)
+"USAGE:  rankOneSheafFromDivisor(D); D divisor
+ASSUME:  D is a homogeneous divisor on a smooth irreducible projective
+         variety X in P^n whose homogeneous qring has the S2 property.
+RETURN:  a RankOneSheaf F representing O_X(D). F retains both a graded
+         presentation and the canonical fractional-ideal frame N/f obtained
+         from D, so repeated section computations do not rediscover a
+         rational functional.
+NOTE:    The presentation is constructed in the current coordinate ring as
+         modulo(N,0), with generator degree deg(N[i])-deg(f). In a qring,
+         sheafSectionBasis performs its standard lift to the ambient
+         polynomial ring when sections are requested. Since the presentation
+         and N/f are constructed together here, the frame is recorded as
+         validated without repeating the generic user-supplied-frame checks.
+SEE ALSO: lineBundleFromDivisor, rankOneSheaf, rankOneSheafSectionBasis,
+          globalSectionsIdeal, globalSectionsMultTable
+KEYWORDS: divisors, rank-one sheaves, line bundles, global sections
+EXAMPLE: example rankOneSheafFromDivisor; shows an example
+"
+{
+  if ((!homog(D.num)) || (!homog(D.den)))
+  {
+    ERROR("rankOneSheafFromDivisor requires homogeneous divisor ideals");
+  }
+
+  list fractional=globalSectionsIdeal(D);
+  ideal N=fractional[1];
+  poly f=fractional[2];
+  if ((size(N)==0) || (f==0) || (!homog(N)) || (!homog(f)))
+  {
+    ERROR("the divisor did not produce a nonzero homogeneous fractional ideal");
+  }
+
+  module M=modulo(N,ideal(0));
+  intvec weights;
+  weights[size(N)]=0;
+  int i;
+  for (i=1; i<=size(N); i++)
+  {
+    weights[i]=deg(N[i])-deg(f);
+  }
+  attrib(M,"isHomog",weights);
+
+  RankOneSheaf F;
+  F.over=basering;
+  F.presentation=M;
+  F.supportIdeal=ideal(0);
+  F.trivializationImages=N;
+  F.trivializationDenom=f;
+  F.trivializationShift=0;
+  F.frameValidated=1;
+  return(F);
+}
+example
+{ "EXAMPLE:";
+ring r=31991,(x,y,z),dp;
+ideal I=y2*z-x*(x-z)*(x+3*z);
+qring Q=std(I);
+divisor P=makeDivisor(ideal(x,z),ideal(1));
+RankOneSheaf F=rankOneSheafFromDivisor(multdivisor(4,P));
+SectionSpace V=rankOneSheafSectionBasis(F,0);
+V;
+}
+
+
+proc lineBundleFromDivisor(divisor D)
+"USAGE:  lineBundleFromDivisor(D); D divisor
+ASSUME:  D is a homogeneous divisor whose associated divisorial sheaf is a
+         line bundle, under the hypotheses of rankOneSheafFromDivisor.
+RETURN:  a RankOneSheaf representing O_X(D), with its canonical fractional
+         frame cached.
+NOTE:    This is the line-bundle name for rankOneSheafFromDivisor and has the
+         same implementation. The distinction records the intended use; the
+         returned data type is the same.
+SEE ALSO: rankOneSheafFromDivisor, lineBundle, lineBundleSectionBasis
+KEYWORDS: divisors, line bundles, global sections
+EXAMPLE: example lineBundleFromDivisor; shows an example
+"
+{
+  RankOneSheaf F=rankOneSheafFromDivisor(D);
+  return(F);
+}
+example
+{ "EXAMPLE:";
+ring r=0,(x,y,z),dp;
+divisor D=makeDivisor(ideal(x2),ideal(y));
+RankOneSheaf L=lineBundleFromDivisor(D);
+SectionSpace V=lineBundleSectionBasis(L,0);
+rationalMapFromSections(V);
 }
 
 

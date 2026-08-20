@@ -9,6 +9,8 @@ example divisorplus;
 example multdivisor;
 example isEqualDivisor;
 example globalSectionsIdeal;
+example rankOneSheafFromDivisor;
+example lineBundleFromDivisor;
 example globalSections;
 example globalSectionsMultTable;
 example degreeDivisor;
@@ -47,6 +49,63 @@ ring r=31991,(x,y,z),dp;
 ideal I=y2*z-x*(x-z)*(x+3z);
 qring Q=std(I);
 divisor P=makeDivisor(ideal(x,z),ideal(1));
+
+// A divisor-created cache retains its canonical fractional frame.  Both
+// generic constructor names use that cache, which can serve several twists
+// without rediscovering a functional.
+divisor cachedDivisor=multdivisor(4,P);
+list canonicalFractional=globalSectionsIdeal(cachedDivisor);
+RankOneSheaf cachedSheaf=rankOneSheaf(cachedDivisor);
+RankOneSheaf cachedLineBundle=lineBundle(cachedDivisor);
+int cachedFrameMatches=
+  (cachedSheaf.trivializationDenom==canonicalFractional[2]);
+if (size(cachedSheaf.trivializationImages)!=size(canonicalFractional[1]))
+{
+  cachedFrameMatches=0;
+}
+else
+{
+  int cachedFrameIndex;
+  for (cachedFrameIndex=1;
+       cachedFrameIndex<=size(canonicalFractional[1]);
+       cachedFrameIndex++)
+  {
+    if (cachedSheaf.trivializationImages[cachedFrameIndex]
+        !=canonicalFractional[1][cachedFrameIndex])
+    {
+      cachedFrameMatches=0;
+    }
+  }
+}
+cachedFrameMatches;
+cachedSheaf.frameValidated;
+cachedLineBundle.frameValidated;
+cachedSheaf.trivializationShift;
+
+SectionSpace cachedTwist0=rankOneSheafSectionBasis(cachedSheaf,0);
+SectionSpace cachedTwist1=rankOneSheafSectionBasis(cachedSheaf,1);
+SectionSpace cachedLineTwist0=lineBundleSectionBasis(cachedLineBundle,0);
+list uncachedTwist0=globalSectionsMultTable(cachedDivisor,0);
+list uncachedTwist1=globalSectionsMultTable(cachedDivisor,1);
+size(cachedTwist0);
+size(cachedTwist1);
+size(cachedLineTwist0);
+ideal cachedTwist0Coordinates=cachedTwist0.basis*uncachedTwist0[2];
+ideal uncachedTwist0Coordinates=uncachedTwist0[1]*cachedTwist0.denom;
+size(NF(cachedTwist0Coordinates,std(uncachedTwist0Coordinates)));
+size(NF(uncachedTwist0Coordinates,std(cachedTwist0Coordinates)));
+ideal cachedTwist1Coordinates=cachedTwist1.basis*uncachedTwist1[2];
+ideal uncachedTwist1Coordinates=uncachedTwist1[1]*cachedTwist1.denom;
+size(NF(cachedTwist1Coordinates,std(uncachedTwist1Coordinates)));
+size(NF(uncachedTwist1Coordinates,std(cachedTwist1Coordinates)));
+
+SectionSpace cachedDirect=rankOneSheafSectionBasisDirect(cachedSheaf,0);
+size(cachedDirect);
+ideal cachedDirectCoordinates=cachedDirect.basis*uncachedTwist0[2];
+ideal cachedMultTableCoordinates=uncachedTwist0[1]*cachedDirect.denom;
+size(NF(cachedDirectCoordinates,std(cachedMultTableCoordinates)));
+size(NF(cachedMultTableCoordinates,std(cachedDirectCoordinates)));
+
 // Here the canonical fractional ideal has generators in two degrees, while
 // H^0(P) uses only the first module row. Trusted scalarization must pad the
 // dropped trailing zero row before its kernel matrix multiplication.
