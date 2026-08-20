@@ -324,7 +324,12 @@ return(minbase(quotient(f,quotient(f,I))));
 
 static proc basis(ideal I,int d)
 {
-I=simplify(jet(intersect(I,maxideal(d)),d),2);
+I=jet(intersect(I,maxideal(d)),d);
+// In a qring, ambient representatives of the defining equations are zero.
+// Reduce them before simplification and discard dependent degree-d entries.
+I=reduce(I,std(ideal(0)));
+I=simplify(I,2);
+I=minbase(I);
 return(I)}
 
 //basis(ideal(x,y^3),2);
