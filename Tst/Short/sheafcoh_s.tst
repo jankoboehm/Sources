@@ -114,9 +114,29 @@ kill r;
    SB[1];
    SB[2];
    SB[3];
+
+// Mixed shifts of a free module must contribute their maximum to regularity;
+// this is also a regression for the projective-dimension BGG window.
+   matrix FreePresentation[3][1];
+   module MixedFree=FreePresentation;
+   attrib(MixedFree,"isHomog",intvec(-2,0,3));
+   CM_regularity(MixedFree);
+   list MixedFreeSections=sheafSectionBasis(MixedFree,0);
+   size(MixedFreeSections[1]);
    SectionSpace EmptySections=lineBundleSectionBasis(O,-1,ideal(0));
    typeof(EmptySections);
    size(EmptySections);
+   // Direct irrelevant saturation gives the same typed interface, including
+   // the negative-degree empty space:
+   SectionSpace DirectO1=lineBundleSectionBasisDirect(O,1,ideal(0));
+   size(DirectO1);
+   DirectO1.basis;
+   DirectO1.denom;
+   DirectO1.tailDegree;
+   SectionSpace DirectEmpty=lineBundleSectionBasisDirect(O,-1,ideal(0));
+   size(DirectEmpty);
+   DirectEmpty.denom;
+   DirectEmpty.tailDegree;
    SB=sheafSectionBasis(O,0,2,x2,1);
    SB[1];
    SB[2];
@@ -134,6 +154,8 @@ kill r;
 // Verification is on by default and rejects an explicitly unstable tail:
 //-------------------------------------------------------------------------
    poly unitDenominator=1;
+   // This is also the eager-boolean regression: with v=0 the deliberately
+   // unstable dimension must not cause sectionBasisBGGDimension to run.
    SB=sheafSectionBasis(T,0,0,unitDenominator,0);
    size(SB[1]);
    SB=sheafSectionBasis(T,0,0,unitDenominator);
@@ -146,6 +168,22 @@ kill r;
    ST[1];
    ST[2];
    ST[3];
+   list DirectST=trivializedSectionBasisDirect(P,0,ideal(1,x),1,ideal(0));
+   DirectST[1];
+   DirectST[2];
+   DirectST[3];
+   // The same frame may be supplied with a nonconstant common denominator.
+   list DirectScaled=trivializedSectionBasisDirect(P,0,
+                                                   ideal(z,x*z),z,ideal(0));
+   DirectScaled[1];
+   DirectScaled[2];
+   DirectScaled[3];
+   SectionSpace DirectP=rankOneSheafSectionBasisDirect(P,0,ideal(0));
+   size(DirectP);
+   DirectP.basis;
+   DirectP.denom;
+   sectionNumerator(DirectP[1]);
+   sectionDenominator(DirectP[1]);
    SectionSpace LB=lineBundleSectionBasis(P,0,ideal(0),0,1,1);
    typeof(LB);
    size(LB);
@@ -275,7 +313,21 @@ kill r;
    STSplit.denom;
    STSplit.tailDegree;
    rationalMapFromSections(STSplit);
+   // Direct saturation must not replace this non-locally-free sheaf by a
+   // purification or reflexive hull:
+   SectionSpace DirectSplit=rankOneSheafSectionBasisDirect(Split,0,I);
+   size(DirectSplit);
+   DirectSplit.basis;
+   DirectSplit.denom;
+   rationalMapFromSections(DirectSplit);
    qring Qtail=std(I);
+   module SplitQ=w*gen(1),u*gen(2);
+   attrib(SplitQ,"isHomog",intvec(0,0));
+   SectionSpace DirectSplitQ=rankOneSheafSectionBasisDirect(SplitQ,0,
+                                                            ideal(0));
+   size(DirectSplitQ);
+   DirectSplitQ.basis;
+   DirectSplitQ.denom;
    module OQ=0;
    attrib(OQ,"isHomog",intvec(0));
    list SBQ=sheafSectionBasis(OQ,0);
@@ -296,6 +348,11 @@ kill r;
    qring Qlinear=std(K);
    module OH=0;
    attrib(OH,"isHomog",intvec(0));
+   SectionSpace DirectQLine=lineBundleSectionBasisDirect(OH,1,ideal(0));
+   size(DirectQLine);
+   DirectQLine.basis;
+   DirectQLine.denom;
+   DirectQLine.tailDegree;
    list SBLinear=sheafSectionBasis(OH,-1);
    size(SBLinear[1]);
    SBLinear[3];
@@ -310,5 +367,17 @@ kill r;
    list SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator,0);
    size(SBVerify[1]);
    SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator);
+
+// On P^0, constructing T^d needs one output column to the right:
+//----------------------------------------------------------------
+   ring RP0=0,t,dp;
+   module OP0=0;
+   attrib(OP0,"isHomog",intvec(0));
+   list P0Sections=sheafSectionBasis(OP0,4);
+   size(P0Sections[1]);
+   module ZP0=t;
+   attrib(ZP0,"isHomog",intvec(0));
+   list P0ZeroSections=sheafSectionBasis(ZP0,1);
+   size(P0ZeroSections[1]);
 
 tst_status(1);$

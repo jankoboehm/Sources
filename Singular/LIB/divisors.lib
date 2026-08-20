@@ -385,6 +385,40 @@ divisor D = multdivisor(4,P);
 globalSections(D);
 }
 
+// Scalarize a multiplication-table basis using the canonical fractional-ideal
+// frame built by globalSectionsMultTable.  That construction already knows
+// that M presents (N+IX)/IX and that its i-th generator maps to N[i]/f.
+// Keep this shortcut private: arbitrary user-supplied frames must continue to
+// go through all checks in trivializedSectionBasis.
+static proc globalSectionsTrustedTrivializedBasis(module M,int d,
+                                                   ideal N,poly f,list #)
+{
+  list B;
+  if (size(#)==0) { B=sheafSectionBasis(M,d); }
+  if (size(#)==1) { B=sheafSectionBasis(M,d,#[1]); }
+  if (size(#)==2) { B=sheafSectionBasis(M,d,#[1],#[2]); }
+  if (size(#)==3) { B=sheafSectionBasis(M,d,#[1],#[2],#[3]); }
+
+  ideal H;
+  if (size(B[1])>0)
+  {
+    // Perform all scalar products in one kernel matrix multiplication rather
+    // than scanning the vector basis entry by entry in the interpreter.
+    matrix sectionVectors=matrix(B[1]);
+    if (nrows(sectionVectors)>size(N))
+    {
+      ERROR("internal error: section vectors exceed the trusted frame rank");
+    }
+    // A module drops trailing rows which are identically zero. Restore them
+    // so the matrix dimensions agree with all generators of the frame N/f.
+    matrix paddedVectors[size(N)][size(B[1])];
+    paddedVectors[1..nrows(sectionVectors),1..ncols(sectionVectors)]=
+      sectionVectors;
+    H=ideal(matrix(N)*paddedVectors);
+  }
+  return(list(H,f*B[2],B[3]));
+}
+
 proc globalSectionsMultTable(divisor D,int d,list #)
 "USAGE:  globalSectionsMultTable(D,d[,s,g,v]); D divisor, d,s int, g poly,
         v int
@@ -401,6 +435,10 @@ NOTE:    The fractional ideal N/f from globalSectionsIdeal is lifted from
         (N+I_X)/I_X over S with generator degrees deg(N[i])-deg(f), applies
         sheafSectionBasis there, scalarizes the vector representatives, and
         maps the result back to the original qring.
+        Since N/f and its presentation are constructed together internally,
+        scalarization uses this canonical frame directly. It does not repeat
+        the generic frame and scalar-independence checks required for an
+        arbitrary frame passed to public trivializedSectionBasis.
         The optional s, g, and v are the multiplication-table degree,
         evaluation denominator, and verification flag used by
         sheafSectionBasis. Independent dimension verification with
@@ -483,17 +521,16 @@ EXAMPLE: example globalSectionsMultTable; shows an example
   list result;
   if (!haveTail)
   {
-    result=trivializedSectionBasis(M,d,N,f,IX);
+    result=globalSectionsTrustedTrivializedBasis(M,d,N,f);
   }
   if (haveTail && (!haveDenominator))
   {
-    result=trivializedSectionBasis(M,d,N,f,IX,tail);
+    result=globalSectionsTrustedTrivializedBasis(M,d,N,f,tail);
   }
   if (haveTail && haveDenominator)
   {
     poly g=imap(Q,denominatorQ);
-    result=trivializedSectionBasis(M,d,N,f,IX,tail,
-                                   g,verify);
+    result=globalSectionsTrustedTrivializedBasis(M,d,N,f,tail,g,verify);
   }
 
   setring Q;

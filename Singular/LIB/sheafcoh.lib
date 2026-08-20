@@ -19,9 +19,12 @@ PROCEDURES:
  CM_regularity(M);       Castelnuovo-Mumford regularity of coker(M)
  sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
  trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
+ trivializedSectionBasisDirect(M,d,h,f,I); direct scalar rational representatives
  rankOneTrivialization(M,I); choose a rational functional for a rank-one module
  rankOneSheafSectionBasis(M,d,I[,s,g,v]); rational representatives for sections
  lineBundleSectionBasis(M,d,I[,s,g,v]); the same interface for line bundles
+ rankOneSheafSectionBasisDirect(M,d,I); direct rank-one section space
+ lineBundleSectionBasisDirect(M,d,I); direct line-bundle section space
  sectionBasis(V);           list of Section objects in a SectionSpace
  sectionNumerator(s);       rational numerator of a Section
  sectionDenominator(s);     rational denominator of a Section
@@ -82,7 +85,9 @@ static proc printSectionSpace(SectionSpace V)
   "twist = "+string(V.twist);
   "rational degree = "+string(V.twist+V.trivializationShift);
   "common denominator = "+string(V.denom);
-  "tail degree = "+string(V.tailDegree);
+  // This is the stable tail degree for multiplication tables and the slice
+  // degree for the direct saturation algorithm.
+  "computation degree = "+string(V.tailDegree);
   if (n==0)
   {
     "basis = (empty)";
@@ -857,7 +862,9 @@ proc CM_regularity (module M)
 ASSUME:   @code{M} is graded, and it comes assigned with an admissible degree
          vector as an attribute
 RETURN:  integer, the Castelnuovo-Mumford regularity of coker(M)
-NOTE:    procedure calls mres
+NOTE:    The procedure calls mres. For a zero presentation, it reads the
+         shifts directly, since the regularity of a shifted free direct sum
+         is the maximum generator degree.
 EXAMPLE: example CM_regularity; shows an example
 KEYWORDS: Castelnuovo-Mumford regularity
 "
@@ -875,6 +882,23 @@ KEYWORDS: Castelnuovo-Mumford regularity
     {
       ERROR("No admissible degree vector assigned");
     }
+  }
+
+  // A zero presentation represents a direct sum of shifted free modules.
+  // betti(mres(M,0)) collapses mixed degree-zero shifts into one row, so read
+  // their regularity directly: reg(plus_i R(-w_i))=max_i(w_i).
+  if (size(M)==0)
+  {
+    intvec generatorDegrees=attrib(M,"isHomog");
+    int freeRegularity=generatorDegrees[1];
+    int generatorIndex;
+    for (generatorIndex=2; generatorIndex<=size(generatorDegrees);
+         generatorIndex++)
+    {
+      freeRegularity=max(freeRegularity,
+                         generatorDegrees[generatorIndex]);
+    }
+    return(freeRegularity);
   }
 
   if( attrib(CM_regularity,"Algorithm") == "minres_res" )
@@ -986,43 +1010,43 @@ static proc sectionBasisCompatibilityKernel(module G,module Bs,
   }
 
   matrix C[ds1*nr][ds*nu];
-  int r,u,k,i,j;
-  poly c;
-  module P;
-  matrix T;
-  for (r=1; r<=nr; r++)
+  matrix Sm=matrix(SU);
+  if (deg(Sm)>1)
   {
-    for (u=1; u<=nu; u++)
+    ERROR("internal error: expected linear syzygies of a power of the irrelevant ideal");
+  }
+  int ell;
+  module P;
+  matrix T,A,PM,trailingRows;
+  // SU is a matrix whose rows are the monomials in U and whose columns are
+  // its linear syzygies.  Assemble the entire compatibility matrix as a sum
+  // of Kronecker products.  Thus each multiplication-by-variable map is
+  // computed only once and all large matrix work stays in the kernel.
+  for (ell=1; ell<=nvars(basering); ell++)
+  {
+    P=reduce(var(ell)*Bs,G);
+    // Bulk reduction retains the ambient number of module rows, whereas a
+    // homogeneous-piece basis drops trailing rows which are identically
+    // zero.  Check and trim those rows before the bulk lift.
+    if (nrows(P)>nrows(Bs1))
     {
-      c=SU[r][u];
-      if (c!=0)
+      PM=matrix(P);
+      trailingRows=PM[nrows(Bs1)+1..nrows(P),1..ds];
+      if (deg(trailingRows)>=0)
       {
-        P=0;
-        for (k=1; k<=ds; k++)
-        {
-          P[k]=reduce(c*Bs[k],G);
-        }
-        // Bs1 is the standard-monomial basis of this homogeneous piece.
-        // Exact lifting preserves zero columns and avoids the unsafe
-        // coordinate assumptions made by coeffs on a general module basis.
-        T=lift(Bs1,P);
-        if ((nrows(T)!=ds1) || (ncols(T)!=ds))
-        {
-          ERROR("internal error while lifting a multiplication map");
-        }
-        for (i=1; i<=ds1; i++)
-        {
-          for (j=1; j<=ds; j++)
-          {
-            if ((T[i,j]!=0) && (deg(T[i,j])!=0))
-            {
-              ERROR("multiplication coordinates are not scalar");
-            }
-          }
-        }
-        C[(r-1)*ds1+1..r*ds1,(u-1)*ds+1..u*ds]=T;
+        ERROR("internal error: multiplication left the target homogeneous piece");
       }
+      P=module(PM[1..nrows(Bs1),1..ds]);
     }
+    T=lift(Bs1,P);
+    if ((nrows(T)!=ds1) || (ncols(T)!=ds))
+    {
+      ERROR("internal error while lifting a multiplication map");
+    }
+    // deg(matrix) performs this homogeneous-degree check in the kernel.
+    if (deg(T)>0) { ERROR("multiplication coordinates are not scalar"); }
+    A=transpose(diff(Sm,var(ell)));
+    C=C+tensor(A,T);
   }
   module K=modulo(C,std(0));
   return(K);
@@ -1143,11 +1167,36 @@ static proc sectionBasisAutomaticRegularDenominator(module M,ideal U)
   return(poly(0));
 }
 
-static proc sectionBasisBGGDimension(module M,int d)
+static proc sectionBasisBGGDimension(module M,int d,list #)
 {
+  if (size(#)>1) { ERROR("expected at most one cached regularity"); }
   int nv=nvars(basering);
-  intmat H=sheafCohBGG(M,d-nv,d+nv);
-  int h0=H[nv,nv+1];
+  int n=nv-1;
+  int low=d-n;
+  int high=d+n;
+  int targetColumn=nv;
+  if (n==0)
+  {
+    // sheafCohBGG needs one term to the right to construct T^d on P^0.
+    high=d+1;
+    targetColumn=1;
+  }
+  // sheafCohBGG documents that enlarging a requested interval by n on both
+  // sides determines it on P^n. For the singleton d this gives d-n..d+n,
+  // with H^0(F(d)) in row and column n+1. This is a Tate-resolution bound,
+  // not a stabilization test between successively enlarged windows.
+  intmat H;
+  if (size(#)==0)
+  {
+    H=sheafCohBGG(M,low,high);
+  }
+  else
+  {
+    // The automatic-tail path has already paid for this exact regularity.
+    // Reuse it instead of asking sheafCohBGG to compute the resolution again.
+    H=sheafCohBGGregul(M,low,high,#[1]);
+  }
+  int h0=H[nv,targetColumn];
   if (h0<0)
   {
     ERROR("BGG did not determine H^0 at the requested twist");
@@ -1316,6 +1365,7 @@ EXAMPLE: example sheafSectionBasis; shows an example
 
   poly g;
   matrix EK;
+  int verifiedH0;
   if (size(K)==0)
   {
     if (size(#)>=2)
@@ -1336,9 +1386,22 @@ EXAMPLE: example sheafSectionBasis; shows an example
       }
     }
     module N=sectionBasisZeroModule(nrows(M));
-    if (verify && (sectionBasisBGGDimension(M,d)!=0))
+    // Singular's boolean operators evaluate both operands, so this must be
+    // nested: v=0 is documented to avoid the BGG computation entirely.
+    if (verify)
     {
-      ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
+      if (automaticTail)
+      {
+        verifiedH0=sectionBasisBGGDimension(M,d,reg);
+      }
+      else
+      {
+        verifiedH0=sectionBasisBGGDimension(M,d);
+      }
+      if (verifiedH0!=0)
+      {
+        ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
+      }
     }
     return(list(N,g,s));
   }
@@ -1367,9 +1430,20 @@ EXAMPLE: example sheafSectionBasis; shows an example
 
   matrix BB=matrix(Bs);
   module N=module(BB*EK);
-  if (verify && (sectionBasisBGGDimension(M,d)!=size(N)))
+  if (verify)
   {
-    ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
+    if (automaticTail)
+    {
+      verifiedH0=sectionBasisBGGDimension(M,d,reg);
+    }
+    else
+    {
+      verifiedH0=sectionBasisBGGDimension(M,d);
+    }
+    if (verifiedH0!=size(N))
+    {
+      ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
+    }
   }
   return(list(N,g,s));
 }
@@ -1830,6 +1904,181 @@ example
   trivializedSectionBasis(M,0,ideal(1,x),1,ideal(0));
 }
 
+// Extract the grading shift of a frame which has already passed
+// sectionBasisCheckTrivialization.
+static proc sectionBasisCheckedTrivializationShift(module M,ideal images,
+                                                    poly f)
+{
+  intvec weights=attrib(M,"isHomog");
+  int i;
+  for (i=1; i<=nrows(M); i++)
+  {
+    if (images[i]!=0)
+    {
+      return(deg(images[i])-deg(f)-weights[i]);
+    }
+  }
+  ERROR("internal error: a checked trivialization has no nonzero image");
+}
+
+// Compute one homogeneous piece of the irrelevant saturation of the image
+// ideal.  This saturates the actual image sheaf; it deliberately does not
+// purify the ideal or take a reflexive hull.
+static proc sectionBasisDirectSlice(ideal images,ideal IX,int e)
+{
+  ideal H;
+  if (e<0) { return(H); }
+
+  ideal J=sat(images+IX,maxideal(1));
+  H=jet(intersect(J,maxideal(e)),e);
+  // Over a qring, ambient defining equations are represented by zero.  The
+  // reduction removes those entries before minbase tests linear dependence.
+  H=reduce(H,std(IX));
+  H=simplify(H,2);
+  H=minbase(H);
+  return(H);
+}
+
+// The unchecked body is used only after the public checker, or after
+// rankOneTrivialization has returned a frame which it checked itself.
+static proc sectionBasisTrivializedDirectUnchecked(module M,int d,
+                                                    ideal images,poly f,
+                                                    ideal IX,int shift)
+{
+  int sliceDegree=deg(f)+d+shift;
+  ideal H=sectionBasisDirectSlice(images,IX,sliceDegree);
+  return(list(H,f,sliceDegree));
+}
+
+proc trivializedSectionBasisDirect(module M,int d,ideal images,poly f,
+                                   ideal IX)
+"USAGE:   trivializedSectionBasisDirect(M,d,h,f,I); M module, d int,
+         h,I ideal, f poly
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         which has depth at least two at the irrelevant ideal. The entries
+         h[i]/f give a homogeneous rational trivialization of its generators,
+         and coker(M) is torsion-free and generically of rank one.
+RETURN:   list L. L[1] is an ideal of scalar section numerators, L[2] is
+         their common denominator f, and L[3] is the homogeneous degree used
+         for the direct slice. The fractions L[1][i]/L[2] form a basis of
+         H^0(sheaf(coker(M))(d)).
+NOTE:     The supplied frame is checked for grading, support, presentation
+         relations, denominator regularity, and generic injectivity on every
+         support component. If its grading shift is t, the procedure returns
+         the degree deg(f)+d+t part of
+           sat((h[1],...,h[r])+I, irrelevant ideal) / I.
+         A negative requested degree gives the empty section space. Only
+         irrelevant saturation is used: the sheaf is not purified or
+         replaced by its reflexive hull, so non-locally-free rank-one
+         torsion-free sheaves are preserved.
+SEE ALSO: rankOneSheafSectionBasisDirect, lineBundleSectionBasisDirect,
+          trivializedSectionBasis, rationalMapFromSections
+EXAMPLE: example trivializedSectionBasisDirect; shows an example
+"
+{
+  sectionBasisCheckTrivialization(M,images,f,IX);
+  int shift=sectionBasisCheckedTrivializationShift(M,images,f);
+  list B=sectionBasisTrivializedDirectUnchecked(M,d,images,f,IX,shift);
+  return(B);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  // e2=x*e1 presents O(1); the direct slice is the space of linear forms.
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  trivializedSectionBasisDirect(M,0,ideal(1,x),1,ideal(0));
+}
+
+// Build the typed direct section space after rankOneTrivialization has
+// already validated the chosen frame.  In particular, do not repeat the
+// generic-injectivity and presentation checks here.
+static proc sectionBasisDirectSpace(module M,int d,ideal IX,list T)
+{
+  list B=sectionBasisTrivializedDirectUnchecked(M,d,T[1],T[2],IX,T[3]);
+  SectionSpace V;
+  V.over=basering;
+  V.presentation=M;
+  V.supportIdeal=IX;
+  V.basis=B[1];
+  V.denom=B[2];
+  V.trivializationImages=T[1];
+  V.trivializationDenom=T[2];
+  V.twist=d;
+  V.trivializationShift=T[3];
+  // Direct saturation has no multiplication tail. Retain its slice degree
+  // in the existing diagnostic field so the computation remains inspectable.
+  V.tailDegree=B[3];
+  return(V);
+}
+
+proc rankOneSheafSectionBasisDirect(module M,int d,ideal IX)
+"USAGE:   rankOneSheafSectionBasisDirect(M,d,I); M module, d int, I ideal
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         which has depth at least two at the irrelevant ideal. Its associated
+         sheaf is torsion-free and generically of rank one, and M has its row
+         degrees assigned as isHomog.
+RETURN:   SectionSpace V. The entries V[i] are Section objects forming a
+         basis of global sections of the twist d, represented by
+         V.basis[i]/V.denom. V.tailDegree stores the direct slice degree.
+NOTE:     The procedure chooses and validates a homogeneous rational frame,
+         then computes the required homogeneous piece of its saturated image
+         ideal. It applies to line bundles and also to rank-one torsion-free
+         sheaves which are not locally free. It neither purifies the image
+         ideal nor takes a reflexive hull.
+SEE ALSO: lineBundleSectionBasisDirect, trivializedSectionBasisDirect,
+          rankOneTrivialization, rankOneSheafSectionBasis, sectionBasis,
+          rationalMapFromSections
+EXAMPLE: example rankOneSheafSectionBasisDirect; shows an example
+"
+{
+  list T=rankOneTrivialization(M,IX);
+  SectionSpace V=sectionBasisDirectSpace(M,d,IX,T);
+  return(V);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(u,v,w),dp;
+  ideal IX=u*v;
+  // A rank-one torsion-free sheaf which is not locally free where the two
+  // components meet is kept unchanged by the direct saturation method.
+  module M=v*gen(1),u*gen(2);
+  attrib(M,"isHomog",intvec(0,0));
+  SectionSpace V=rankOneSheafSectionBasisDirect(M,0,IX);
+  V;
+  sectionBasis(V);
+}
+
+proc lineBundleSectionBasisDirect(module M,int d,ideal IX)
+"USAGE:   lineBundleSectionBasisDirect(M,d,I); M module, d int, I ideal
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         which has depth at least two at the irrelevant ideal. The associated
+         sheaf is a line bundle and M has its row degrees assigned as isHomog.
+RETURN:   SectionSpace V containing a basis of global sections of the twist d.
+NOTE:     This is the line-bundle name for rankOneSheafSectionBasisDirect and
+         has the same implementation. Local freeness is an input assumption;
+         this alias does not test it separately.
+SEE ALSO: rankOneSheafSectionBasisDirect, trivializedSectionBasisDirect,
+          lineBundleSectionBasis, sectionBasis, rationalMapFromSections
+EXAMPLE: example lineBundleSectionBasisDirect; shows an example
+"
+{
+  SectionSpace V=rankOneSheafSectionBasisDirect(M,d,IX);
+  return(V);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  SectionSpace V=lineBundleSectionBasisDirect(O,1,ideal(0));
+  V;
+  rationalMapFromSections(V);
+}
+
 proc rankOneSheafSectionBasis(module M,int d,ideal IX,list #)
 "USAGE:   rankOneSheafSectionBasis(M,d,I[,s,g,v]); M module,
          d,s int, I ideal, g poly, v int
@@ -2173,11 +2422,21 @@ EXAMPLE: example sheafCohBGGregul; shows an example
   {
     for (i=l; i<=h; i++)
     {
-      if ((k+1-j-i+ell-shift>0) and (j+i-ell+shift>=1))
+      // Some exterior Betti rows do not correspond to a cohomology row in
+      // the requested table. Match sheafCohBGG and ignore those entries.
+      if (((n+2-shift-j)>0) && ((n+2-shift-j)<=(n+1)) &&
+          ((i-l+1)>0) && ((i-l+1)<=(h-l+1)))
       {
-        newBetti[n+2-shift-j,i-l+1]=Betti[j,k+1-j-i+ell-shift];
+        if ((k+1-j-i+ell-shift>0) and (j+i-ell+shift>=1))
+        {
+          newBetti[n+2-shift-j,i-l+1]=
+            Betti[j,k+1-j-i+ell-shift];
+        }
+        else
+        {
+          newBetti[n+2-shift-j,i-l+1]=-1;
+        }
       }
-      else { newBetti[n+2-shift-j,i-l+1]=-1; }
     }
   }
   for (j=2; j<=n+1; j++)

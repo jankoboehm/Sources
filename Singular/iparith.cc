@@ -1837,10 +1837,11 @@ static BOOLEAN jjCONTRACT(leftv res, leftv u, leftv v)
 static BOOLEAN jjDEG_M_IV(leftv res, leftv u, leftv v)
 {
   int *iv=iv2array((intvec *)v->Data(),currRing);
-  ideal I=(ideal)u->Data();
+  matrix M=(matrix)u->Data();
   int d=-1;
-  int i;
-  for(i=IDELEMS(I);i>=0;i--) d=si_max(d,(int)p_DegW(I->m[i],iv,currRing));
+  const long entries=(long)MATROWS(M)*MATCOLS(M);
+  for(long i=entries-1;i>=0;i--)
+    if (M->m[i]!=NULL) d=si_max(d,(int)p_DegW(M->m[i],iv,currRing));
   omFreeSize( (ADDRESS)iv, (rVar(currRing)+1)*sizeof(int) );
   res->data = (char *)((long)d);
   return FALSE;
@@ -4349,12 +4350,12 @@ static BOOLEAN jjDEG(leftv res, leftv v)
 }
 static BOOLEAN jjDEG_M(leftv res, leftv u)
 {
-  ideal I=(ideal)u->Data();
+  matrix M=(matrix)u->Data();
   int d=-1;
   int dummy;
-  int i;
-  for(i=IDELEMS(I)-1;i>=0;i--)
-    if (I->m[i]!=NULL) d=si_max(d,(int)currRing->pLDeg(I->m[i],&dummy,currRing));
+  const long entries=(long)MATROWS(M)*MATCOLS(M);
+  for(long i=entries-1;i>=0;i--)
+    if (M->m[i]!=NULL) d=si_max(d,(int)currRing->pLDeg(M->m[i],&dummy,currRing));
   res->data = (char *)(long)d;
   return FALSE;
 }

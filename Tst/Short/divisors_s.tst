@@ -20,11 +20,36 @@ example formaldivisorplus;
 example multformaldivisor;
 example degreeFormalDivisor;
 
+// The private trusted-frame shortcut has the same section span for automatic,
+// explicit-tail, and fully explicit multiplication-table calls:
+ring trustedRing=0,(x,y,z),dp;
+divisor trustedDivisor=makeDivisor(ideal(x2),ideal(y));
+list trustedDirect=globalSections(trustedDivisor);
+list trustedAutomatic=globalSectionsMultTable(trustedDivisor,0);
+list trustedTail=globalSectionsMultTable(trustedDivisor,0,0);
+list trustedFixed=globalSectionsMultTable(trustedDivisor,0,0,poly(1),0);
+size(trustedAutomatic[1]);
+size(trustedTail[1]);
+size(trustedFixed[1]);
+ideal trustedDirectCoordinates=trustedDirect[1]*trustedAutomatic[2];
+ideal trustedAutomaticCoordinates=trustedAutomatic[1]*trustedDirect[2];
+size(NF(trustedDirectCoordinates,std(trustedAutomaticCoordinates)));
+size(NF(trustedAutomaticCoordinates,std(trustedDirectCoordinates)));
+ideal trustedTailCoordinates=trustedTail[1]*trustedFixed[2];
+ideal trustedFixedCoordinates=trustedFixed[1]*trustedTail[2];
+size(NF(trustedTailCoordinates,std(trustedFixedCoordinates)));
+size(NF(trustedFixedCoordinates,std(trustedTailCoordinates)));
+
 // The divisor bridge has to lift a qring module to its polynomial ambient:
 ring r=31991,(x,y,z),dp;
 ideal I=y2*z-x*(x-z)*(x+3z);
 qring Q=std(I);
 divisor P=makeDivisor(ideal(x,z),ideal(1));
+// Here the canonical fractional ideal has generators in two degrees, while
+// H^0(P) uses only the first module row. Trusted scalarization must pad the
+// dropped trailing zero row before its kernel matrix multiplication.
+list trailingRowBasis=globalSectionsMultTable(P,0);
+size(trailingRowBasis[1]);
 list B=globalSectionsMultTable(multdivisor(4,P),0);
 size(B[1]);
 B[3];
