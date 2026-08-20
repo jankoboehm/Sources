@@ -3,10 +3,15 @@ version="version sheafcoh.lib 4.4.1.0 Aug_2026 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  sheafcoh.lib   Procedures for Computing Sheaf Cohomology
-AUTHORS:  Wolfram Decker, decker@mathematik.uni-kl.de
+AUTHORS:  Janko Boehm, boehm@mathematik.uni-kl.de
+          Wolfram Decker, decker@mathematik.uni-kl.de
           Christoph Lossen,  lossen@mathematik.uni-kl.de
-          Gerhard Pfister,  pfister@mathematik.uni-kl.de
           Oleksandr Motsak, U@D, where U={motsak}, D={mathematik.uni-kl.de}
+          Gerhard Pfister,  pfister@mathematik.uni-kl.de
+
+TYPES:
+ SectionSpace; a scalar rational basis of H^0 of a rank-one sheaf
+ Section; an individual basis section together with its parent space
 
 PROCEDURES:
  truncate(phi,d);        truncation of coker(phi) at d
@@ -14,8 +19,13 @@ PROCEDURES:
  CM_regularity(M);       Castelnuovo-Mumford regularity of coker(M)
  sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
  trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
- rankOneTrivialization(M,I); automatic rational functional for a rank-one module
- automaticTrivializedSectionBasis(M,d,I[,s,g,v]); scalar sections using it
+ rankOneTrivialization(M,I); choose a rational functional for a rank-one module
+ rankOneSheafSectionBasis(M,d,I[,s,g,v]); rational representatives for sections
+ lineBundleSectionBasis(M,d,I[,s,g,v]); the same interface for line bundles
+ sectionBasis(V);           list of Section objects in a SectionSpace
+ sectionNumerator(s);       rational numerator of a Section
+ sectionDenominator(s);     rational denominator of a Section
+ rationalMapFromSections(B); homogeneous coordinates of the rational map
  sheafCohBGG(M,l,h);     cohomology of sheaf associated to coker(M)
  sheafCohBGGregul(M,l,h,r); cohomology of sheaf associated to coker(M)
                           with given regularity
@@ -39,6 +49,379 @@ LIB "nctools.lib";
 LIB "homolog.lib";
 LIB "elim.lib";
 
+
+///////////////////////////////////////////////////////////////////////////////
+static proc mod_init()
+{
+  newstruct("SectionSpace",
+            "ring over, module presentation, ideal supportIdeal, ideal basis, poly denom, ideal trivializationImages, poly trivializationDenom, int twist, int trivializationShift, int tailDegree");
+  newstruct("Section","SectionSpace space, poly num");
+  system("install","SectionSpace","print",printSectionSpace,1);
+  system("install","SectionSpace","size",sizeSectionSpace,1);
+  system("install","SectionSpace","[",sectionSpaceGet,2);
+  system("install","Section","print",printSection,1);
+}
+
+static proc sizeSectionSpace(SectionSpace V)
+{
+  def currentRing=basering;
+  def R=V.over;
+  setring R;
+  int result=size(V.basis);
+  setring currentRing;
+  return(result);
+}
+
+static proc printSectionSpace(SectionSpace V)
+{
+  def currentRing=basering;
+  def R=V.over;
+  setring R;
+  int n=size(V.basis);
+  "SectionSpace of dimension "+string(n);
+  "twist = "+string(V.twist);
+  "rational degree = "+string(V.twist+V.trivializationShift);
+  "common denominator = "+string(V.denom);
+  "tail degree = "+string(V.tailDegree);
+  if (n==0)
+  {
+    "basis = (empty)";
+  }
+  else
+  {
+    "basis:";
+    int i;
+    for (i=1; i<=n; i++)
+    {
+      "  ["+string(i)+"] ("+string(V.basis[i])+")/("+
+        string(V.denom)+")";
+    }
+  }
+  setring currentRing;
+}
+
+static proc printSection(Section s)
+{
+  def currentRing=basering;
+  def R=s.space.over;
+  setring R;
+  "Section of twist "+string(s.space.twist)+": ("+string(s.num)+")/("+
+    string(s.space.denom)+")";
+  setring currentRing;
+}
+
+static proc sectionSpaceGet(SectionSpace V,int i)
+{
+  def currentRing=basering;
+  def R=V.over;
+  setring R;
+  int n=size(V.basis);
+  if ((i<1) || (i>n))
+  {
+    setring currentRing;
+    ERROR("section basis index out of range");
+  }
+  Section s;
+  s.space=V;
+  s.num=V.basis[i];
+  setring currentRing;
+  return(s);
+}
+
+proc sectionBasis(SectionSpace V)
+"USAGE:   sectionBasis(V); V SectionSpace
+RETURN:   list containing the basis elements of V as Section objects.
+NOTE:     The i-th entry is also available directly as V[i]. Each Section
+         retains V, hence its common denominator and sheaf data.
+SEE ALSO: sectionNumerator, sectionDenominator, rationalMapFromSections
+EXAMPLE: example sectionBasis; shows an example
+"
+{
+  list result;
+  int i;
+  for (i=1; i<=size(V); i++) { result[i]=V[i]; }
+  return(result);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  SectionSpace V=lineBundleSectionBasis(O,0,ideal(0));
+  sectionBasis(V);
+}
+
+static proc sectionRequireCurrentRing(Section s)
+{
+  if (s.space.over!=basering)
+  {
+    ERROR("set the basering to the coordinate ring of the Section first");
+  }
+}
+
+proc sectionNumerator(Section s)
+"USAGE:   sectionNumerator(s); s Section
+RETURN:   poly, the numerator of the rational representative of s.
+NOTE:     The current basering must be the coordinate ring of s.
+SEE ALSO: sectionDenominator, sectionBasis
+EXAMPLE: example sectionNumerator; shows an example
+"
+{
+  sectionRequireCurrentRing(s);
+  return(s.num);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  SectionSpace V=lineBundleSectionBasis(O,0,ideal(0));
+  Section s=V[1];
+  sectionNumerator(s);
+}
+
+proc sectionDenominator(Section s)
+"USAGE:   sectionDenominator(s); s Section
+RETURN:   poly, the denominator of the rational representative of s.
+NOTE:     All basis sections in one SectionSpace have this denominator. The
+         current basering must be the coordinate ring of s.
+SEE ALSO: sectionNumerator, sectionBasis
+EXAMPLE: example sectionDenominator; shows an example
+"
+{
+  sectionRequireCurrentRing(s);
+  return(s.space.denom);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  SectionSpace V=lineBundleSectionBasis(O,0,ideal(0));
+  Section s=V[1];
+  sectionDenominator(s);
+}
+
+static proc sectionSpacesCompatibleForMap(SectionSpace A,SectionSpace B)
+{
+  if (A.over!=B.over) { return(0); }
+  if (A.twist!=B.twist) { return(0); }
+  if (A.trivializationShift!=B.trivializationShift) { return(0); }
+  if (A.denom!=B.denom) { return(0); }
+  if (A.trivializationDenom!=B.trivializationDenom) { return(0); }
+  if (!sectionIdealEntriesEqual(A.trivializationImages,
+                                B.trivializationImages)) { return(0); }
+  if (!sectionIdealEqual(A.supportIdeal,B.supportIdeal)) { return(0); }
+  if (nrows(A.presentation)!=nrows(B.presentation)) { return(0); }
+  def gradingA=attrib(A.presentation,"isHomog");
+  def gradingB=attrib(B.presentation,"isHomog");
+  if ((typeof(gradingA)!="intvec") || (typeof(gradingB)!="intvec"))
+  {
+    return(0);
+  }
+  intvec weightsA=gradingA;
+  intvec weightsB=gradingB;
+  if (size(weightsA)!=size(weightsB)) { return(0); }
+  int i;
+  for (i=1; i<=size(weightsA); i++)
+  {
+    if (weightsA[i]!=weightsB[i]) { return(0); }
+  }
+  if (!sectionModuleEqual(A.presentation,B.presentation)) { return(0); }
+  return(1);
+}
+
+static proc sectionIdealEqual(ideal I,ideal J)
+{
+  return((size(NF(I,std(J)))==0) && (size(NF(J,std(I)))==0));
+}
+
+static proc sectionIdealEntriesEqual(ideal I,ideal J)
+{
+  int n=ncols(matrix(I));
+  if (n!=ncols(matrix(J))) { return(0); }
+  int i;
+  for (i=1; i<=n; i++)
+  {
+    if (I[i]!=J[i]) { return(0); }
+  }
+  return(1);
+}
+
+static proc sectionModuleEqual(module M,module N)
+{
+  return((size(NF(M,std(N)))==0) && (size(NF(N,std(M)))==0));
+}
+
+static proc sectionMapCheckCoordinates(ideal coordinates,ideal supportIdeal,
+                                       int checkSupport)
+{
+  int coordinateCount=ncols(matrix(coordinates));
+  int i,hasNonzero,commonDegree,degreeIsSet;
+  for (i=1; i<=coordinateCount; i++)
+  {
+    if (coordinates[i]!=0)
+    {
+      hasNonzero=1;
+      if (!homog(coordinates[i]))
+      {
+        ERROR("rational-map coordinates must be homogeneous");
+      }
+      if (!degreeIsSet)
+      {
+        commonDegree=deg(coordinates[i]);
+        degreeIsSet=1;
+      }
+      else
+      {
+        if (deg(coordinates[i])!=commonDegree)
+        {
+          ERROR("rational-map coordinates must have one common degree");
+        }
+      }
+    }
+  }
+  if (!hasNonzero)
+  {
+    ERROR("an empty or zero section system does not define a rational map");
+  }
+
+  if (checkSupport)
+  {
+    ideal saturatedSupport=sat(supportIdeal,maxideal(1));
+    ideal mapDomainClosure=sat(saturatedSupport,coordinates);
+    if (!sectionIdealEqual(saturatedSupport,mapDomainClosure))
+    {
+      ERROR("the sections do not have a schematically dense domain on the support");
+    }
+  }
+}
+
+proc rationalMapFromSections(def data)
+"USAGE:   rationalMapFromSections(V); V SectionSpace
+         rationalMapFromSections(L); L list of compatible Section objects,
+         a list of polynomial or scalar coordinates, or scalar section data
+         [ideal,poly-or-scalar,int]
+         rationalMapFromSections(I); I ideal
+RETURN:   ideal containing homogeneous coordinates for the associated
+         projective rational map to P^(n-1), where n is the number of
+         coordinate slots.
+NOTE:     Singular conventionally represents a projective rational map by an
+         ideal of homogeneous coordinates. For a SectionSpace or a list of
+         Sections, common denominators cancel projectively. Sections in a list
+         must use the same presented sheaf and rational trivialization.
+         Individual zero coordinate slots are retained; an all-zero system is
+         rejected. Base points are allowed, but the domain of a typed section
+         system must be schematically dense in the support (in particular, it
+         must contain every associated generic point).
+         Module-valued output of sheafSectionBasis must first be scalarized by
+         a rank-one trivialization.
+SEE ALSO: rankOneSheafSectionBasis, lineBundleSectionBasis,
+          trivializedSectionBasis, sheafSectionBasis
+EXAMPLE: example rationalMapFromSections; shows an example
+"
+{
+  ideal coordinates,supportIdeal;
+  int checkSupport=0;
+
+  if (typeof(data)=="SectionSpace")
+  {
+    if (data.over!=basering)
+    {
+      ERROR("set the basering to the coordinate ring of the SectionSpace first");
+    }
+    coordinates=data.basis;
+    supportIdeal=data.supportIdeal;
+    checkSupport=1;
+  }
+  else
+  {
+    if (typeof(data)=="ideal")
+    {
+      coordinates=data;
+    }
+    else
+    {
+      if (typeof(data)!="list")
+      {
+        ERROR("expected a SectionSpace, a list of Sections or polynomial/scalar coordinates, scalar section data, or an ideal");
+      }
+      if (size(data)==0)
+      {
+        ERROR("an empty section system does not define a rational map");
+      }
+
+      if ((size(data)==3) && (typeof(data[1])=="ideal") &&
+          ((typeof(data[2])=="poly") || (typeof(data[2])=="int") ||
+           (typeof(data[2])=="number")) && (typeof(data[3])=="int"))
+      {
+        poly commonDenom=poly(data[2]);
+        if ((commonDenom==0) || (!homog(commonDenom)))
+        {
+          ERROR("the common section denominator must be nonzero and homogeneous");
+        }
+        coordinates=data[1];
+      }
+      else
+      {
+        int i;
+        if (typeof(data[1])=="Section")
+        {
+          Section firstSection=data[1];
+          Section currentSection;
+          if (firstSection.space.over!=basering)
+          {
+            ERROR("set the basering to the coordinate ring of the Sections first");
+          }
+          supportIdeal=firstSection.space.supportIdeal;
+          checkSupport=1;
+          for (i=1; i<=size(data); i++)
+          {
+            if (typeof(data[i])!="Section")
+            {
+              ERROR("a section list must contain only Section objects");
+            }
+            currentSection=data[i];
+            if (!sectionSpacesCompatibleForMap(firstSection.space,
+                                                currentSection.space))
+            {
+              ERROR("the Sections do not belong to compatible section spaces");
+            }
+            coordinates[i]=currentSection.num;
+          }
+        }
+        else
+        {
+          for (i=1; i<=size(data); i++)
+          {
+            if ((typeof(data[i])!="poly") && (typeof(data[i])!="int") &&
+                (typeof(data[i])!="number"))
+            {
+              ERROR("a polynomial section list must contain only polynomials or scalars");
+            }
+            coordinates[i]=poly(data[i]);
+          }
+        }
+      }
+    }
+  }
+
+  sectionMapCheckCoordinates(coordinates,supportIdeal,checkSupport);
+  return(coordinates);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  SectionSpace V=lineBundleSectionBasis(M,0,ideal(0));
+  rationalMapFromSections(V);
+  rationalMapFromSections(list(V[1],V[3]));
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 static proc jacobM(matrix M)
@@ -1220,7 +1603,7 @@ NOTE:     The procedure computes the graded dual Hom(coker(M),basering/I),
          on every support component. The deterministic candidate search is
          finite; if it misses a suitable functional, pass an explicit
          trivialization to trivializedSectionBasis.
-SEE ALSO: trivializedSectionBasis, automaticTrivializedSectionBasis
+SEE ALSO: trivializedSectionBasis, rankOneSheafSectionBasis, lineBundleSectionBasis
 EXAMPLE: example rankOneTrivialization; shows an example
 "
 {
@@ -1369,7 +1752,7 @@ NOTE:     The procedure verifies support, grading, presentation relations,
          generic injectivity on every support component, denominator
          regularity, and independence of the scalarized basis.
          The optional arguments are passed to sheafSectionBasis.
-SEE ALSO: sheafSectionBasis
+SEE ALSO: sheafSectionBasis, rationalMapFromSections
 EXAMPLE: example trivializedSectionBasis; shows an example
 "
 {
@@ -1446,18 +1829,26 @@ example
   trivializedSectionBasis(M,0,ideal(1,x),1,ideal(0));
 }
 
-proc automaticTrivializedSectionBasis(module M,int d,ideal IX,list #)
-"USAGE:   automaticTrivializedSectionBasis(M,d,I[,s,g,v]); M module,
+proc rankOneSheafSectionBasis(module M,int d,ideal IX,list #)
+"USAGE:   rankOneSheafSectionBasis(M,d,I[,s,g,v]); M module,
          d,s int, I ideal, g poly, v int
 ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
-         whose associated sheaf is torsion-free and generically of rank one.
-RETURN:   the same scalar section list as trivializedSectionBasis.
-NOTE:     A homogeneous rational functional is first constructed by
-         rankOneTrivialization. Use that procedure separately to inspect its
-         generator images and degree shift. The optional tail arguments are
+         whose associated sheaf is torsion-free and generically of rank one,
+         and M has its row degrees assigned as isHomog.
+RETURN:   SectionSpace V. The entries V[i] are Section objects forming a
+         basis of global sections of the twist d. Their rational
+         representatives are V.basis[i]/V.denom; V.tailDegree records the
+         multiplication-tail degree used.
+NOTE:     The procedure chooses a homogeneous rational trivialization and
+         computes the section basis in one call. It applies both to line
+         bundles and to rank-one torsion-free sheaves which are not locally
+         free, including non-invertible divisorial sheaves. To supply a known
+         trivialization instead, call
+         trivializedSectionBasis directly. The optional tail arguments are
          passed unchanged to sheafSectionBasis.
-SEE ALSO: rankOneTrivialization, trivializedSectionBasis, sheafSectionBasis
-EXAMPLE: example automaticTrivializedSectionBasis; shows an example
+SEE ALSO: lineBundleSectionBasis, sectionBasis, rationalMapFromSections,
+          rankOneTrivialization, trivializedSectionBasis, sheafSectionBasis
+EXAMPLE: example rankOneSheafSectionBasis; shows an example
 "
 {
   if (size(#)>3)
@@ -1482,17 +1873,110 @@ EXAMPLE: example automaticTrivializedSectionBasis; shows an example
   {
     B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1],#[2],#[3]);
   }
-  return(B);
+  if ((B[2]==0) || (!homog(B[2])))
+  {
+    ERROR("internal error: the section denominator is zero or nonhomogeneous");
+  }
+  module supportModule=IX;
+  attrib(supportModule,"isHomog",intvec(0));
+  if (!sectionBasisRegularDenominator(supportModule,B[2]))
+  {
+    ERROR("the scalar section denominator is a zero divisor on the support");
+  }
+  int i;
+  for (i=1; i<=size(B[1]); i++)
+  {
+    if ((B[1][i]==0) || (!homog(B[1][i])) ||
+        (deg(B[1][i])-deg(B[2])!=d+T[3]))
+    {
+      ERROR("internal error: invalid scalar section degree");
+    }
+  }
+  SectionSpace V;
+  V.over=basering;
+  V.presentation=M;
+  V.supportIdeal=IX;
+  V.basis=B[1];
+  V.denom=B[2];
+  V.trivializationImages=T[1];
+  V.trivializationDenom=T[2];
+  V.twist=d;
+  V.trivializationShift=T[3];
+  V.tailDegree=B[3];
+  return(V);
 }
 example
 {"EXAMPLE:";
   echo=2;
   ring R=0,(u,v,w),dp;
   ideal IX=u*v;
-  // The two dual generators cover different components of Proj(R/IX).
+  // This rank-one torsion-free sheaf on Proj(R/IX) is not locally free at
+  // the intersection of its two components:
   module M=v*gen(1),u*gen(2);
   attrib(M,"isHomog",intvec(0,0));
-  automaticTrivializedSectionBasis(M,0,IX);
+  SectionSpace V=rankOneSheafSectionBasis(M,0,IX);
+  V;
+  V[1];
+}
+
+proc lineBundleSectionBasis(module M,int d,ideal IX,list #)
+"USAGE:   lineBundleSectionBasis(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         whose associated sheaf is a line bundle, and M has its row degrees
+         assigned as isHomog.
+RETURN:   SectionSpace V containing a basis of global sections of the twist d.
+         The i-th Section is V[i], represented by V.basis[i]/V.denom.
+NOTE:     This is the line-bundle name for rankOneSheafSectionBasis and has
+         the same implementation and optional arguments. Local freeness is
+         an input assumption; this alias does not test it separately.
+SEE ALSO: rankOneSheafSectionBasis, sectionBasis, rationalMapFromSections,
+          sheafSectionBasis, trivializedSectionBasis
+EXAMPLE: example lineBundleSectionBasis; shows an example
+"
+{
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+  SectionSpace V;
+  if (size(#)==0)
+  {
+    V=rankOneSheafSectionBasis(M,d,IX);
+  }
+  if (size(#)==1)
+  {
+    V=rankOneSheafSectionBasis(M,d,IX,#[1]);
+  }
+  if (size(#)==2)
+  {
+    V=rankOneSheafSectionBasis(M,d,IX,#[1],#[2]);
+  }
+  if (size(#)==3)
+  {
+    V=rankOneSheafSectionBasis(M,d,IX,#[1],#[2],#[3]);
+  }
+  return(V);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  // e2=x*e1 presents O(1). Compute its sections in one call:
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  SectionSpace V=lineBundleSectionBasis(M,0,ideal(0));
+  V;
+  // Extract one Section, or the whole basis as a list of Sections:
+  Section s=V[1];
+  s;
+  list B=sectionBasis(V);
+  // Singular represents a projective rational map by its homogeneous
+  // coordinate ideal; the common section denominator cancels:
+  ideal phi=rationalMapFromSections(V);
+  phi;
+  // A list of Sections defines the corresponding subsystem:
+  rationalMapFromSections(list(V[1],V[3]));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -114,6 +114,9 @@ kill r;
    SB[1];
    SB[2];
    SB[3];
+   SectionSpace EmptySections=lineBundleSectionBasis(O,-1,ideal(0));
+   typeof(EmptySections);
+   size(EmptySections);
    SB=sheafSectionBasis(O,0,2,x2,1);
    SB[1];
    SB[2];
@@ -136,6 +139,31 @@ kill r;
    ST[1];
    ST[2];
    ST[3];
+   SectionSpace LB=lineBundleSectionBasis(P,0,ideal(0),0,1,1);
+   typeof(LB);
+   size(LB);
+   LB.basis;
+   LB.denom;
+   LB.trivializationImages;
+   LB.trivializationDenom;
+   LB.twist;
+   LB.trivializationShift;
+   LB.tailDegree;
+   Section firstSection=LB[1];
+   typeof(firstSection);
+   sectionNumerator(firstSection);
+   sectionDenominator(firstSection);
+   list LBasis=sectionBasis(LB);
+   size(LBasis);
+   rationalMapFromSections(LB);
+   rationalMapFromSections(list(LB[1],LB[3]));
+   rationalMapFromSections(ST);
+   rationalMapFromSections(list(ST[1],1,ST[3]));
+   rationalMapFromSections(ST[1]);
+   rationalMapFromSections(list(y,z,x));
+   ideal SlotMap=rationalMapFromSections(list(0,x,0));
+   ncols(matrix(SlotMap));
+   SlotMap;
 
 // The rational functional can also be chosen from the graded dual:
 //-----------------------------------------------------------------
@@ -143,10 +171,27 @@ kill r;
    RT[1];
    RT[2];
    RT[3];
-   ST=automaticTrivializedSectionBasis(P,0,ideal(0),0,1,1);
-   ST[1];
-   ST[2];
-   ST[3];
+   SectionSpace RS=rankOneSheafSectionBasis(P,0,ideal(0),0,1,1);
+   RS.basis;
+   RS.denom;
+   RS.tailDegree;
+
+// Sections from different frames or graded sheaves cannot be mixed:
+//-----------------------------------------------------------------
+   ideal Iframes=x*y;
+   module FrameA=y*gen(1),x*gen(2);
+   attrib(FrameA,"isHomog",intvec(0,0));
+   SectionSpace SpaceA=rankOneSheafSectionBasis(FrameA,0,Iframes,2,z2,0);
+   // This is the same relation submodule, but has a different rational frame.
+   module FrameB=y*gen(1),y*gen(1)+x*gen(2);
+   attrib(FrameB,"isHomog",intvec(0,0));
+   SectionSpace SpaceB=rankOneSheafSectionBasis(FrameB,0,Iframes,2,z2,0);
+   rationalMapFromSections(list(SpaceA[1],SpaceB[2]));
+   // This has the same relation submodule and frame degree, but another grading.
+   module GradedB=y*gen(1),x*gen(2);
+   attrib(GradedB,"isHomog",intvec(1,0));
+   SectionSpace SpaceC=rankOneSheafSectionBasis(GradedB,0,Iframes,2,z2,0);
+   rationalMapFromSections(list(SpaceA[2],SpaceC[1]));
 
 // Dual generators which vanish on the support must not raise the shift:
 //-----------------------------------------------------------------------
@@ -218,6 +263,11 @@ kill r;
    RTSplit[1];
    RTSplit[2];
    RTSplit[3];
+   SectionSpace STSplit=rankOneSheafSectionBasis(Split,0,I);
+   STSplit.basis;
+   STSplit.denom;
+   STSplit.tailDegree;
+   rationalMapFromSections(STSplit);
    qring Qtail=std(I);
    module OQ=0;
    attrib(OQ,"isHomog",intvec(0));
@@ -226,6 +276,11 @@ kill r;
    SBQ[1];
    SBQ[2];
    SBQ[3];
+   SectionSpace LQ=lineBundleSectionBasis(OQ,0,ideal(0));
+   size(LQ);
+   LQ.basis;
+   LQ.denom;
+   rationalMapFromSections(LQ);
 
 // Qring lifting also preserves twists and stabilization:
 //--------------------------------------------------------
