@@ -151,14 +151,16 @@ kill r;
    SB[1];
    SB[3];
 
-// Verification is on by default and rejects an explicitly unstable tail:
+// Verification is opt-in and performs one check without changing the tail:
 //-------------------------------------------------------------------------
    poly unitDenominator=1;
-   // This is also the eager-boolean regression: with v=0 the deliberately
-   // unstable dimension must not cause sectionBasisBGGDimension to run.
+   // The default and v=0 return the deliberately unstable candidate without
+   // causing sectionBasisBGGDimension to run.
+   SB=sheafSectionBasis(T,0,0,unitDenominator);
+   size(SB[1]);
    SB=sheafSectionBasis(T,0,0,unitDenominator,0);
    size(SB[1]);
-   SB=sheafSectionBasis(T,0,0,unitDenominator);
+   SB=sheafSectionBasis(T,0,0,unitDenominator,1);
 
 // Scalarization of a presented rank-one module:
 //------------------------------------------------
@@ -357,8 +359,8 @@ kill r;
    size(SBLinear[1]);
    SBLinear[3];
 
-// The verification default and explicit opt-out survive qring lifting:
-//---------------------------------------------------------------------
+// Default-off verification and explicit opt-in survive qring lifting:
+//-------------------------------------------------------------------
    ring Rverify=0,(x,y,z),dp;
    qring Qverify=std(z);
    module Tverify=x*gen(2),y*gen(2);
@@ -367,6 +369,8 @@ kill r;
    list SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator,0);
    size(SBVerify[1]);
    SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator);
+   size(SBVerify[1]);
+   SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator,1);
 
 // On P^0, constructing T^d needs one output column to the right:
 //----------------------------------------------------------------

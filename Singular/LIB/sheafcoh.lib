@@ -1167,9 +1167,8 @@ static proc sectionBasisAutomaticRegularDenominator(module M,ideal U)
   return(poly(0));
 }
 
-static proc sectionBasisBGGDimension(module M,int d,list #)
+static proc sectionBasisBGGDimension(module M,int d)
 {
-  if (size(#)>1) { ERROR("expected at most one cached regularity"); }
   int nv=nvars(basering);
   int n=nv-1;
   int low=d-n;
@@ -1185,17 +1184,7 @@ static proc sectionBasisBGGDimension(module M,int d,list #)
   // sides determines it on P^n. For the singleton d this gives d-n..d+n,
   // with H^0(F(d)) in row and column n+1. This is a Tate-resolution bound,
   // not a stabilization test between successively enlarged windows.
-  intmat H;
-  if (size(#)==0)
-  {
-    H=sheafCohBGG(M,low,high);
-  }
-  else
-  {
-    // The automatic-tail path has already paid for this exact regularity.
-    // Reuse it instead of asking sheafCohBGG to compute the resolution again.
-    H=sheafCohBGGregul(M,low,high,#[1]);
-  }
+  intmat H=sheafCohBGG(M,low,high);
   int h0=H[nv,targetColumn];
   if (h0<0)
   {
@@ -1218,8 +1207,9 @@ NOTE:     If s is omitted, the procedure uses the stable bound
          max(d,reg(coker(M))+1). An explicit s is an expert override.
          The optional homogeneous g has degree s-d.  Evaluation at g must
          preserve the tail kernel and g must be a non-zero-divisor after
-         sheafification. BGG dimension verification is enabled by default;
-         pass v=0 to disable it.
+         sheafification. BGG dimension verification is disabled by default;
+         pass v=1 to enable one dimension comparison. Verification never
+         changes or retries the requested tail.
          For a qring, the presentation is lifted to the ambient polynomial
          ring and the quotient ideal is added to its relation module.
 THEORY:   Put a=s-d. The procedure computes
@@ -1315,7 +1305,7 @@ EXAMPLE: example sheafSectionBasis; shows an example
   }
 
   int automaticTail=(size(#)==0);
-  int verify=1;
+  int verify=0;
   int s,reg;
   if (automaticTail)
   {
@@ -1326,7 +1316,6 @@ EXAMPLE: example sheafSectionBasis; shows an example
   {
     if (typeof(#[1])!="int") { ERROR("tail degree must be an integer"); }
     s=#[1];
-    reg=s;
   }
   if (s<d) { ERROR("tail degree must be at least the requested twist"); }
   if (size(#)==3)
@@ -1387,20 +1376,14 @@ EXAMPLE: example sheafSectionBasis; shows an example
     }
     module N=sectionBasisZeroModule(nrows(M));
     // Singular's boolean operators evaluate both operands, so this must be
-    // nested: v=0 is documented to avoid the BGG computation entirely.
+    // nested: v=0 and the default path avoid BGG entirely.
     if (verify)
     {
-      if (automaticTail)
-      {
-        verifiedH0=sectionBasisBGGDimension(M,d,reg);
-      }
-      else
-      {
-        verifiedH0=sectionBasisBGGDimension(M,d);
-      }
+      verifiedH0=sectionBasisBGGDimension(M,d);
       if (verifiedH0!=0)
       {
-        ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
+        ERROR("multiplication-table/BGG dimension mismatch: candidate dimension 0, BGG h0 "
+              +string(verifiedH0)+", tail degree "+string(s));
       }
     }
     return(list(N,g,s));
@@ -1432,17 +1415,12 @@ EXAMPLE: example sheafSectionBasis; shows an example
   module N=module(BB*EK);
   if (verify)
   {
-    if (automaticTail)
-    {
-      verifiedH0=sectionBasisBGGDimension(M,d,reg);
-    }
-    else
-    {
-      verifiedH0=sectionBasisBGGDimension(M,d);
-    }
+    verifiedH0=sectionBasisBGGDimension(M,d);
     if (verifiedH0!=size(N))
     {
-      ERROR("dimension mismatch between multiplication-table kernel and BGG cohomology");
+      ERROR("multiplication-table/BGG dimension mismatch: candidate dimension "
+            +string(size(N))+", BGG h0 "+string(verifiedH0)
+            +", tail degree "+string(s));
     }
   }
   return(list(N,g,s));

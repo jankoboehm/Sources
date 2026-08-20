@@ -442,7 +442,8 @@ NOTE:    The fractional ideal N/f from globalSectionsIdeal is lifted from
         The optional s, g, and v are the multiplication-table degree,
         evaluation denominator, and verification flag used by
         sheafSectionBasis. Independent dimension verification with
-        sheafCohBGG is enabled by default; pass v=0 to disable it.
+        sheafCohBGG is disabled by default; pass v=1 to enable one dimension
+        comparison. Verification never changes or retries the tail.
 THEORY:  This forms the degree-s and degree-(s+1) multiplication tables and
         their compatibility kernel. It computes
         Hom(m^(s-d),(N+I_X)/I_X)_d, which in the stable range is the degree-d
@@ -464,7 +465,7 @@ EXAMPLE: example globalSectionsMultTable; shows an example
 
   int haveTail=(size(#)>=1);
   int haveDenominator=(size(#)>=2);
-  int verify=1;
+  int verify=0;
   int tail;
   poly denominatorQ;
   if (haveTail)
@@ -548,9 +549,9 @@ L;
 // coordinate ideal; the common denominator L[2] cancels projectively:
 ideal phi=rationalMapFromSections(L);
 phi;
-// Force one more multiplication-table step and disable the independent
+// Force one more multiplication-table step and request the independent
 // BGG dimension check:
-L=globalSectionsMultTable(D,0,1,z,0);
+L=globalSectionsMultTable(D,0,1,z,1);
 L;
 }
 
