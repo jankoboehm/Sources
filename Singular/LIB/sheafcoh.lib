@@ -1522,8 +1522,11 @@ static proc sectionBasisTrivializationRegularFactor(module M,module OX,int a)
   return(poly(0));
 }
 
-static proc sectionBasisCheckTrivialization(module M,ideal images,poly f,
-                                            ideal IX)
+// Check every frame invariant except generic injectivity.  Call this private
+// body directly only after sectionBasisTrivializationKernelIsM has succeeded.
+static proc sectionBasisCheckTrivializationExceptKernel(module M,
+                                                         ideal images,poly f,
+                                                         ideal IX)
 {
   int imageCount=ncols(matrix(images));
   if (imageCount!=nrows(M))
@@ -1628,6 +1631,13 @@ static proc sectionBasisCheckTrivialization(module M,ideal images,poly f,
       ERROR("the trivialization images do not satisfy the module relations on the support");
     }
   }
+}
+
+// Full checker for every public explicit-frame entry point.
+static proc sectionBasisCheckTrivialization(module M,ideal images,poly f,
+                                            ideal IX)
+{
+  sectionBasisCheckTrivializationExceptKernel(M,images,f,IX);
 
   // The induced map coker(M) -> (images)/(IX) must have no sheaf kernel.
   // This rules out a putative trivialization which vanishes generically on
@@ -1723,7 +1733,7 @@ EXAMPLE: example rankOneTrivialization; shows an example
     H=candidateImages[j];
     if (sectionBasisTrivializationKernelIsM(M,H,IX))
     {
-      sectionBasisCheckTrivialization(M,H,1,IX);
+      sectionBasisCheckTrivializationExceptKernel(M,H,1,IX);
       return(list(H,poly(1),candidateShifts[j]));
     }
   }
@@ -1774,7 +1784,7 @@ EXAMPLE: example rankOneTrivialization; shows an example
     }
     if (sectionBasisTrivializationKernelIsM(M,H,IX))
     {
-      sectionBasisCheckTrivialization(M,H,1,IX);
+      sectionBasisCheckTrivializationExceptKernel(M,H,1,IX);
       return(list(H,poly(1),commonShift));
     }
   }
@@ -1788,6 +1798,37 @@ example
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
   rankOneTrivialization(M,ideal(0));
+}
+
+// Scalarize a multiplication-table basis after rankOneTrivialization has
+// already checked the frame. Generic injectivity of that frame makes its map
+// on H^0 injective, so do not repeat the public routine's frame checks or
+// scalar-independence computation here.
+static proc sectionBasisTrustedTrivializedBasis(module M,int d,
+                                                 ideal images,poly f,list #)
+{
+  list B;
+  if (size(#)==0) { B=sheafSectionBasis(M,d); }
+  if (size(#)==1) { B=sheafSectionBasis(M,d,#[1]); }
+  if (size(#)==2) { B=sheafSectionBasis(M,d,#[1],#[2]); }
+  if (size(#)==3) { B=sheafSectionBasis(M,d,#[1],#[2],#[3]); }
+
+  ideal H;
+  if (size(B[1])>0)
+  {
+    // A module drops trailing rows which are identically zero. Restore them
+    // before multiplying all section vectors by the checked frame at once.
+    matrix sectionVectors=matrix(B[1]);
+    if (nrows(sectionVectors)>nrows(M))
+    {
+      ERROR("internal error: section vectors exceed the checked frame rank");
+    }
+    matrix paddedVectors[nrows(M)][size(B[1])];
+    paddedVectors[1..nrows(sectionVectors),1..ncols(sectionVectors)]=
+      sectionVectors;
+    H=ideal(matrix(images)*paddedVectors);
+  }
+  return(list(H,f*B[2],B[3]));
 }
 
 proc trivializedSectionBasis(module M,int d,ideal images,poly f,ideal IX,
@@ -2087,19 +2128,19 @@ EXAMPLE: example rankOneSheafSectionBasis; shows an example
   list B;
   if (size(#)==0)
   {
-    B=trivializedSectionBasis(M,d,T[1],T[2],IX);
+    B=sectionBasisTrustedTrivializedBasis(M,d,T[1],T[2]);
   }
   if (size(#)==1)
   {
-    B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1]);
+    B=sectionBasisTrustedTrivializedBasis(M,d,T[1],T[2],#[1]);
   }
   if (size(#)==2)
   {
-    B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1],#[2]);
+    B=sectionBasisTrustedTrivializedBasis(M,d,T[1],T[2],#[1],#[2]);
   }
   if (size(#)==3)
   {
-    B=trivializedSectionBasis(M,d,T[1],T[2],IX,#[1],#[2],#[3]);
+    B=sectionBasisTrustedTrivializedBasis(M,d,T[1],T[2],#[1],#[2],#[3]);
   }
   if ((B[2]==0) || (!homog(B[2])))
   {

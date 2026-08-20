@@ -268,6 +268,13 @@ kill r;
    ST[1];
    ST[2];
    ST[3];
+   // The automatic checked-frame path scalarizes in bulk and must restore a
+   // trailing zero row dropped from the vector basis.
+   SectionSpace TrustedZ=rankOneSheafSectionBasis(Z,0,ideal(0),0,1,0);
+   size(TrustedZ);
+   TrustedZ.basis;
+   TrustedZ.denom;
+   TrustedZ.trivializationImages;
 
 // The regularity boundary itself need not yet give the stable Hom tail:
 //-----------------------------------------------------------------------
