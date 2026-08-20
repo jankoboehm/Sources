@@ -534,4 +534,179 @@ kill r;
    size(cachedQDirect);
    cachedFrameEntriesEqual(cachedQDirect.trivializationImages,cachedQImages);
 
+// Finite linear algebra can recover and cache a frame without graded Hom:
+//-----------------------------------------------------------------------
+   ring RlinearFrames=0,(x,y,z),dp;
+   // The two relation columns have different weighted degrees.  This also
+   // exercises the sparse constant nullspace over QQ.
+   module weightedLinearPresentation=
+     -x*gen(1)+gen(2),-y*gen(2)+gen(3);
+   attrib(weightedLinearPresentation,"isHomog",intvec(-1,0,1));
+   list weightedLinearFrame=rankOneTrivializationLinear(
+                              weightedLinearPresentation,ideal(0));
+   weightedLinearFrame[1];
+   weightedLinearFrame[3];
+   RankOneSheaf weightedLinearSheaf=rankOneSheafLinear(
+                                      weightedLinearPresentation,ideal(0));
+   RankOneSheaf weightedHomSheaf=rankOneSheaf(
+                                   weightedLinearPresentation,ideal(0));
+   RankOneSheaf weightedLinearBundle=lineBundleLinear(
+                                       weightedLinearPresentation,ideal(0));
+   typeof(weightedLinearBundle);
+   SectionSpace weightedLinearMinus=rankOneSheafSectionBasis(
+                                      weightedLinearSheaf,-2);
+   SectionSpace weightedLinearZero=rankOneSheafSectionBasis(
+                                     weightedLinearSheaf,0);
+   SectionSpace weightedLinearPlus=rankOneSheafSectionBasis(
+                                     weightedLinearSheaf,1);
+   size(weightedLinearMinus);
+   size(weightedLinearZero);
+   size(weightedLinearPlus);
+   SectionSpace weightedHomMinus=rankOneSheafSectionBasis(
+                                   weightedHomSheaf,-2);
+   SectionSpace weightedHomZero=rankOneSheafSectionBasis(
+                                  weightedHomSheaf,0);
+   SectionSpace weightedHomPlus=rankOneSheafSectionBasis(
+                                  weightedHomSheaf,1);
+   size(weightedLinearMinus)==size(weightedHomMinus);
+   size(weightedLinearZero)==size(weightedHomZero);
+   size(weightedLinearPlus)==size(weightedHomPlus);
+   size(lineBundleSectionBasis(weightedLinearBundle,0));
+   // Align denominators and compare the rational spans with both the old Hom
+   // constructor and the direct saturation algorithm.
+   ideal weightedLinearCoordinates=weightedLinearZero.basis*
+                                   weightedHomZero.denom;
+   ideal weightedHomCoordinates=weightedHomZero.basis*
+                                weightedLinearZero.denom;
+   size(NF(weightedLinearCoordinates,std(weightedHomCoordinates)));
+   size(NF(weightedHomCoordinates,std(weightedLinearCoordinates)));
+   SectionSpace weightedDirectZero=rankOneSheafSectionBasisDirect(
+                                     weightedHomSheaf,0);
+   ideal weightedLinearDirectCoordinates=weightedLinearZero.basis*
+                                         weightedDirectZero.denom;
+   ideal weightedDirectCoordinates=weightedDirectZero.basis*
+                                   weightedLinearZero.denom;
+   size(NF(weightedLinearDirectCoordinates,std(weightedDirectCoordinates)));
+   size(NF(weightedDirectCoordinates,std(weightedLinearDirectCoordinates)));
+
+// Degree slices must retain absent trailing generator rows, and free sheaves
+// retain their assigned generator shift:
+//--------------------------------------------------------------------------
+   module trailingLinearPresentation=gen(1)-x*gen(2);
+   attrib(trailingLinearPresentation,"isHomog",intvec(1,0));
+   list trailingLinearFrame=rankOneTrivializationLinear(
+                              trailingLinearPresentation,ideal(0));
+   trailingLinearFrame[1];
+   trailingLinearFrame[3];
+   matrix weightedFreeMatrix[1][1];
+   module weightedFreePresentation=weightedFreeMatrix;
+   attrib(weightedFreePresentation,"isHomog",intvec(2));
+   list weightedFreeFrame=rankOneTrivializationLinear(
+                            weightedFreePresentation,ideal(0));
+   weightedFreeFrame[1];
+   weightedFreeFrame[3];
+   module ungradedFreePresentation=0;
+   RankOneSheaf ungradedFreeSheaf=rankOneSheafLinear(
+                                    ungradedFreePresentation,ideal(0));
+   typeof(attrib(ungradedFreeSheaf.presentation,"isHomog"))=="intvec";
+   size(rankOneSheafSectionBasis(ungradedFreeSheaf,0));
+   // Here coker(M)=0, so the bounded scan terminates without a functional.
+   module zeroCokernelPresentation=gen(1),gen(2);
+   attrib(zeroCokernelPresentation,"isHomog",intvec(0,0));
+   rankOneTrivializationLinear(zeroCokernelPresentation,ideal(0));
+
+// The same sparse nullspace construction works in positive characteristic:
+//--------------------------------------------------------------------------
+   ring RlinearFinite=5,(x,y,z),dp;
+   ideal finiteSquare=maxideal(2);
+   module finitePresentation=syz(finiteSquare);
+   attrib(finitePresentation,"isHomog",intvec(2,2,2,2,2,2));
+   list finiteLinearFrame=rankOneTrivializationLinear(finitePresentation,
+                                                       ideal(0));
+   finiteLinearFrame[1];
+   finiteLinearFrame[3];
+   RankOneSheaf finiteLinearSheaf=rankOneSheafLinear(finitePresentation,
+                                                      ideal(0));
+   RankOneSheaf finiteHomSheaf=rankOneSheaf(finitePresentation,ideal(0));
+   SectionSpace finiteLinearMinus=rankOneSheafSectionBasis(
+                                    finiteLinearSheaf,-1);
+   SectionSpace finiteLinearZero=rankOneSheafSectionBasis(
+                                   finiteLinearSheaf,0);
+   SectionSpace finiteLinearPlus=rankOneSheafSectionBasis(
+                                   finiteLinearSheaf,1);
+   size(finiteLinearMinus);
+   size(finiteLinearZero);
+   size(finiteLinearPlus);
+   SectionSpace finiteHomMinus=rankOneSheafSectionBasis(finiteHomSheaf,-1);
+   SectionSpace finiteHomZero=rankOneSheafSectionBasis(finiteHomSheaf,0);
+   SectionSpace finiteHomPlus=rankOneSheafSectionBasis(finiteHomSheaf,1);
+   size(finiteLinearMinus)==size(finiteHomMinus);
+   size(finiteLinearZero)==size(finiteHomZero);
+   size(finiteLinearPlus)==size(finiteHomPlus);
+   ideal finiteLinearCoordinates=finiteLinearZero.basis*finiteHomZero.denom;
+   ideal finiteHomCoordinates=finiteHomZero.basis*finiteLinearZero.denom;
+   size(NF(finiteLinearCoordinates,std(finiteHomCoordinates)));
+   size(NF(finiteHomCoordinates,std(finiteLinearCoordinates)));
+
+// The kernel nullspace also works over exact algebraic extensions:
+//-------------------------------------------------------------------
+   ring RlinearAlgebraic=(0,a),(x,y,z),dp;
+   minpoly=a2+1;
+   module algebraicPresentation=-a*x*gen(1)+gen(2);
+   attrib(algebraicPresentation,"isHomog",intvec(-1,0));
+   list algebraicFrame=rankOneTrivializationLinear(algebraicPresentation,
+                                                    ideal(0));
+   algebraicFrame[1];
+   algebraicFrame[3];
+   RankOneSheaf algebraicLinearSheaf=rankOneSheafLinear(
+                                       algebraicPresentation,ideal(0));
+   RankOneSheaf algebraicHomSheaf=rankOneSheaf(algebraicPresentation,
+                                                ideal(0));
+   SectionSpace algebraicLinearZero=rankOneSheafSectionBasis(
+                                      algebraicLinearSheaf,0);
+   SectionSpace algebraicHomZero=rankOneSheafSectionBasis(
+                                   algebraicHomSheaf,0);
+   size(algebraicLinearZero)==size(algebraicHomZero);
+   ideal algebraicLinearCoordinates=algebraicLinearZero.basis*
+                                    algebraicHomZero.denom;
+   ideal algebraicHomCoordinates=algebraicHomZero.basis*
+                                 algebraicLinearZero.denom;
+   size(NF(algebraicLinearCoordinates,std(algebraicHomCoordinates)));
+   size(NF(algebraicHomCoordinates,std(algebraicLinearCoordinates)));
+
+// Qring lifting combines the ambient quotient with the explicit support.
+// A reduced zero relation before a surviving relation and its trailing zero
+// frame coordinate are both retained:
+//--------------------------------------------------------------------------
+   ring RlinearQAmbient=0,(w,x,y,z),dp;
+   qring RlinearQ=std(w);
+   ideal linearQSupport=z;
+   module linearQPresentation=z*gen(1),gen(2);
+   attrib(linearQPresentation,"isHomog",intvec(0,0));
+   list linearQFrame=rankOneTrivializationLinear(linearQPresentation,
+                                                 linearQSupport);
+   linearQFrame[1];
+   ncols(matrix(linearQFrame[1]));
+   linearQFrame[3];
+   RankOneSheaf linearQSheaf=rankOneSheafLinear(linearQPresentation,
+                                                 linearQSupport);
+   RankOneSheaf homQSheaf=rankOneSheaf(linearQPresentation,linearQSupport);
+   SectionSpace linearQMinus=rankOneSheafSectionBasis(linearQSheaf,-1);
+   SectionSpace linearQZero=rankOneSheafSectionBasis(linearQSheaf,0);
+   SectionSpace linearQPlus=rankOneSheafSectionBasis(linearQSheaf,1);
+   size(linearQMinus);
+   size(linearQZero);
+   size(linearQPlus);
+   SectionSpace homQMinus=rankOneSheafSectionBasis(homQSheaf,-1);
+   SectionSpace homQZero=rankOneSheafSectionBasis(homQSheaf,0);
+   SectionSpace homQPlus=rankOneSheafSectionBasis(homQSheaf,1);
+   size(linearQMinus)==size(homQMinus);
+   size(linearQZero)==size(homQZero);
+   size(linearQPlus)==size(homQPlus);
+   SectionSpace directQPlus=rankOneSheafSectionBasisDirect(homQSheaf,1);
+   ideal linearQCoordinates=linearQPlus.basis*directQPlus.denom;
+   ideal directQCoordinates=directQPlus.basis*linearQPlus.denom;
+   size(NF(linearQCoordinates,std(directQCoordinates+linearQSupport)));
+   size(NF(directQCoordinates,std(linearQCoordinates+linearQSupport)));
+
 tst_status(1);$
