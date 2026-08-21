@@ -4805,11 +4805,19 @@ EXAMPLE: example dimH; shows an example
   {
     if (i==0)
     {
-      list L=Ext_R(intvec(n+1,n+2),M,1)[2];
-      def N0=L[2];
-      def N1=L[1];
+      // Serre--Grothendieck and graded local duality give
+      //   h^0(F(d)) = dim(M_d) - dim(H^0_m(M)_d) + dim(H^1_m(M)_d),
+      // with H^j_m(M)_d dual to
+      // Ext^(n+1-j)(M,R)_(-n-1-d).  Saturation only kills H^0_m; the
+      // Ext^n term is essential for presentations with a degree deficiency.
+      int savedPrintlevel=printlevel;
+      printlevel=-1;
+      list L=Ext_R(intvec(n,n+1),M,1)[2];
+      printlevel=savedPrintlevel;
+      def N1=L[1]; // Ext^n, dual to H^1_m
+      def N0=L[2]; // Ext^(n+1), dual to H^0_m
       Result=dimGradedPart(M,d) - dimGradedPart(N0,-n-1-d)
-                                - dimGradedPart(N1,-n-1-d);
+                                + dimGradedPart(N1,-n-1-d);
       return(Result);
     }
     else

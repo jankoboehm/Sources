@@ -35,6 +35,17 @@ def AQ=KSCautoEconomical(quintic);
 AQ.classification;
 AQ.kodairaDimension;
 
+// Exercise dimH-certified scalar sections and both the estimated and exact map
+// paths, including their empty, one-section, and surface-image branches.
+KSCphiDim(cubic,1);
+KSCphiDim(quartic,1);
+KSCphiDim(quintic,1);
+KSCphiDimExact(cubic,1);
+KSCphiDimExact(quartic,1);
+KSCphiDimExact(quintic,1);
+list Adj=KSCadjunctionPrepass(cubic);
+Adj[1..3];
+
 ring S=0,(y0,y1),dp;
 ideal notsurface=0;
 def P12bad=KSCp12Certificate(notsurface);

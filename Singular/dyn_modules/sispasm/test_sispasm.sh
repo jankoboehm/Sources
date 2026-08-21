@@ -4,6 +4,7 @@ result=$("$SINGULAR_BIN_DIR/Singular" -q -c '
 ring r=32003,(x,y,z),dp;
 int spasmAdvertised=system("with","spasm");
 LIB "sheafcoh.lib";
+LIB "kodaira_surface_classifier.lib";
 // Also support a developer-tree module built with explicit SpaSM flags while
 // the main executable still reflects an older configure result.
 if (!defined(spasm_first_kernel_vector))
@@ -43,6 +44,12 @@ else
   if (size(NF(GV,std(VG)))!=0) { ok=0; }
   SectionSpace BGGSpace=rankOneSheafSectionBasisBGGSpaSM(P,0,ideal(0),1,x);
   if (size(BGGSpace)!=3) { ok=0; }
+  ring r4=32003,(x0,x1,x2,x3),dp;
+  ideal quintic=x0^5+x1^5+x2^5+x3^5;
+  int phiLinear=KSCphiDim(quintic,1);
+  int phiSpaSM=KSCphiDimSpaSM(quintic,1);
+  int phiExactSpaSM=KSCphiDimExactSpaSM(quintic,1);
+  if ((phiLinear!=2) || (phiSpaSM!=2) || (phiExactSpaSM!=2)) { ok=0; }
   ring r2=2,(x,y,z),dp;
   if (spasm_supports_current_ring()) { ok=0; }
   module P2=-x*gen(1)+gen(2);
