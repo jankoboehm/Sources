@@ -572,6 +572,21 @@ kill r;
    size(weightedLinearZero)==size(weightedHomZero);
    size(weightedLinearPlus)==size(weightedHomPlus);
    size(lineBundleSectionBasis(weightedLinearBundle,0));
+   // Complete one-call variants use the same linear frame recovery, followed
+   // by the multiplication-table section algorithm.
+   SectionSpace weightedLinearOneCall=rankOneSheafSectionBasisLinear(
+                                        weightedLinearPresentation,0,ideal(0));
+   SectionSpace weightedLineOneCall=lineBundleSectionBasisLinear(
+                                      weightedLinearPresentation,0,ideal(0),
+                                      0,1,0);
+   size(weightedLinearOneCall)==size(weightedLinearZero);
+   size(weightedLineOneCall)==size(weightedLinearZero);
+   ideal weightedOneCallCoordinates=weightedLinearOneCall.basis*
+                                    weightedLinearZero.denom;
+   ideal weightedCachedCoordinates=weightedLinearZero.basis*
+                                   weightedLinearOneCall.denom;
+   size(NF(weightedOneCallCoordinates,std(weightedCachedCoordinates)));
+   size(NF(weightedCachedCoordinates,std(weightedOneCallCoordinates)));
    // Align denominators and compare the rational spans with both the old Hom
    // constructor and the direct saturation algorithm.
    ideal weightedLinearCoordinates=weightedLinearZero.basis*
@@ -631,12 +646,18 @@ kill r;
    SectionSpace finiteLinearMinus=rankOneSheafSectionBasis(
                                     finiteLinearSheaf,-1);
    SectionSpace finiteLinearZero=rankOneSheafSectionBasis(
-                                   finiteLinearSheaf,0);
+                                    finiteLinearSheaf,0);
    SectionSpace finiteLinearPlus=rankOneSheafSectionBasis(
                                    finiteLinearSheaf,1);
    size(finiteLinearMinus);
    size(finiteLinearZero);
    size(finiteLinearPlus);
+   SectionSpace finiteLinearOneCall=rankOneSheafSectionBasisLinear(
+                                     finitePresentation,0,ideal(0));
+   SectionSpace finiteLineOneCall=lineBundleSectionBasisLinear(
+                                   finitePresentation,0,ideal(0));
+   size(finiteLinearOneCall)==size(finiteLinearZero);
+   size(finiteLineOneCall)==size(finiteLinearZero);
    SectionSpace finiteHomMinus=rankOneSheafSectionBasis(finiteHomSheaf,-1);
    SectionSpace finiteHomZero=rankOneSheafSectionBasis(finiteHomSheaf,0);
    SectionSpace finiteHomPlus=rankOneSheafSectionBasis(finiteHomSheaf,1);
@@ -647,6 +668,23 @@ kill r;
    ideal finiteHomCoordinates=finiteHomZero.basis*finiteLinearZero.denom;
    size(NF(finiteLinearCoordinates,std(finiteHomCoordinates)));
    size(NF(finiteHomCoordinates,std(finiteLinearCoordinates)));
+
+// The one-call command retains the exact generic fallback where SpaSM is not
+// supported (in particular, in characteristic two):
+//--------------------------------------------------------------------------
+   ring RlinearFallback=2,(x,y,z),dp;
+   module fallbackPresentation=-x*gen(1)+gen(2);
+   attrib(fallbackPresentation,"isHomog",intvec(-1,0));
+   SectionSpace fallbackLinear=rankOneSheafSectionBasisLinear(
+                                fallbackPresentation,0,ideal(0));
+   SectionSpace fallbackHom=rankOneSheafSectionBasis(
+                             fallbackPresentation,0,ideal(0));
+   size(fallbackLinear);
+   size(fallbackLinear)==size(fallbackHom);
+   ideal fallbackLinearCoordinates=fallbackLinear.basis*fallbackHom.denom;
+   ideal fallbackHomCoordinates=fallbackHom.basis*fallbackLinear.denom;
+   size(NF(fallbackLinearCoordinates,std(fallbackHomCoordinates)));
+   size(NF(fallbackHomCoordinates,std(fallbackLinearCoordinates)));
 
 // The kernel nullspace also works over exact algebraic extensions:
 //-------------------------------------------------------------------

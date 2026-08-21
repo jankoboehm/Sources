@@ -30,6 +30,8 @@ PROCEDURES:
  lineBundleLinear(M,I); line-bundle name for rankOneSheafLinear
  rankOneSheafSectionBasis(F,d[,s,g,v]); rational representatives for sections
  lineBundleSectionBasis(F,d[,s,g,v]); the same interface for line bundles
+ rankOneSheafSectionBasisLinear(M,d,I[,s,g,v]); one-call linear-frame sections
+ lineBundleSectionBasisLinear(M,d,I[,s,g,v]); the line-bundle alias
  rankOneSheafSectionBasisMultTable(...); explicit multiplication-table alias
  lineBundleSectionBasisMultTable(...); explicit line-bundle alias
  rankOneSheafSectionBasisDirect(F,d); direct rank-one section space
@@ -2182,7 +2184,7 @@ NOTE:     This alternative to rankOneTrivialization uses only finite linear
          torsion-freeness, and generic rank are input assumptions and are not
          checked.
 SEE ALSO: rankOneTrivialization, rankOneSheafLinear, lineBundleLinear,
-          rankOneSheafSectionBasis
+          rankOneSheafSectionBasisLinear, rankOneSheafSectionBasis
 EXAMPLE: example rankOneTrivializationLinear; shows an example
 "
 {
@@ -2363,7 +2365,8 @@ NOTE:     This constructor calls rankOneTrivializationLinear once. Subsequent
          relies on the integral-support, torsion-free, and rank-one input
          assumptions, which are not checked by this procedure.
 SEE ALSO: lineBundleLinear, rankOneSheaf, rankOneTrivializationLinear,
-          rankOneSheafSectionBasis, rankOneSheafSectionBasisDirect
+          rankOneSheafSectionBasisLinear, rankOneSheafSectionBasis,
+          rankOneSheafSectionBasisDirect
 EXAMPLE: example rankOneSheafLinear; shows an example
 "
 {
@@ -2400,7 +2403,8 @@ RETURN:   RankOneSheaf containing the frame computed by
 NOTE:     This is the line-bundle name for rankOneSheafLinear. Local freeness
          is an input assumption and is not tested separately.
 SEE ALSO: rankOneSheafLinear, lineBundle, rankOneTrivializationLinear,
-          lineBundleSectionBasis, lineBundleSectionBasisDirect
+          lineBundleSectionBasisLinear, lineBundleSectionBasis,
+          lineBundleSectionBasisDirect
 EXAMPLE: example lineBundleLinear; shows an example
 "
 {
@@ -2869,8 +2873,9 @@ NOTE:     The procedure chooses a homogeneous rational trivialization and
          computation or repeated frame validation. The same F can be used
          for any integer twist d. Verification is off unless v is explicitly
          nonzero.
-SEE ALSO: lineBundleSectionBasis, sectionBasis, rationalMapFromSections,
-          rankOneTrivialization, trivializedSectionBasis, sheafSectionBasis
+SEE ALSO: lineBundleSectionBasis, rankOneSheafSectionBasisLinear,
+          sectionBasis, rationalMapFromSections, rankOneTrivialization,
+          trivializedSectionBasis, sheafSectionBasis
 EXAMPLE: example rankOneSheafSectionBasis; shows an example
 "
 {
@@ -2953,8 +2958,9 @@ NOTE:     This is the line-bundle name for rankOneSheafSectionBasis and has
          the same implementation and optional arguments. Local freeness is
          an input assumption; this alias does not test it separately. A
          cached F avoids frame rediscovery and can be reused at every twist.
-SEE ALSO: rankOneSheafSectionBasis, sectionBasis, rationalMapFromSections,
-          sheafSectionBasis, trivializedSectionBasis
+SEE ALSO: rankOneSheafSectionBasis, lineBundleSectionBasisLinear,
+          sectionBasis, rationalMapFromSections, sheafSectionBasis,
+          trivializedSectionBasis
 EXAMPLE: example lineBundleSectionBasis; shows an example
 "
 {
@@ -2995,6 +3001,95 @@ example
   rationalMapFromSections(list(V[1],V[3]));
 }
 
+proc rankOneSheafSectionBasisLinear(module M,int d,ideal IX,list #)
+"USAGE:   rankOneSheafSectionBasisLinear(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+ASSUME:   I defines a nonempty integral homogeneous support, the sheafification
+         of coker(M) is torsion-free and generically of rank one, and M has its
+         row degrees assigned as isHomog.
+RETURN:   SectionSpace V containing a scalar rational basis of global sections
+         of the twist d.
+NOTE:     This is the complete one-call section algorithm using finite linear
+         algebra for frame recovery and multiplication tables for the section
+         computation. Over supported odd prime fields the frame nullspace uses
+         exact deterministic SpaSM automatically when Singular was built with
+         it; otherwise it uses Singular's exact generic module kernel.
+         Unlike rankOneSheafSectionBasis(M,d,I), no graded Hom module or
+         saturation-based frame certificate is computed. Correctness relies
+         on the integral-support, torsion-free, and rank-one assumptions above,
+         which are not checked. Verification is off unless v is explicitly
+         nonzero. For several twists, construct F=rankOneSheafLinear(M,I) once
+         and call rankOneSheafSectionBasis(F,d) repeatedly instead.
+SEE ALSO: lineBundleSectionBasisLinear, rankOneSheafLinear,
+          rankOneSheafSectionBasis, rankOneTrivializationLinear,
+          rankOneSheafSectionBasisMultTable, rationalMapFromSections
+EXAMPLE: example rankOneSheafSectionBasisLinear; shows an example
+"
+{
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+  RankOneSheaf F=rankOneSheafLinear(M,IX);
+  if (size(#)==0) { return(rankOneSheafSectionBasis(F,d)); }
+  if (size(#)==1) { return(rankOneSheafSectionBasis(F,d,#[1])); }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasis(F,d,#[1],#[2]));
+  }
+  return(rankOneSheafSectionBasis(F,d,#[1],#[2],#[3]));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  // e2=x*e1 presents O(1). Frame recovery uses SpaSM when available.
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  SectionSpace V=rankOneSheafSectionBasisLinear(M,0,ideal(0));
+  V;
+  rationalMapFromSections(V);
+}
+
+proc lineBundleSectionBasisLinear(module M,int d,ideal IX,list #)
+"USAGE:   lineBundleSectionBasisLinear(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+ASSUME:   I defines a nonempty integral homogeneous support and the
+         sheafification of coker(M) is a line bundle there.
+RETURN:   SectionSpace containing a basis of global sections of the twist d.
+NOTE:     This is the line-bundle name for
+         rankOneSheafSectionBasisLinear. Local freeness is an input assumption
+         and is not tested separately.
+SEE ALSO: rankOneSheafSectionBasisLinear, lineBundleLinear,
+          lineBundleSectionBasis, lineBundleSectionBasisMultTable,
+          lineBundleSectionBasisDirect
+EXAMPLE: example lineBundleSectionBasisLinear; shows an example
+"
+{
+  if (size(#)==0) { return(rankOneSheafSectionBasisLinear(M,d,IX)); }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisLinear(M,d,IX,#[1]));
+  }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasisLinear(M,d,IX,#[1],#[2]));
+  }
+  if (size(#)==3)
+  {
+    return(rankOneSheafSectionBasisLinear(M,d,IX,#[1],#[2],#[3]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasisLinear");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  lineBundleSectionBasisLinear(O,2,ideal(0));
+}
+
 proc rankOneSheafSectionBasisMultTable(def data,int d,list #)
 "USAGE:   rankOneSheafSectionBasisMultTable(F,d[,s,g,v]); F RankOneSheaf
          rankOneSheafSectionBasisMultTable(M,d,I[,s,g,v]); M module,
@@ -3004,7 +3099,7 @@ NOTE:     This is the explicit multiplication-table name for
          rankOneSheafSectionBasis and has exactly the same implementation.
          Verification is off unless v is explicitly nonzero. A cached F can
          be reused at every twist without rediscovering its rational frame.
-SEE ALSO: rankOneSheafSectionBasis,
+SEE ALSO: rankOneSheafSectionBasis, rankOneSheafSectionBasisLinear,
           lineBundleSectionBasisMultTable,
           rankOneSheafSectionBasisDirect
 EXAMPLE: example rankOneSheafSectionBasisMultTable; shows an example
@@ -3045,7 +3140,7 @@ NOTE:     This is the line-bundle name for
          rankOneSheafSectionBasisMultTable. Local freeness is an input
          assumption and is not tested separately.
 SEE ALSO: rankOneSheafSectionBasisMultTable, lineBundleSectionBasis,
-          lineBundleSectionBasisDirect
+          lineBundleSectionBasisLinear, lineBundleSectionBasisDirect
 EXAMPLE: example lineBundleSectionBasisMultTable; shows an example
 "
 {
