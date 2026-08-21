@@ -5,12 +5,12 @@ ring r=32003,(x,y,z),dp;
 int spasmAdvertised=system("with","spasm");
 LIB "sheafcoh.lib";
 LIB "kodaira_surface_classifier.lib";
-// Also support a developer-tree module built with explicit SpaSM flags while
-// the main executable still reflects an older configure result.
-if (!defined(spasm_first_kernel_vector))
-{
-  load("sispasm.so","try");
-}
+// The automatic classifier must itself load a compatible developer-tree
+// module even when the main executable reflects an older configure result.
+ring automaticRing=32003,(u0,u1,u2,u3),dp;
+ideal automaticCubic=u0^3+u1^3+u2^3+u3^3;
+list automaticAdjunction=KSCadjunctionPrepass(automaticCubic);
+setring r;
 if (!defined(spasm_first_kernel_vector))
 {
   if (spasmAdvertised) { print("SPASM_TEST_FAIL"); }
@@ -50,6 +50,21 @@ else
   int phiSpaSM=KSCphiDimSpaSM(quintic,1);
   int phiExactSpaSM=KSCphiDimExactSpaSM(quintic,1);
   if ((phiLinear!=2) || (phiSpaSM!=2) || (phiExactSpaSM!=2)) { ok=0; }
+  if (find(automaticAdjunction[4],"SpaSM")==0) { ok=0; }
+  // Exercise the automatic exact |5K| dispatcher on a small, deterministic,
+  // non-subcanonical surface rather than only the adjunction selector.
+  system("--random",12345678);
+  ring r5=31991,(v0,v1,v2,v3,v4),dp;
+  ideal automaticLinearForms=randomid(maxideal(1),4,3);
+  ideal automaticCubicForms=randomid(maxideal(3),2,3);
+  matrix automaticMatrix[2][3]=
+    automaticLinearForms[1],automaticLinearForms[2],automaticCubicForms[1],
+    automaticLinearForms[3],automaticLinearForms[4],automaticCubicForms[2];
+  ideal automaticSurface=minor(automaticMatrix,2);
+  def automaticClassification=KSCclassify(automaticSurface);
+  if (automaticClassification.subcanonical!=0) { ok=0; }
+  if (automaticClassification.phi5Dimension!=1) { ok=0; }
+  if (find(automaticClassification.certificate,"SpaSM")==0) { ok=0; }
   ring r2=2,(x,y,z),dp;
   if (spasm_supports_current_ring()) { ok=0; }
   module P2=-x*gen(1)+gen(2);

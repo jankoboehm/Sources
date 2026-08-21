@@ -43,8 +43,34 @@ KSCphiDim(quintic,1);
 KSCphiDimExact(cubic,1);
 KSCphiDimExact(quartic,1);
 KSCphiDimExact(quintic,1);
+KSCphiDimExactOriginal(cubic,1);
+KSCphiDimExactOriginal(quartic,1);
+KSCphiDimExactOriginal(quintic,1);
 list Adj=KSCadjunctionPrepass(cubic);
 Adj[1..3];
+find(Adj[4],"original classifier")>0;
+
+// Automatic classifier-level backend selection must use the original path
+// whenever SpaSM cannot support the coefficient field.  The strict public
+// SpaSM section commands themselves are unchanged.
+ring R2=2,(z0,z1,z2,z3),dp;
+ideal cubic2=z0^3+z1^3+z2^3+z3^3;
+list Adj2=KSCadjunctionPrepass(cubic2);
+Adj2[1..3];
+find(Adj2[4],"original classifier")>0;
+
+ring Ra=(0,a),(u0,u1,u2,u3),dp;
+minpoly=a2+1;
+ideal quinticA=u0^5+u1^5+u2^5+u3^5;
+KSCphiDimExactOriginal(quinticA,1);
+
+// The classifier computes Ext over the ambient polynomial ring S.  Reject a
+// quotient-ring encoding instead of silently computing Ext over S/(f).
+ring Rq=0,(q0,q1,q2,q3),dp;
+ideal quarticQ=q0^4+q1^4+q2^4+q3^4;
+qring Qq=std(quarticQ);
+ideal zeroIdeal=0;
+KSCplurigenera(zeroIdeal,3);
 
 ring S=0,(y0,y1),dp;
 ideal notsurface=0;

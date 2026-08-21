@@ -6,6 +6,8 @@ LIB "kodaira_surface_classifier.lib";
 // A non-subcanonical determinantal surface with a multi-row canonical module.
 // This reaches the classifier's cached W5/frame path and compares it with the
 // independent one-shot exact construction of the same pluricanonical map.
+// Force the generic-linear backend so this regression does not depend on the
+// optional SpaSM module or run the deliberately slower original fallback.
 system("--random",12345678);
 ring R=31991,(x0,x1,x2,x3,x4),dp;
 ideal linearForms=randomid(maxideal(1),2,3);
@@ -14,7 +16,7 @@ matrix M[2][3]=linearForms[1],quadraticForms[1],quadraticForms[2],
                  linearForms[2],quadraticForms[3],quadraticForms[4];
 ideal X=minor(M,2);
 
-def A=KSCclassify(X);
+def A=KSCclassify(X,3,0,0,"linear");
 A.plurigenera;
 A.classification;
 A.kodairaDimension;

@@ -31,7 +31,7 @@
 //   dimGradedPart from sheafcoh.lib, and sat from elim.lib.
 ///////////////////////////////////////////////////////////////////////////////
 
-version="version kodaira_surface_classifier.lib 0.8 Jul_2026";
+version="version kodaira_surface_classifier.lib 0.9 Aug_2026";
 category="Algebraic Geometry";
 
 info="
@@ -52,7 +52,11 @@ MAIN ONE-CALL ROUTINES:
       invariant branches and exact |5K| or |6K| image tests only when their
       section dimensions make a map test useful.  If these are inconclusive it
       computes P_8 only in the low-plurigenus boundary branch.  It never
-      computes phi_|8K| automatically and never calls the P_12 routines.
+      computes phi_|8K| automatically and never calls the P_12 routines.  At a
+      map stage it uses SpaSM when the optional module and coefficient field
+      support it.  Otherwise, in particular in characteristic zero, it uses
+      the original classifier implementation based on module sections and
+      graph elimination.  The public section commands themselves stay strict.
 
   KSChybrid(I);
       Hybrid classifier.  It first runs the same standard classifier as
@@ -76,7 +80,7 @@ RETURN FORMAT:
   plurigenera, q=h^1(O_X), tested pluricanonical image dimensions, embedding
   dimension/codimension/degree, smoothness status, subcanonical certificate
   status, algorithm flags, characteristic context, and a certificate string.
-  Pass keep=1 as the last optional argument to retain the input ideal,
+  Pass keep=1 in the documented optional-argument position to retain the input ideal,
   saturated ideal, base ring, and diagnostic lists already computed along the
   way.  No additional geometry is computed just because keep=1.
 
@@ -85,7 +89,9 @@ RETURN FORMAT:
 
 HYPOTHESES:
   The intended mathematical setting is a smooth geometrically integral
-  projective surface over an algebraically closed field.  The classifiers
+  projective surface over an algebraically closed field, supplied as an ideal
+  in a polynomial ring.  For a quotient-ring encoding, lift its relations into
+  that polynomial-ring ideal.  The classifiers
   assume smoothness unless
   the optional smoothness flag is turned on.  In characteristic 2 or 3, kappa=1
   is labelled elliptic-or-quasi-elliptic, and kappa=0 subtype labels are
@@ -357,12 +363,20 @@ EXAMPLE:
 static proc KSCsatIdeal(ideal I)
 "USAGE:  KSCsatIdeal(I);  homogeneous ideal I.
 RETURN: The saturation of I with respect to the irrelevant ideal.
+ASSUME: The basering is a polynomial ring S.  For a quotient-ring presentation
+        S/Q, lift I to S and pass Q+I instead.
 MATH:   The input is a projective scheme Proj(S/I), so irrelevant embedded
         components must be removed before dimension, smoothness, and Ext tests.
+        In particular, the canonical module is Ext over S, not over S/Q.
 EXAMPLE:
   ring R=0,(x0,x1,x2),dp; ideal I=x0*x1,x1*x2; KSCsatIdeal(I);
 "
 {
+  list ringData=ringlist(basering);
+  if (size(ringData[4])>0)
+  {
+    ERROR("the surface classifier requires an ideal in a polynomial ring; lift the quotient-ring relations and include them in the input ideal");
+  }
   list L=sat(std(I),maxideal(1));
   ideal J=L[1];
   return(std(J));
@@ -791,12 +805,27 @@ EXAMPLE:
   return(M);
 }
 
+static proc KSCtensorPowerPresentation(module W, int m)
+"USAGE:  KSCtensorPowerPresentation(W,m);  homogeneous presentation, m>=1.
+RETURN: Saturated presentation of W^m built successively.
+NOTE:   The original exact-map command uses this module-only tensor path.
+EXAMPLE:
+  // internal: KSCphiDimExactOriginal applies it to omega_X.
+"
+{
+  if (m<1) { ERROR("a positive tensor power is required"); }
+  module power=W;
+  int i;
+  for (i=2; i<=m; i++) { power=KSCtensorPres(power,W); }
+  return(power);
+}
+
 static proc KSCsectionBackendCheck(string backend)
 "USAGE:  KSCsectionBackendCheck(backend);  internal backend validator.
-RETURN: The validated backend name, either linear or spasm.
-NOTE:   The spasm choice is strict.  Its constructor errors when the optional
-        module or coefficient field is unsupported; it never falls back to
-        Singular's generic kernel.
+RETURN: The validated scalar-frame backend name, linear or spasm.
+NOTE:   This low-level checker remains strict.  Classifier-only automatic and
+        original choices are validated separately and never enter a public
+        section command.
 EXAMPLE:
   // internal: called before constructing a cached canonical frame.
 "
@@ -804,6 +833,58 @@ EXAMPLE:
   if (backend=="linear") { return(backend); }
   if (backend=="spasm") { return(backend); }
   ERROR("section backend must be linear or spasm");
+}
+
+static proc KSCclassifierBackendCheck(string backend)
+"USAGE:  KSCclassifierBackendCheck(backend);  internal classifier validator.
+RETURN: The validated classifier backend: auto, original, linear, or spasm.
+NOTE:   auto and original are classifier policies, not section backends.
+EXAMPLE:
+  // internal: used by classifier entry points.
+"
+{
+  if (backend=="auto") { return(backend); }
+  if (backend=="original") { return(backend); }
+  if (backend=="linear") { return(backend); }
+  if (backend=="spasm") { return(backend); }
+  ERROR("classifier backend must be auto, original, linear, or spasm");
+}
+
+static proc KSCresolveClassifierSectionBackend(string backend)
+"USAGE:  KSCresolveClassifierSectionBackend(backend);  internal selector.
+RETURN: original, linear, or spasm.
+NOTE:   Explicit backend choices are returned unchanged.  auto probes the
+        optional SpaSM module only when a map computation is actually reached.
+        A missing module or unsupported coefficient field, including
+        characteristic zero, selects the original classifier implementation.
+        Once SpaSM passes this capability check, internal computation errors
+        remain errors; Singular procedures cannot catch and retry them.  No
+        fallback is installed in any public section command.
+EXAMPLE:
+  // internal: called immediately before a pluricanonical or adjunction map.
+"
+{
+  backend=KSCclassifierBackendCheck(backend);
+  if (backend!="auto") { return(backend); }
+
+  // SpaSM is a prime-field backend.  In characteristic zero the original
+  // classifier path is selected without even attempting to load the module.
+  int coefficientCharacteristic=KSCbaseCharacteristic();
+  if (coefficientCharacteristic==0) { return("original"); }
+  if (coefficientCharacteristic==2) { return("original"); }
+
+  if (!defined(spasm_first_kernel_vector))
+  {
+    // Do not gate this on system("with","spasm"): a compatible developer
+    // module in SINGULARPATH can be usable even when the executable was
+    // configured without an installed SpaSM module.
+    load("sispasm.so","try");
+  }
+  // Singular evaluates Boolean operators eagerly, so keep all probes apart.
+  if (!defined(spasm_supports_current_ring)) { return("original"); }
+  if (!defined(spasm_first_kernel_vector)) { return("original"); }
+  if (!spasm_supports_current_ring()) { return("original"); }
+  return("spasm");
 }
 
 static proc KSCgrowthBoundCheck(int ell)
@@ -1063,6 +1144,310 @@ EXAMPLE:
           +string(size(B))+" instead of "+string(sheafDimension));
   }
   return(B);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Original classifier section and graph implementation.
+//
+// These routines preserve the module-vector path used by the
+// enriqueskodaira classifier before the cached rational-frame implementation
+// was added.  The exact graph algorithm now obtains the same module-vector
+// degree slice with the current certified bulk extractor instead of the old
+// repeated-saturation greedy scan; it still does not recover a rational frame
+// or invoke BGG.  These routines deliberately live here, at the classifier
+// call site; the public section commands in sheafcoh.lib remain strict and
+// contain no backend fallback.
+///////////////////////////////////////////////////////////////////////////////
+
+static proc KSCoriginalSpanRank(module M, module U, int d)
+"USAGE:  KSCoriginalSpanRank(M,U,d);  internal original classifier helper.
+RETURN: Dimension of the degree-d subspace represented by U in coker(M).
+NOTE:   This is the span computation used by the earlier enriqueskodaira
+        classifier.  It is retained for its module-product adjunction path.
+EXAMPLE:
+  // internal: used by KSCoriginalProductBasisAtDegree.
+"
+{
+  module Ms=KSCsatModule(M);
+  intvec w=attrib(Ms,"isHomog");
+  int h=dimGradedPart(Ms,d);
+  if (size(U)==0) { return(0); }
+  module Q=Ms,U;
+  attrib(Q,"isHomog",w);
+  int hq=dimGradedPart(Q,d);
+  return(h-hq);
+}
+
+static proc KSCoriginalIndependentFromCandidates(module M,
+                                                  module candidates,
+                                                  int d)
+"USAGE:  KSCoriginalIndependentFromCandidates(M,C,d);  internal helper.
+RETURN: Independent degree-d representatives selected from C.
+NOTE:   The former implementation could retain a leading zero column because
+        an empty Singular module has one display column.  This preserved
+        implementation uses size(U), so the fallback returns actual sections.
+EXAMPLE:
+  // internal: used by KSCoriginalProductBasisAtDegree.
+"
+{
+  module U;
+  int currentRank=0;
+  int candidateRank;
+  int j;
+  module oneCandidate;
+  module trial;
+  for (j=1; j<=ncols(candidates); j++)
+  {
+    oneCandidate=candidates[j];
+    if (oneCandidate!=0)
+    {
+      if (size(U)==0) { trial=oneCandidate; }
+      else { trial=U,oneCandidate; }
+      candidateRank=KSCoriginalSpanRank(M,trial,d);
+      if (candidateRank>currentRank)
+      {
+        U=trial;
+        currentRank=candidateRank;
+      }
+    }
+  }
+  return(U);
+}
+
+static proc KSCoriginalSectionBasis(module M, int d)
+"USAGE:  KSCoriginalSectionBasis(M,d);  internal original classifier path.
+RETURN: Module-vector representatives of H^0(Proj,M~(d)).
+MATH:   The original classifier graph algorithm consumes module-vector
+        sections.  Use the current certified bulk degree-slice construction
+        for those representatives: this neither recovers a rational frame nor
+        invokes BGG.  The older repeated-saturation candidate scan remains
+        only where the original adjunction product algorithm needs it.
+EXAMPLE:
+  // internal: consumed by the original graph and product-growth paths.
+"
+{
+  return(KSCsectionBasis(M,d));
+}
+
+static proc KSCoriginalTensorVector(vector v, vector w,
+                                    int nrV, int nrW)
+"USAGE:  KSCoriginalTensorVector(v,w,nrV,nrW);  internal helper.
+RETURN: Kronecker-style tensor product of two section vectors.
+EXAMPLE:
+  // internal: used by KSCoriginalProductBasisAtDegree.
+"
+{
+  vector z;
+  int i; int j; int k=1;
+  for (i=1; i<=nrV; i++)
+  {
+    for (j=1; j<=nrW; j++)
+    {
+      z=z+v[i]*w[j]*gen(k);
+      k++;
+    }
+  }
+  return(z);
+}
+
+static proc KSCoriginalProductBasisAtDegree(module target,
+                                            module leftBasis,
+                                            module rightBasis,
+                                            int nrLeft, int nrRight, int d)
+"USAGE:  KSCoriginalProductBasisAtDegree(T,L,R,nrL,nrR,d);  internal.
+RETURN: Independent products in degree d of the target tensor product.
+EXAMPLE:
+  // internal: used by KSCoriginalLinearSystemImageDim.
+"
+{
+  module candidates;
+  int i; int j;
+  vector z;
+  module oneCandidate;
+  for (i=1; i<=size(leftBasis); i++)
+  {
+    for (j=1; j<=size(rightBasis); j++)
+    {
+      z=KSCoriginalTensorVector(leftBasis[i],rightBasis[j],nrLeft,nrRight);
+      oneCandidate=z;
+      if (size(candidates)==0) { candidates=oneCandidate; }
+      else { candidates=candidates,oneCandidate; }
+    }
+  }
+  return(KSCoriginalIndependentFromCandidates(target,candidates,d));
+}
+
+static proc KSCoriginalLinearSystemImageDim(module L, int d, int ell)
+"USAGE:  KSCoriginalLinearSystemImageDim(L,d,ell);  internal original path.
+RETURN: Estimated image dimension -1,0,1,2 from module-section products.
+NOTE:   This is used only by the optional adjunction diagnostic.  Exact
+        pluricanonical classification uses KSCoriginalExactImageDimFromModule.
+EXAMPLE:
+  // internal: classifier-level fallback for the adjunction diagnostic.
+"
+{
+  ell=KSCgrowthBoundCheck(ell);
+  module B=KSCoriginalSectionBasis(L,d);
+  int h1=size(B);
+  if (h1==0) { return(-1); }
+  if (h1==1) { return(0); }
+  if (h1==2) { return(1); }
+
+  intvec h; h[1]=h1;
+  module currentTarget=L;
+  module currentBasis=B;
+  int currentRows=nrows(currentTarget);
+  int rowsL=nrows(L);
+  int a;
+  module nextTarget;
+  module nextBasis;
+  for (a=2; a<=ell; a++)
+  {
+    nextTarget=KSCtensorPres(currentTarget,L);
+    nextBasis=KSCoriginalProductBasisAtDegree(nextTarget,currentBasis,B,
+                                              currentRows,rowsL,a*d);
+    h[a]=size(nextBasis);
+    currentTarget=nextTarget;
+    currentBasis=nextBasis;
+    currentRows=nrows(currentTarget);
+  }
+
+  int secondDifference=h[ell]-2*h[ell-1]+h[ell-2];
+  if (secondDifference>0) { return(2); }
+  if (h[ell]>h[ell-1]) { return(1); }
+  return(0);
+}
+
+static proc KSCoriginalSectionVanishingIdeal(module M, vector v)
+"USAGE:  KSCoriginalSectionVanishingIdeal(M,v);  internal helper.
+RETURN: Maximal-minor ideal for the zero locus of v in coker(M).
+EXAMPLE:
+  // internal: used by KSCoriginalExactImageDimFromModule.
+"
+{
+  module N=M,v;
+  matrix A=N;
+  return(std(minor(A,nrows(M))));
+}
+
+static proc KSCoriginalExactImageDimFromModule(ideal J, module L, int d)
+"USAGE:  KSCoriginalExactImageDimFromModule(J,L,d);  internal fallback.
+RETURN: Exact image dimension -1,0,1,2 using the graph-elimination algorithm
+        from the previous enriqueskodaira classifier.
+MATH:   Module-vector sections define graph rank conditions
+        y_i*s_1-y_1*s_i in coker(L).  Saturating away the zero locus of s_1
+        and eliminating the source variables gives the image closure.  This
+        path neither constructs a rational frame nor calls a SpaSM section
+        command.
+EXAMPLE:
+  // internal: used when the automatic classifier cannot use SpaSM.
+"
+{
+  module B=KSCoriginalSectionBasis(L,d);
+  int h=size(B);
+  if (h==0) { return(-1); }
+  if (h==1) { return(0); }
+  if (h==2) { return(1); }
+  matrix originalBasisMatrix=matrix(B);
+  if (ncols(originalBasisMatrix)!=h)
+  {
+    ERROR("internal error: original classifier basis contains zero display columns");
+  }
+
+  def originalRing=basering;
+  int sourceVariableCount=nvars(originalRing);
+  list originalRingData=ring_list(originalRing);
+  list graphVariables=originalRingData[2];
+  int sourceNameIndex;
+  int imageNameConflict;
+  int i;
+  string imageVariableName;
+  for (i=1; i<=h; i++)
+  {
+    imageVariableName="@KSCoriginalY"+string(i);
+    imageNameConflict=1;
+    while (imageNameConflict)
+    {
+      imageNameConflict=0;
+      for (sourceNameIndex=1;
+           sourceNameIndex<=sourceVariableCount;
+           sourceNameIndex++)
+      {
+        if (graphVariables[sourceNameIndex]==imageVariableName)
+        {
+          imageNameConflict=1;
+        }
+      }
+      // create_ring warns when a new variable repeats a coefficient parameter.
+      // A substring match can only make the generated name longer, never alter
+      // the graph; it is therefore a safe conservative collision test.
+      if (find(string(originalRingData[1]),imageVariableName)>0)
+      {
+        imageNameConflict=1;
+      }
+      if (imageNameConflict) { imageVariableName=imageVariableName+"_"; }
+    }
+    graphVariables[size(graphVariables)+1]=imageVariableName;
+  }
+  int answer=-2;
+
+  ring KSC_original_image_ring=
+    create_ring(originalRingData[1],graphVariables,
+                "(dp("+string(sourceVariableCount)+"),dp("+string(h)+"))");
+  setring KSC_original_image_ring;
+
+  ideal imageSupport=imap(originalRing,J);
+  module imagePresentation=imap(originalRing,L);
+  module imageBasis=imap(originalRing,B);
+  int presentationRows=nrows(imagePresentation);
+  ideal graphIdeal=imageSupport;
+  vector firstSection=imageBasis[1];
+  ideal firstZeroLocus=
+    KSCoriginalSectionVanishingIdeal(imagePresentation,firstSection);
+  if (size(firstZeroLocus)==0)
+  {
+    setring originalRing;
+    ERROR("internal error: a nonzero original-classifier basis section has zero vanishing ideal");
+  }
+
+  vector graphRelation;
+  module augmented;
+  matrix augmentedMatrix;
+  for (i=2; i<=h; i++)
+  {
+    graphRelation=
+      var(sourceVariableCount+i)*imageBasis[1]
+      -var(sourceVariableCount+1)*imageBasis[i];
+    augmented=imagePresentation,graphRelation;
+    augmentedMatrix=augmented;
+    graphIdeal=graphIdeal+minor(augmentedMatrix,presentationRows);
+  }
+
+  list saturatedGraph=sat(std(graphIdeal),firstZeroLocus);
+  graphIdeal=saturatedGraph[1];
+  ideal sourceIrrelevant;
+  for (i=1; i<=sourceVariableCount; i++)
+  {
+    sourceIrrelevant[i]=var(i);
+  }
+  saturatedGraph=sat(std(graphIdeal),sourceIrrelevant);
+  graphIdeal=saturatedGraph[1];
+  poly sourceProduct=1;
+  for (i=1; i<=sourceVariableCount; i++)
+  {
+    sourceProduct=sourceProduct*var(i);
+  }
+  ideal imageIdeal=eliminate(std(graphIdeal),sourceProduct);
+  answer=dim(std(imageIdeal))-sourceVariableCount-1;
+  if ((answer<0) or (answer>2))
+  {
+    int impossibleAnswer=answer;
+    setring originalRing;
+    ERROR("original classifier graph elimination returned impossible image dimension "+string(impossibleAnswer));
+  }
+
+  setring originalRing;
+  return(answer);
 }
 
 static proc KSCscalarProductOfVariables()
@@ -1489,12 +1874,15 @@ proc KSCphiDimExact(ideal I, int m)
 RETURN: Exact dimension of the m-canonical image: -1 no map, 0 point, 1 curve,
         or 2 surface.
 MATH:   This is the expensive but exact image certificate.  The standard
-        classifier uses it for |5K| or |6K| only when the section dimension
-        makes a map test useful.  The optional P_12 certificate may call it for
-        |12K| when P_12>=3.  The routine computes omega_X^m, chooses a
+        classifier's forced linear route uses the same bounded-relation
+        algorithm for |5K| or |6K| only when the section dimension makes a map
+        test useful.  Its automatic route normally uses SpaSM when supported,
+        and the optional P_12 certificate follows the same backend policy.  The
+        routine computes omega_X^m, chooses a
         dimH-certified basis of H^0(mK_X), and searches for homogeneous
         relations through the theorem bound deg(c_i)*deg(X).  Constant kernels
         are computed by Singular's generic exact linear algebra.
+SEE ALSO: KSCphiDimExactOriginal, KSCphiDimExactSpaSM
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -1504,13 +1892,38 @@ EXAMPLE:
   return(KSCphiDimExactWithBackend(I,m,1,"linear"));
 }
 
+proc KSCphiDimExactOriginal(ideal I, int m)
+"USAGE:  KSCphiDimExactOriginal(I,m);  homogeneous surface ideal I and m>0.
+RETURN: Exact m-canonical image dimension -1,0,1,2 using the module-section
+        and graph-elimination implementation from the previous state of the
+        enriqueskodaira classifier.
+NOTE:   This command exists both for direct comparison and as the automatic
+        classifier path when SpaSM is missing or unsupported, including
+        characteristic zero.  It does not call a SpaSM or generic-frame
+        section command.  It preserves the former module-vector graph
+        algorithm while using the certified bulk module-vector degree slice
+        in place of the former greedy candidate scan.
+SEE ALSO: KSCphiDimExact, KSCphiDimExactSpaSM, KSCauto
+EXAMPLE:
+  ring R=0,(x0,x1,x2,x3),dp;
+  ideal X=x0^5+x1^5+x2^5+x3^5;
+  KSCphiDimExactOriginal(X,1);
+"
+{
+  if (m<1) { ERROR("the canonical tensor power must be positive"); }
+  ideal J=KSCsatIdeal(I);
+  module W=KSCcanonicalModuleFromSatIdeal(J);
+  module Wm=KSCtensorPowerPresentation(W,m);
+  return(KSCoriginalExactImageDimFromModule(J,Wm,0));
+}
+
 proc KSCphiDimExactSpaSM(ideal I, int m)
 "USAGE:  KSCphiDimExactSpaSM(I,m);  homogeneous surface ideal I and m>0.
 RETURN: Exact m-canonical image dimension using strict SpaSM frame recovery
         and the same dimH-certified bounded relation test as KSCphiDimExact.
 NOTE:   Absence of SpaSM or an unsupported coefficient field is an error; no
         generic fallback is attempted.
-SEE ALSO: KSCphiDimExact, KSCphiDimSpaSM
+SEE ALSO: KSCphiDimExact, KSCphiDimExactOriginal, KSCphiDimSpaSM
 EXAMPLE:
   ring R=32003,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -1623,6 +2036,28 @@ EXAMPLE:
     if (m==6) { W6=Wm; }
   }
   return(list(P,W5,W6));
+}
+
+static proc KSCplurigeneraWithLastPower(module W, int maxm)
+"USAGE:  KSCplurigeneraWithLastPower(W,maxm);  W=omega_X, maxm>=1.
+RETURN: list(P,Wm), where P contains P_1,...,P_maxm and Wm is the exact
+        successively constructed presentation used for the last value.
+NOTE:   The optional P_12 certificate retains W12 so an original-backend map
+        does not repeat eleven tensor-product and saturation computations.
+EXAMPLE:
+  // internal: used by KSCclassifyP12Certificate.
+"
+{
+  if (maxm<1) { ERROR("the plurigenus bound must be positive"); }
+  intvec P;
+  module Wm=W;
+  int m;
+  for (m=1; m<=maxm; m++)
+  {
+    if (m>1) { Wm=KSCtensorPres(Wm,W); }
+    P[m]=dimH(0,Wm,0);
+  }
+  return(list(P,Wm));
 }
 
 proc KSCplurigenera(ideal I, int maxm)
@@ -1888,7 +2323,7 @@ EXAMPLE:
 }
 
 proc KSCclassify(ideal I, list #)
-"USAGE:  KSCclassify(I[,ell,checkSmooth,keep,backend]);  homogeneous ideal of a smooth projective surface; ell>=1 is the initial exact-relation degree.
+"USAGE:  KSCclassify(I[,ell,checkSmooth,keep,backend]);  homogeneous ideal of a smooth projective surface; ell>=1 is the initial exact-relation degree for linear and spasm.
 RETURN: ClassifiedSurface using P_1,...,P_6 and |5K|, |6K| where helpful.
 MATH:   This is the economical first classifier.  It is exact on certified
         subcanonical cases and on cases where a tested pluricanonical image has
@@ -1898,6 +2333,11 @@ MATH:   This is the economical first classifier.  It is exact on certified
         necessary bound for kappa=1.  P_12 is not part of the standard path.
         Smoothness is assumed unless checkSmooth=1 is supplied.  If keep=1,
         ideals already computed during the pass are kept in the result.
+        backend defaults to auto: supported SpaSM is used when a map stage is
+        reached; otherwise the original classifier's module-section and graph
+        implementation is used.  Pass original, linear, or spasm to force a
+        route.  Explicit spasm remains strict.  The original graph-elimination
+        route is not relation-bound based and therefore ignores ell.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -1907,7 +2347,7 @@ EXAMPLE:
 {
   if (size(#)>4)
   {
-    ERROR("expected at most ell, checkSmooth, keep, and a section backend");
+    ERROR("expected at most ell, checkSmooth, keep, and a classifier backend");
   }
   int ell=3;
   int checkSmooth=0;
@@ -1916,11 +2356,11 @@ EXAMPLE:
   ell=KSCrelationStartCheck(ell);
   int keep=0;
   if (size(#)>2) { keep=#[3]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>3)
   {
-    if (typeof(#[4])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[4]);
+    if (typeof(#[4])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[4]);
   }
 
   list chk=KSCsurfaceData(I,checkSmooth);
@@ -1984,17 +2424,42 @@ EXAMPLE:
     }
   }
 
-  // Pluricanonical-map branch.  Each image dimension is computed directly by
-  // the theorem-bounded homogeneous-relation test.  Surface image means general
-  // type.  Curve image means the Iitaka fibration of a kappa=1 surface; in
-  // characteristics 2 and 3 the label includes quasi-elliptic surfaces.
+  // Pluricanonical-map branch.  Automatic mode uses the SpaSM-backed bounded
+  // relation test when applicable and otherwise the original module-section
+  // graph elimination.  Explicit linear and spasm choices retain the newer
+  // bounded-relation path.  Surface image means general type; curve image is
+  // the Iitaka fibration of a kappa=1 surface.
+  string mapBackend="";
+  if ((P[5]>=3) or (P[6]>=3))
+  {
+    mapBackend=KSCresolveClassifierSectionBackend(backend);
+    if (mapBackend=="original")
+    {
+      notes=notes+"Exact maps use the original classifier module-section and graph-elimination implementation. ";
+    }
+    if (mapBackend=="spasm")
+    {
+      notes=notes+"Exact maps use SpaSM scalar sections and bounded homogeneous relations. ";
+    }
+    if (mapBackend=="linear")
+    {
+      notes=notes+"Exact maps use generic-linear scalar sections and bounded homogeneous relations. ";
+    }
+  }
   RankOneSheaf canonical;
   int canonicalFrameReady=0;
   if (P[5]>=3)
   {
-    canonical=KSCrankOneSheafWithBackend(W,J,backend);
-    canonicalFrameReady=1;
-    phi5=KSCphiDimExactFromPowerWithBackend(canonical,W5,5,ell,backend);
+    if (mapBackend=="original")
+    {
+      phi5=KSCoriginalExactImageDimFromModule(J,W5,0);
+    }
+    else
+    {
+      canonical=KSCrankOneSheafWithBackend(W,J,mapBackend);
+      canonicalFrameReady=1;
+      phi5=KSCphiDimExactFromPowerWithBackend(canonical,W5,5,ell,mapBackend);
+    }
     if (phi5==2)
     {
       q=KSCirregularityFromSatIdeal(J);
@@ -2011,12 +2476,19 @@ EXAMPLE:
 
   if (P[6]>=3)
   {
-    if (canonicalFrameReady==0)
+    if (mapBackend=="original")
     {
-      canonical=KSCrankOneSheafWithBackend(W,J,backend);
-      canonicalFrameReady=1;
+      phi6=KSCoriginalExactImageDimFromModule(J,W6,0);
     }
-    phi6=KSCphiDimExactFromPowerWithBackend(canonical,W6,6,ell,backend);
+    else
+    {
+      if (canonicalFrameReady==0)
+      {
+        canonical=KSCrankOneSheafWithBackend(W,J,mapBackend);
+        canonicalFrameReady=1;
+      }
+      phi6=KSCphiDimExactFromPowerWithBackend(canonical,W6,6,ell,mapBackend);
+    }
     if (phi6==2)
     {
       q=KSCirregularityFromSatIdeal(J);
@@ -2111,7 +2583,11 @@ MATH:   This is the standard mathematically complete route used by KSCauto and
         (5) P_12 is not part of this standard path.  The optional P_12 theorem
         certificate is kept in KSCclassifyP12Certificate at the end of this
         file and is never called here.  If keep=1, ideals already computed
-        during the pass are kept in the result.
+        during the pass are kept in the result.  backend defaults to auto;
+        supported SpaSM is preferred, with the original graph implementation
+        used when SpaSM is unavailable or inapplicable.  Pass original,
+        linear, or spasm to force a route.  ell affects only the linear and
+        SpaSM bounded-relation routes.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
@@ -2121,7 +2597,7 @@ EXAMPLE:
 {
   if (size(#)>5)
   {
-    ERROR("expected at most ell, maxm, checkSmooth, keep, and a section backend");
+    ERROR("expected at most ell, maxm, checkSmooth, keep, and a classifier backend");
   }
   int ell=3;
   int maxm=8;
@@ -2131,11 +2607,11 @@ EXAMPLE:
   if (size(#)>2) { checkSmooth=#[3]; }
   int keep=0;
   if (size(#)>3) { keep=#[4]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>4)
   {
-    if (typeof(#[5])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[5]);
+    if (typeof(#[5])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[5]);
   }
   if (maxm>8) { maxm=8; }
   if (maxm<8) { maxm=8; }
@@ -2219,7 +2695,9 @@ MATH:   This routine now means complete for the preferred classifier, not
         Under the smooth geometrically integral projective-surface hypotheses, and assuming
         the applicable exact map and P_8 computations succeed, this route is
         mathematically complete.  The optional P_12 theorem certificate is not
-        called here; it is kept separately at the end of the file.
+        called here; it is kept separately at the end of the file.  KSCcomplete
+        defaults to the auto backend: SpaSM when supported and the original
+        classifier implementation otherwise, notably in characteristic zero.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
@@ -2229,7 +2707,7 @@ EXAMPLE:
 {
   if (size(#)>4)
   {
-    ERROR("expected at most ell, checkSmooth, keep, and a section backend");
+    ERROR("expected at most ell, checkSmooth, keep, and a classifier backend");
   }
   int ell=3;
   int checkSmooth=0;
@@ -2237,11 +2715,11 @@ EXAMPLE:
   if (size(#)>1) { checkSmooth=#[2]; }
   int keep=0;
   if (size(#)>2) { keep=#[3]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>3)
   {
-    if (typeof(#[4])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[4]);
+    if (typeof(#[4])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[4]);
   }
 
   ClassifiedSurface A=KSCclassifyWithFallback(I,ell,8,checkSmooth,keep,backend);
@@ -2327,7 +2805,10 @@ MATH:   This is the recommended one-call function.  With complete=1 it uses the
         users who explicitly want to avoid the P_8 section count.  If keep=1,
         ideals and diagnostics already computed along the chosen path are
         retained in the result.  The keep flag does not trigger extra
-        classification computations.
+        classification computations.  The default auto backend selects SpaSM
+        lazily at a map stage and selects the original classifier path when
+        SpaSM is missing or does not support the coefficient field.  Pass
+        original, linear, or spasm as backend to force that route.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^4+x1^4+x2^4+x3^4;
@@ -2339,7 +2820,7 @@ EXAMPLE:
 {
   if (size(#)>5)
   {
-    ERROR("expected at most ell, complete, checkSmooth, keep, and a section backend");
+    ERROR("expected at most ell, complete, checkSmooth, keep, and a classifier backend");
   }
   int ell=3;
   int complete=1;
@@ -2349,11 +2830,11 @@ EXAMPLE:
   if (size(#)>2) { checkSmooth=#[3]; }
   int keep=0;
   if (size(#)>3) { keep=#[4]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>4)
   {
-    if (typeof(#[5])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[5]);
+    if (typeof(#[5])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[5]);
   }
 
   if (complete==0)
@@ -2416,7 +2897,7 @@ EXAMPLE:
 {
   if (size(#)>4)
   {
-    ERROR("expected at most ell, checkSmooth, keep, and a section backend");
+    ERROR("expected at most ell, checkSmooth, keep, and a classifier backend");
   }
   int ell=3;
   int checkSmooth=0;
@@ -2424,11 +2905,11 @@ EXAMPLE:
   if (size(#)>1) { checkSmooth=#[2]; }
   int keep=0;
   if (size(#)>2) { keep=#[3]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>3)
   {
-    if (typeof(#[4])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[4]);
+    if (typeof(#[4])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[4]);
   }
   return(KSCauto(I,ell,0,checkSmooth,keep,backend));
 }
@@ -2483,7 +2964,9 @@ MATH:   The adjunction mapping is defined by |K_X+H|.  Its empty, point, and
         planes, scrolls, del Pezzo-type point images, and conic-bundle-type
         curve images.  This prepass is intentionally only diagnostic; it does
         not contract curves or replace X by an adjoint image.  Smoothness is
-        assumed unless checkSmooth=1 is supplied.
+        assumed unless checkSmooth=1 is supplied.  Its default auto backend
+        follows the same SpaSM-or-original classifier policy as KSCauto; pass
+        original, linear, or spasm to force the corresponding route.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^3+x1^3+x2^3+x3^3;
@@ -2493,18 +2976,18 @@ EXAMPLE:
 {
   if (size(#)>3)
   {
-    ERROR("expected at most ell, checkSmooth, and a section backend");
+    ERROR("expected at most ell, checkSmooth, and a classifier backend");
   }
   int ell=3;
   int checkSmooth=0;
   if (size(#)>0) { ell=#[1]; }
   if (size(#)>1) { checkSmooth=#[2]; }
   ell=KSCgrowthBoundCheck(ell);
-  string backend="linear";
+  string backend="auto";
   if (size(#)>2)
   {
-    if (typeof(#[3])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[3]);
+    if (typeof(#[3])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[3]);
   }
 
   list chk=KSCsurfaceData(I,checkSmooth);
@@ -2535,8 +3018,25 @@ EXAMPLE:
     return(list(h0Adj,adjDim,label,notes));
   }
 
-  RankOneSheaf canonical=KSCrankOneSheafWithBackend(W,J,backend);
-  adjDim=KSClinearSystemImageDim(canonical,1,ell);
+  string mapBackend=KSCresolveClassifierSectionBackend(backend);
+  if (mapBackend=="original")
+  {
+    adjDim=KSCoriginalLinearSystemImageDim(W,1,ell);
+    notes=notes+"Adjunction uses the original classifier module-section product implementation. ";
+  }
+  else
+  {
+    RankOneSheaf canonical=KSCrankOneSheafWithBackend(W,J,mapBackend);
+    adjDim=KSClinearSystemImageDim(canonical,1,ell);
+    if (mapBackend=="spasm")
+    {
+      notes=notes+"Adjunction uses the SpaSM scalar-section implementation. ";
+    }
+    else
+    {
+      notes=notes+"Adjunction uses the generic-linear scalar-section implementation. ";
+    }
+  }
   if (adjDim==0)
   {
     label="adjoint_point_exception";
@@ -2609,7 +3109,7 @@ EXAMPLE:
 {
   if (size(#)>5)
   {
-    ERROR("expected at most ell, complete, checkSmooth, keep, and a section backend");
+    ERROR("expected at most ell, complete, checkSmooth, keep, and a classifier backend");
   }
   int ell=3;
   int complete=1;
@@ -2619,11 +3119,11 @@ EXAMPLE:
   if (size(#)>2) { checkSmooth=#[3]; }
   int keep=0;
   if (size(#)>3) { keep=#[4]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>4)
   {
-    if (typeof(#[5])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[5]);
+    if (typeof(#[5])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[5]);
   }
 
   ClassifiedSurface A;
@@ -2768,7 +3268,9 @@ MATH:   This is not used by KSCauto, KSCcomplete, or KSChybrid.  It computes
         In characteristics 2 and 3 the kappa=1 label includes quasi-elliptic
         surfaces.  This routine can be very expensive and is deliberately not
         part of the preferred standard path.  If keep=1, ideals already
-        computed by this explicit pass are retained in the result.
+        computed by this explicit pass are retained in the result.  At its
+        optional map stage, auto selects SpaSM when supported and the original
+        module-section graph implementation otherwise.
 EXAMPLE:
   ring R=0,(x0,x1,x2,x3),dp;
   ideal X=x0^5+x1^5+x2^5+x3^5;
@@ -2777,17 +3279,17 @@ EXAMPLE:
 {
   if (size(#)>3)
   {
-    ERROR("expected at most checkSmooth, keep, and a section backend");
+    ERROR("expected at most checkSmooth, keep, and a classifier backend");
   }
   int checkSmooth=0;
   if (size(#)>0) { checkSmooth=#[1]; }
   int keep=0;
   if (size(#)>1) { keep=#[2]; }
-  string backend="linear";
+  string backend="auto";
   if (size(#)>2)
   {
-    if (typeof(#[3])!="string") { ERROR("section backend must be a string"); }
-    backend=KSCsectionBackendCheck(#[3]);
+    if (typeof(#[3])!="string") { ERROR("classifier backend must be a string"); }
+    backend=KSCclassifierBackendCheck(#[3]);
   }
 
   list chk=KSCsurfaceData(I,checkSmooth);
@@ -2807,7 +3309,9 @@ EXAMPLE:
   }
 
   module W=KSCcanonicalModuleFromSatIdeal(J);
-  intvec P=KSCplurigeneraFromCanonical(W,12);
+  list plurigenusData=KSCplurigeneraWithLastPower(W,12);
+  intvec P=plurigenusData[1];
+  module W12=plurigenusData[2];
   int q=KSCirregularityFromSatIdeal(J);
   int phi5=-1;
   int phi6=-1;
@@ -2840,7 +3344,18 @@ EXAMPLE:
 
   if (P[12]>=3)
   {
-    phi12=KSCphiDimExactWithBackend(J,12,1,backend);
+    string mapBackend=KSCresolveClassifierSectionBackend(backend);
+    if (mapBackend=="original")
+    {
+      notes=notes+"The |12K| map uses the original classifier module-section and graph-elimination implementation. ";
+      phi12=KSCoriginalExactImageDimFromModule(J,W12,0);
+    }
+    else
+    {
+      notes=notes+"The |12K| map uses the "+mapBackend+" scalar-section and bounded-relation implementation. ";
+      RankOneSheaf canonical=KSCrankOneSheafWithBackend(W,J,mapBackend);
+      phi12=KSCphiDimExactFromPowerWithBackend(canonical,W12,12,1,mapBackend);
+    }
     if (phi12==2)
     {
       return(KSCresult("general type","2",P,q,phi5,phi6,
