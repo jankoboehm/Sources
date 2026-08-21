@@ -162,8 +162,84 @@ kill r;
    size(SB[1]);
    SB=sheafSectionBasis(T,0,0,unitDenominator,1);
 
+// Genuine BGG/Tate representatives, rather than a dimension check:
+//------------------------------------------------------------------
+   kill R;
+   ring Rbgg=0,(x,y,z),dp;
+   proc compareBGGAndMultTable(module N,int twist,int tail,poly evalForm,
+                               int expectedDimension)
+   {
+     list multTable=sheafSectionBasis(N,twist,tail,evalForm,0);
+     list bgg=sheafSectionBasisBGG(N,twist,tail,evalForm);
+     return((size(multTable[1])==expectedDimension) &&
+            (size(bgg[1])==expectedDimension) &&
+            (size(NF(multTable[1],std(bgg[1])))==0) &&
+            (size(NF(bgg[1],std(multTable[1])))==0));
+   }
+   // mres changes the source basis for this quotient; the BGG comparison
+   // matrix must recover the original degree-tail coordinates.
+   module BGGQuotient=x*gen(1)+y*gen(2)+z*gen(3);
+   attrib(BGGQuotient,"isHomog",intvec(0,0,0));
+   compareBGGAndMultTable(BGGQuotient,0,2,z2,3);
+   // Several Tate cohomology strands occur, but source weight -d selects
+   // exactly H^0. The four sections come from the shifts 0 and -1.
+   matrix BGGFreeMatrix[3][1];
+   module BGGMixedFree=BGGFreeMatrix;
+   attrib(BGGMixedFree,"isHomog",intvec(0,2,-1));
+   compareBGGAndMultTable(BGGMixedFree,0,3,z3,4);
+
+   // Typed rank-one, line-bundle, cached-frame, and one-call linear-frame
+   // entry points all expose the same genuine BGG section algorithm.
+   module BGGPointIdeal=y*gen(1)-x*gen(2);
+   attrib(BGGPointIdeal,"isHomog",intvec(1,1));
+   RankOneSheaf BGGPointSheaf=rankOneSheafLinear(BGGPointIdeal,ideal(0));
+   SectionSpace BGGPointSections=rankOneSheafSectionBasisBGG(
+                                  BGGPointSheaf,1,2,z);
+   SectionSpace BGGPointLines=lineBundleSectionBasisBGG(
+                               BGGPointSheaf,1,2,z);
+   SectionSpace BGGPointOneCall=rankOneSheafSectionBasisBGGLinear(
+                                 BGGPointIdeal,1,ideal(0),2,z);
+   SectionSpace BGGPointLineOneCall=lineBundleSectionBasisBGGLinear(
+                                     BGGPointIdeal,1,ideal(0),2,z);
+   size(BGGPointSections);
+   size(BGGPointLines)==size(BGGPointSections);
+   size(BGGPointOneCall)==size(BGGPointSections);
+   size(BGGPointLineOneCall)==size(BGGPointSections);
+   SectionSpace BGGPointMultTable=rankOneSheafSectionBasis(
+                                   BGGPointSheaf,1,2,z,0);
+   ideal BGGCoordinates=BGGPointSections.basis*BGGPointMultTable.denom;
+   ideal multTableCoordinates=BGGPointMultTable.basis*BGGPointSections.denom;
+   size(NF(BGGCoordinates,std(multTableCoordinates)));
+   size(NF(multTableCoordinates,std(BGGCoordinates)));
+
+// Characteristic two may omit resolution weight attributes; manual weight
+// propagation and linear-strand extraction must still produce representatives.
+//-----------------------------------------------------------------------------
+   ring Rbgg2=2,(x,y,z),dp;
+   module BGGCharTwo=x*gen(1)+y*gen(2)+z*gen(3);
+   attrib(BGGCharTwo,"isHomog",intvec(0,0,0));
+   compareBGGAndMultTable(BGGCharTwo,0,2,z2,3);
+
+// Qrings and P^0 use the same representative construction without a special
+// Betti-table window.
+//--------------------------------------------------------------------------
+   ring RbggQ=0,(u,w),dp;
+   qring Qbgg=std(u*w);
+   module BGGQStructure=0;
+   attrib(BGGQStructure,"isHomog",intvec(0));
+   list BGGQSections=sheafSectionBasisBGG(BGGQStructure,0);
+   size(BGGQSections[1]);
+   ring RbggP0=0,t,dp;
+   module BGGP0Structure=0;
+   attrib(BGGP0Structure,"isHomog",intvec(0));
+   list BGGP0Sections=sheafSectionBasisBGG(BGGP0Structure,0,2,t2);
+   size(BGGP0Sections[1]);
+
 // Scalarization of a presented rank-one module:
 //------------------------------------------------
+   kill RbggP0;
+   ring R=0,(x,y,z),dp;
+   list SB;
    module P=-x*gen(1)+gen(2);
    attrib(P,"isHomog",intvec(-1,0));
    list ST=trivializedSectionBasis(P,0,ideal(1,x),1,ideal(0));
@@ -669,22 +745,22 @@ kill r;
    size(NF(finiteLinearCoordinates,std(finiteHomCoordinates)));
    size(NF(finiteHomCoordinates,std(finiteLinearCoordinates)));
 
-// The one-call command retains the exact generic fallback where SpaSM is not
-// supported (in particular, in characteristic two):
+// The explicit Linear command always uses Singular's exact generic kernel,
+// including in characteristic two; it never probes or falls back from SpaSM:
 //--------------------------------------------------------------------------
-   ring RlinearFallback=2,(x,y,z),dp;
-   module fallbackPresentation=-x*gen(1)+gen(2);
-   attrib(fallbackPresentation,"isHomog",intvec(-1,0));
-   SectionSpace fallbackLinear=rankOneSheafSectionBasisLinear(
-                                fallbackPresentation,0,ideal(0));
-   SectionSpace fallbackHom=rankOneSheafSectionBasis(
-                             fallbackPresentation,0,ideal(0));
-   size(fallbackLinear);
-   size(fallbackLinear)==size(fallbackHom);
-   ideal fallbackLinearCoordinates=fallbackLinear.basis*fallbackHom.denom;
-   ideal fallbackHomCoordinates=fallbackHom.basis*fallbackLinear.denom;
-   size(NF(fallbackLinearCoordinates,std(fallbackHomCoordinates)));
-   size(NF(fallbackHomCoordinates,std(fallbackLinearCoordinates)));
+   ring RlinearGeneric=2,(x,y,z),dp;
+   module genericPresentation=-x*gen(1)+gen(2);
+   attrib(genericPresentation,"isHomog",intvec(-1,0));
+   SectionSpace genericLinear=rankOneSheafSectionBasisLinear(
+                               genericPresentation,0,ideal(0));
+   SectionSpace genericHom=rankOneSheafSectionBasis(
+                            genericPresentation,0,ideal(0));
+   size(genericLinear);
+   size(genericLinear)==size(genericHom);
+   ideal genericLinearCoordinates=genericLinear.basis*genericHom.denom;
+   ideal genericHomCoordinates=genericHom.basis*genericLinear.denom;
+   size(NF(genericLinearCoordinates,std(genericHomCoordinates)));
+   size(NF(genericHomCoordinates,std(genericLinearCoordinates)));
 
 // The kernel nullspace also works over exact algebraic extensions:
 //-------------------------------------------------------------------

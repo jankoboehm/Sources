@@ -19,19 +19,31 @@ PROCEDURES:
  truncateFast(phi,d);    truncation of coker(phi) at d (fast+ experimental)
  CM_regularity(M);       Castelnuovo-Mumford regularity of coker(M)
  sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
+ sheafSectionBasisBGG(M,d[,s,g]); representatives from a genuine BGG/Tate tail
  trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
  trivializedSectionBasisDirect(M,d,h,f,I); direct scalar rational representatives
  rankOneSheaf(M,I[,h,f]); cache a frame for a presented rank-one sheaf
  lineBundle(M,I[,h,f]); line-bundle name for rankOneSheaf
  rankOneTrivialization(M,I); choose a rational functional for a rank-one module
- rankOneTrivializationLinear(M,I); choose the frame by finite linear algebra
+ rankOneTrivializationLinear(M,I); linear frame via Singular's module kernel
+ rankOneTrivializationSpaSM(M,I); linear frame via strict SpaSM nullspaces
  rankOneTrivialization(F); return the cached frame of a RankOneSheaf
- rankOneSheafLinear(M,I); cache a frame found by finite linear algebra
+ rankOneSheafLinear(M,I); cache a frame found with Singular's module kernel
+ rankOneSheafSpaSM(M,I); cache a frame found with strict SpaSM nullspaces
  lineBundleLinear(M,I); line-bundle name for rankOneSheafLinear
+ lineBundleSpaSM(M,I); line-bundle name for rankOneSheafSpaSM
  rankOneSheafSectionBasis(F,d[,s,g,v]); rational representatives for sections
  lineBundleSectionBasis(F,d[,s,g,v]); the same interface for line bundles
  rankOneSheafSectionBasisLinear(M,d,I[,s,g,v]); one-call linear-frame sections
+ rankOneSheafSectionBasisSpaSM(M,d,I[,s,g,v]); strict-SpaSM one-call sections
  lineBundleSectionBasisLinear(M,d,I[,s,g,v]); the line-bundle alias
+ lineBundleSectionBasisSpaSM(M,d,I[,s,g,v]); strict-SpaSM line-bundle alias
+ rankOneSheafSectionBasisBGG(...); BGG/Tate rank-one section space
+ lineBundleSectionBasisBGG(...); the line-bundle alias
+ rankOneSheafSectionBasisBGGLinear(...); one-call BGG with a linear frame
+ rankOneSheafSectionBasisBGGSpaSM(...); one-call BGG with a SpaSM frame
+ lineBundleSectionBasisBGGLinear(...); the line-bundle alias
+ lineBundleSectionBasisBGGSpaSM(...); the strict-SpaSM line-bundle alias
  rankOneSheafSectionBasisMultTable(...); explicit multiplication-table alias
  lineBundleSectionBasisMultTable(...); explicit line-bundle alias
  rankOneSheafSectionBasisDirect(F,d); direct rank-one section space
@@ -67,15 +79,6 @@ LIB "elim.lib";
 ///////////////////////////////////////////////////////////////////////////////
 static proc mod_init()
 {
-  // Load the optional accelerator only when this Singular executable was
-  // configured with the matching SpaSM library and module.
-  if (!defined(spasm_first_kernel_vector))
-  {
-    if (system("with","spasm"))
-    {
-      load("sispasm.so","try");
-    }
-  }
   newstruct("RankOneSheaf",
             "ring over, module presentation, ideal supportIdeal, ideal trivializationImages, poly trivializationDenom, int trivializationShift, int frameValidated");
   newstruct("SectionSpace",
@@ -1205,6 +1208,397 @@ static proc sectionBasisAutomaticRegularDenominator(module M,ideal U)
   return(poly(0));
 }
 
+// Propagate the weights of the target generators through one homogeneous
+// exterior differential.  The resolution maps returned by mres do not
+// always retain isHomog on every term (notably in characteristic two), so
+// derive the source weights from a leading term instead of trusting attrs.
+static proc sectionBasisBGGSourceWeights(module D,intvec targetWeights)
+{
+  if (size(targetWeights)!=nrows(D))
+  {
+    ERROR("internal error: incompatible target weights in the Tate resolution");
+  }
+  attrib(D,"isHomog",targetWeights);
+  if (!homog(D))
+  {
+    ERROR("internal error: a Tate differential is not homogeneous");
+  }
+
+  int nv=nvars(basering);
+  int c,row;
+  vector v;
+  intvec sourceWeights;
+  for (c=1; c<=size(D); c++)
+  {
+    v=D[c];
+    if (v==0)
+    {
+      ERROR("internal error: a Tate differential has a zero source generator");
+    }
+    row=leadexp(v)[nv+1];
+    sourceWeights[c]=targetWeights[row]+deg(v[row]);
+  }
+  return(sourceWeights);
+}
+
+// Resolve the BGG tail over the exterior algebra and evaluate one degree-a
+// form on its H^0 linear strand.  The result is a scalar matrix whose columns
+// give H^0(F(d)) inside the explicit basis of coker(M)_s used to build Delta.
+static proc sectionBasisBGGEvaluation(matrix Delta,int s,int d,
+                                      intmat monomialExponents,
+                                      matrix coefficients)
+{
+  int a=s-d;
+  int ds=ncols(Delta);
+  int ds1=nrows(Delta);
+  int nv=nvars(basering);
+  int nu=nrows(monomialExponents);
+  def R=basering;
+  module deltaModule=Delta;
+  def E=Exterior();
+  setring E;
+
+  module exteriorDelta=imap(R,deltaModule);
+  int i,t,u,repeatCount,row,selectedCount;
+  intvec targetWeights;
+  for (i=1; i<=ds1; i++) { targetWeights[i]=-s-1; }
+  attrib(exteriorDelta,"isHomog",targetWeights);
+
+  intvec saveopt=option(get);
+  option(redSB);
+  option(redTail);
+  resolution RE=mres(exteriorDelta,a+1);
+
+  // mres is allowed to replace the source basis of Delta.  Retain the
+  // constant comparison exteriorDelta*sourceComparison=RE[1], because only
+  // exteriorDelta is tied to the explicit degree-s basis in the input ring.
+  module firstMap=RE[1];
+  matrix sourceComparison=jet(lift(exteriorDelta,firstMap),0);
+  if ((nrows(sourceComparison)!=ds) ||
+      (ncols(sourceComparison)!=ncols(firstMap)))
+  {
+    ERROR("internal error: incompatible BGG source comparison");
+  }
+  module comparisonResidual=
+    module(matrix(exteriorDelta)*sourceComparison-matrix(firstMap));
+  if (size(comparisonResidual)!=0)
+  {
+    ERROR("internal error: could not identify the BGG tail with the explicit graded piece");
+  }
+
+  // Propagate weights independently of resolution attributes.  In the last
+  // source, weight -d is equivalent to cohomological degree zero: a summand
+  // from H^p(F(d-p)) has exterior source weight p-d.
+  intvec sourceWeights;
+  for (t=1; t<=a+1; t++)
+  {
+    if (nrows(RE[t])!=size(targetWeights))
+    {
+      ERROR("internal error: incompatible consecutive Tate differentials");
+    }
+    sourceWeights=sectionBasisBGGSourceWeights(RE[t],targetWeights);
+    targetWeights=sourceWeights;
+  }
+
+  intvec selectedColumns;
+  for (i=1; i<=size(sourceWeights); i++)
+  {
+    if (sourceWeights[i]==-d)
+    {
+      selectedCount++;
+      selectedColumns[selectedCount]=i;
+    }
+  }
+
+  if (selectedCount==0)
+  {
+    matrix exteriorZero[ds][1];
+    list exteriorResult=0,exteriorZero;
+    option(set,saveopt);
+    setring R;
+    def result=imap(E,exteriorResult);
+    return(result);
+  }
+
+  // Cache the linear coefficient matrices.  Higher-degree entries connect
+  // other cohomology strands in the Tate resolution and must not contribute
+  // to multiplication on H^0.
+  list linearMaps,variableMaps;
+  matrix differential,linearPart;
+  for (t=2; t<=a+1; t++)
+  {
+    differential=matrix(RE[t]);
+    variableMaps=list();
+    for (i=1; i<=nv; i++)
+    {
+      linearPart=jet(diff(differential,var(i)),0);
+      variableMaps[i]=linearPart;
+    }
+    linearMaps[t-1]=variableMaps;
+  }
+
+  matrix selector[ncols(RE[a+1])][selectedCount];
+  for (i=1; i<=selectedCount; i++)
+  {
+    selector[selectedColumns[i],i]=1;
+  }
+  matrix exteriorCoefficients=imap(R,coefficients);
+  matrix evaluated[ncols(firstMap)][selectedCount];
+  matrix current,next;
+  int mapIndex;
+  for (u=1; u<=nu; u++)
+  {
+    if (exteriorCoefficients[u,1]!=0)
+    {
+      current=selector;
+      mapIndex=a;
+      for (i=1; i<=nv; i++)
+      {
+        for (repeatCount=1;
+             repeatCount<=monomialExponents[u,i]; repeatCount++)
+        {
+          variableMaps=linearMaps[mapIndex];
+          next=variableMaps[i]*current;
+          current=next;
+          mapIndex--;
+        }
+      }
+      if (mapIndex!=0)
+      {
+        ERROR("internal error: the BGG evaluation monomial has the wrong degree");
+      }
+      evaluated=evaluated+exteriorCoefficients[u,1]*current;
+    }
+  }
+  evaluated=sourceComparison*evaluated;
+
+  list exteriorResult=selectedCount,evaluated;
+  option(set,saveopt);
+  setring R;
+  def result=imap(E,exteriorResult);
+  return(result);
+}
+
+proc sheafSectionBasisBGG(module M,int d,list #)
+"USAGE:   sheafSectionBasisBGG(M,d[,s,g]); M module, d,s int, g poly
+ASSUME:   M is a graded presentation matrix over a standard graded
+         polynomial ring or its homogeneous qring, with the row degrees
+         assigned as isHomog.
+RETURN:   list L. L[1] is a module of homogeneous numerator vectors,
+         L[2] is their common denominator, and L[3] is the BGG tail degree.
+         The fractions L[1][i]/L[2] form a basis of
+         H^0(Proj(basering),sheaf(coker(M))(d)).
+NOTE:     If s is omitted, the procedure uses
+         max(d,reg(coker(M))+1). An explicit s is accepted only when s>=d
+         and s>reg(coker(M)); these are theorem hypotheses, not a heuristic
+         stabilization bound. The optional homogeneous g must have degree
+         s-d and be a non-zero-divisor after sheafification.
+         The procedure constructs the BGG differential from the degree-s
+         and degree-(s+1) multiplication maps, resolves it over the exterior
+         algebra, selects the Tate generators of weight -d, and decodes their
+         linear strand back into the original graded module. It computes
+         representatives directly and does not call sheafCohBGG or compare
+         against the multiplication-table algorithm.
+         For a qring, the presentation is lifted to the ambient polynomial
+         ring and the quotient ideal is added to its relation module.
+THEORY:   The construction uses the BGG correspondence and the Tate
+         resolution as in Eisenbud-Floystad-Schreyer, Trans. AMS 355 (2003).
+SEE ALSO: sheafSectionBasis, sheafCohBGG, trivializedSectionBasis
+EXAMPLE: example sheafSectionBasisBGG; shows an example
+"
+{
+  if (typeof(attrib(M,"isHomog"))!="intvec")
+  {
+    if (size(M)==0)
+    {
+      intvec zeroWeights;
+      zeroWeights[nrows(M)]=0;
+      attrib(M,"isHomog",zeroWeights);
+    }
+    else
+    {
+      ERROR("No admissible degree vector assigned");
+    }
+  }
+  if (size(#)>2)
+  {
+    ERROR("expected at most a BGG tail degree and denominator");
+  }
+
+  list RL=ringlist(basering);
+  if (RL[4]!=0)
+  {
+    int argumentCount=size(#);
+    int qTail;
+    poly qDenominator;
+    if (argumentCount>=1)
+    {
+      if (typeof(#[1])!="int") { ERROR("BGG tail degree must be an integer"); }
+      qTail=#[1];
+    }
+    if (argumentCount==2)
+    {
+      if (typeof(#[2])!="poly")
+      {
+        ERROR("evaluation denominator must be a polynomial");
+      }
+      qDenominator=#[2];
+    }
+
+    intvec qWeights=attrib(M,"isHomog");
+    def Q=basering;
+    ideal coordinateIdealQ=RL[4];
+    RL[4]=ideal(0);
+    def S=ring(RL);
+    setring S;
+    module MS=imap(Q,M);
+    ideal IX=imap(Q,coordinateIdealQ);
+    MS=MS+IX*freemodule(nrows(MS));
+    attrib(MS,"isHomog",qWeights);
+
+    list qResult;
+    if (argumentCount==0)
+    {
+      qResult=sheafSectionBasisBGG(MS,d);
+    }
+    if (argumentCount==1)
+    {
+      qResult=sheafSectionBasisBGG(MS,d,qTail);
+    }
+    if (argumentCount==2)
+    {
+      poly g=imap(Q,qDenominator);
+      qResult=sheafSectionBasisBGG(MS,d,qTail,g);
+    }
+
+    setring Q;
+    def qResult=imap(S,qResult);
+    return(qResult);
+  }
+
+  int reg=CM_regularity(M);
+  int s;
+  if (size(#)==0)
+  {
+    s=max(d,reg+1);
+  }
+  else
+  {
+    if (typeof(#[1])!="int") { ERROR("BGG tail degree must be an integer"); }
+    s=#[1];
+  }
+  if ((s<d) || (s<=reg))
+  {
+    ERROR("BGG tail degree must be at least the twist and strictly greater than regularity "+string(reg));
+  }
+
+  int a=s-d;
+  ideal U=maxideal(a);
+  poly g;
+  if (size(#)==2)
+  {
+    g=#[2];
+    if ((g==0) || (!homog(g)) || (deg(g)!=a) ||
+        (!sectionBasisRegularDenominator(M,g)))
+    {
+      ERROR("denominator has the wrong degree or is a zero divisor after sheafification");
+    }
+  }
+  else
+  {
+    g=sectionBasisAutomaticRegularDenominator(M,U);
+    if (g==0)
+    {
+      ERROR("could not choose a regular BGG evaluation denominator");
+    }
+  }
+
+  module G=std(M);
+  intvec weights=attrib(M,"isHomog");
+  module Bs=sectionBasisGradedPiece(G,weights,s);
+  if (size(Bs)==0)
+  {
+    module N=sectionBasisZeroModule(nrows(M));
+    return(list(N,g,s));
+  }
+  if (a==0)
+  {
+    return(list(Bs,g,s));
+  }
+
+  module Bs1=sectionBasisGradedPiece(G,weights,s+1);
+  if (size(Bs1)==0)
+  {
+    ERROR("internal error: the regular BGG tail has no next graded piece");
+  }
+  int ds=size(Bs);
+  int ds1=size(Bs1);
+  matrix Delta[ds1][ds];
+  int i;
+  module P;
+  matrix T,PM,trailingRows;
+  for (i=1; i<=nvars(basering); i++)
+  {
+    P=reduce(var(i)*Bs,G);
+    if (nrows(P)>nrows(Bs1))
+    {
+      PM=matrix(P);
+      trailingRows=PM[nrows(Bs1)+1..nrows(P),1..ds];
+      if (deg(trailingRows)>=0)
+      {
+        ERROR("internal error: BGG multiplication left the target homogeneous piece");
+      }
+      P=module(PM[1..nrows(Bs1),1..ds]);
+    }
+    T=lift(Bs1,P);
+    if ((nrows(T)!=ds1) || (ncols(T)!=ds) || (deg(T)>0))
+    {
+      ERROR("internal error while constructing a BGG multiplication map");
+    }
+    Delta=Delta+var(i)*T;
+  }
+
+  int nu=size(U);
+  int nv=nvars(basering);
+  intmat monomialExponents[nu][nv];
+  int u;
+  intvec exponentRow;
+  for (u=1; u<=nu; u++)
+  {
+    exponentRow=leadexp(U[u]);
+    for (i=1; i<=nv; i++)
+    {
+      monomialExponents[u,i]=exponentRow[i];
+    }
+  }
+  matrix coefficients=coeffs(g,U,sectionBasisProductOfVariables());
+  list evaluation=sectionBasisBGGEvaluation(Delta,s,d,
+                                             monomialExponents,coefficients);
+  int h0=evaluation[1];
+  if (h0==0)
+  {
+    module N=sectionBasisZeroModule(nrows(M));
+    return(list(N,g,s));
+  }
+  matrix evaluated=evaluation[2];
+  if ((nrows(evaluated)!=ds) || (ncols(evaluated)!=h0))
+  {
+    ERROR("internal error: BGG evaluation has incompatible dimensions");
+  }
+  module N=module(matrix(Bs)*evaluated);
+  return(list(N,g,s));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  // A genuine BGG/Tate computation of H^0(P^2,O):
+  list B=sheafSectionBasisBGG(O,0);
+  B;
+}
+
 static proc sectionBasisBGGDimension(module M,int d)
 {
   int nv=nvars(basering);
@@ -1882,37 +2276,63 @@ example
   rankOneTrivialization(M,ideal(0));
 }
 
-// Return one nonzero vector in the right kernel of a constant matrix.  The
-// module nullspace stays in the Singular kernel and exploits the sparsity of
-// the multiplication matrix; dense RREF is substantially slower here.
-static proc sectionBasisFirstRightKernelVector(matrix A)
+// Return one nonzero vector in the right kernel of a constant matrix using
+// Singular's generic exact module kernel.  This path is deliberately
+// separate from SpaSM: neither backend silently substitutes for the other.
+static proc sectionBasisFirstRightKernelVectorGeneric(matrix A)
 {
-  module kernelModule;
-  int useSpasm=0;
-  // Singular evaluates Boolean conjunctions eagerly, so guard each optional
-  // C procedure separately.  Unsupported coefficient fields retain the
-  // exact generic-kernel implementation below.
-  if (defined(spasm_supports_current_ring))
-  {
-    if (defined(spasm_first_kernel_vector))
-    {
-      useSpasm=spasm_supports_current_ring();
-    }
-  }
-  if (useSpasm)
-  {
-    kernelModule=spasm_first_kernel_vector(module(A));
-  }
-  else
-  {
-    module zeroModule=0;
-    kernelModule=modulo(module(A),std(zeroModule));
-  }
+  module zeroModule=0;
+  module kernelModule=modulo(module(A),std(zeroModule));
   if (size(kernelModule)==0) { return(list(0)); }
   matrix kernelMatrix=matrix(kernelModule);
   if ((nrows(kernelMatrix)!=ncols(A)) || (ncols(kernelMatrix)<1))
   {
-    ERROR("internal error: the constant-kernel backend returned an incompatible vector");
+    ERROR("internal error: the generic constant-kernel backend returned an incompatible vector");
+  }
+  matrix kernelVector[ncols(A)][1];
+  kernelVector[1..ncols(A),1]=kernelMatrix[1..ncols(A),1];
+  if (deg(kernelVector)>0)
+  {
+    ERROR("internal error: a constant relation matrix has a nonconstant kernel vector");
+  }
+  return(list(1,kernelVector));
+}
+
+static proc sectionBasisRequireSpaSM()
+{
+  // Load only on an explicit SpaSM request. Generic linear commands never
+  // probe the optional module.
+  if (!defined(spasm_first_kernel_vector))
+  {
+    load("sispasm.so","try");
+  }
+  // Keep these guards separate: Boolean operators are eager in Singular.
+  if (!defined(spasm_supports_current_ring))
+  {
+    ERROR("SpaSM kernel requested, but the sispasm module is not available");
+  }
+  if (!defined(spasm_first_kernel_vector))
+  {
+    ERROR("SpaSM kernel requested, but the sispasm module is not available");
+  }
+  if (!spasm_supports_current_ring())
+  {
+    ERROR("SpaSM kernel requested, but the current coefficient field is unsupported");
+  }
+}
+
+// Require, and then use, the sparse SpaSM kernel.  A request for SpaSM is a
+// strict backend choice: absence of the module or an unsupported coefficient
+// field is an error, never a reason to run a different algorithm.
+static proc sectionBasisFirstRightKernelVectorSpaSM(matrix A)
+{
+  sectionBasisRequireSpaSM();
+  module kernelModule=spasm_first_kernel_vector(module(A));
+  if (size(kernelModule)==0) { return(list(0)); }
+  matrix kernelMatrix=matrix(kernelModule);
+  if ((nrows(kernelMatrix)!=ncols(A)) || (ncols(kernelMatrix)<1))
+  {
+    ERROR("internal error: the SpaSM constant-kernel backend returned an incompatible vector");
   }
   matrix kernelVector[ncols(A)][1];
   kernelVector[1..ncols(A),1]=kernelMatrix[1..ncols(A),1];
@@ -1932,7 +2352,8 @@ static proc sectionBasisFirstRightKernelVector(matrix A)
 // maximal-minor functional. Starting at -max(w_i) skips precisely the shifts
 // at which every possible image degree is negative.
 static proc sectionBasisRankOneTrivializationLinearPolynomial(module M,
-                                                               ideal IX)
+                                                               ideal IX,
+                                                               int useSpaSM)
 {
   int generatorCount=nrows(M);
   intvec weights=attrib(M,"isHomog");
@@ -2139,7 +2560,14 @@ static proc sectionBasisRankOneTrivializationLinearPolynomial(module M,
       {
         ERROR("internal error: the homogeneous relation matrix is not constant");
       }
-      kernelResult=sectionBasisFirstRightKernelVector(equations);
+      if (useSpaSM)
+      {
+        kernelResult=sectionBasisFirstRightKernelVectorSpaSM(equations);
+      }
+      else
+      {
+        kernelResult=sectionBasisFirstRightKernelVectorGeneric(equations);
+      }
     }
 
     if (kernelResult[1])
@@ -2158,35 +2586,8 @@ static proc sectionBasisRankOneTrivializationLinearPolynomial(module M,
   ERROR("no homogeneous functional was found by the determinantal degree bound; check the integral rank-one assumptions");
 }
 
-proc rankOneTrivializationLinear(module M,ideal IX)
-"USAGE:   rankOneTrivializationLinear(M,I); M module, I ideal
-ASSUME:   I defines a nonempty integral homogeneous support in projective
-         space, the sheafification of coker(M) is torsion-free and generically
-         of rank one, and M has its row degrees assigned as isHomog.
-RETURN:   list T. T[1] contains one homogeneous image for each presentation
-         generator, T[2] is the common denominator 1, and T[3] is the common
-         grading shift.
-NOTE:     This alternative to rankOneTrivialization uses only finite linear
-         algebra. At shift t it computes the kernel of
-           directsum_i (R/I)_(t+w_i) ->
-           directsum_j (R/I)_(t+c_j)
-         induced by the transpose of the presentation matrix. Quotient bases
-         are cached by degree, all products are reduced and scalarized in
-         bulk. Over a supported odd prime field its sparse constant nullspace
-         automatically uses SpaSM with deterministic all-row elimination when
-         Singular was built with it; otherwise, it uses the generic module kernel.
-         The scan starts at -max(w_i), stops at its first nonzero
-         kernel, and has a finite determinantal upper bound: the sum of the
-         largest r-1 relation degrees minus sum_i w_i.
-         On an integral support, such a nonzero functional induces an
-         injection of the torsion-free rank-one sheaf, so no Hom module or
-         saturation-based frame certification is computed. Primality,
-         torsion-freeness, and generic rank are input assumptions and are not
-         checked.
-SEE ALSO: rankOneTrivialization, rankOneSheafLinear, lineBundleLinear,
-          rankOneSheafSectionBasisLinear, rankOneSheafSectionBasis
-EXAMPLE: example rankOneTrivializationLinear; shows an example
-"
+static proc sectionBasisRankOneTrivializationLinear(module M,ideal IX,
+                                                     int useSpaSM)
 {
   if (!homog(IX)) { ERROR("the support ideal must be homogeneous"); }
   if (typeof(attrib(M,"isHomog"))!="intvec")
@@ -2231,12 +2632,39 @@ EXAMPLE: example rankOneTrivializationLinear; shows an example
     module MS=imap(Q,M);
     ideal IXS=imap(Q,quotientIdealQ)+imap(Q,IX);
     attrib(MS,"isHomog",weights);
-    list TS=sectionBasisRankOneTrivializationLinearPolynomial(MS,IXS);
+    list TS=sectionBasisRankOneTrivializationLinearPolynomial(MS,IXS,
+                                                              useSpaSM);
     setring Q;
     def TQ=imap(S,TS);
     return(TQ);
   }
-  return(sectionBasisRankOneTrivializationLinearPolynomial(M,IX));
+  return(sectionBasisRankOneTrivializationLinearPolynomial(M,IX,useSpaSM));
+}
+
+proc rankOneTrivializationLinear(module M,ideal IX)
+"USAGE:   rankOneTrivializationLinear(M,I); M module, I ideal
+ASSUME:   I defines a nonempty integral homogeneous support in projective
+         space, the sheafification of coker(M) is torsion-free and generically
+         of rank one, and M has its row degrees assigned as isHomog.
+RETURN:   list T. T[1] contains one homogeneous image for each presentation
+         generator, T[2] is the common denominator 1, and T[3] is the common
+         grading shift.
+NOTE:     This alternative to rankOneTrivialization uses only finite linear
+         algebra. At shift t it computes the kernel of the transpose of the
+         presentation on finite homogeneous pieces. Quotient bases are cached
+         by degree, and all products are reduced and scalarized in bulk.
+         Constant nullspaces are computed by Singular's exact generic module
+         kernel. This procedure never dispatches to SpaSM; use
+         rankOneTrivializationSpaSM to request that backend explicitly.
+         The scan stops at its first nonzero kernel and has a finite
+         determinantal upper bound. No Hom module or saturation certificate is
+         computed; the stated input assumptions are not checked.
+SEE ALSO: rankOneTrivializationSpaSM, rankOneTrivialization,
+          rankOneSheafLinear, rankOneSheafSectionBasisLinear
+EXAMPLE: example rankOneTrivializationLinear; shows an example
+"
+{
+  return(sectionBasisRankOneTrivializationLinear(M,IX,0));
 }
 example
 {"EXAMPLE:";
@@ -2246,6 +2674,34 @@ example
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
   rankOneTrivializationLinear(M,ideal(0));
+}
+
+proc rankOneTrivializationSpaSM(module M,ideal IX)
+"USAGE:   rankOneTrivializationSpaSM(M,I); M module, I ideal
+ASSUME:   The assumptions of rankOneTrivializationLinear hold, the sispasm
+         module is available, and the coefficient field is supported by SpaSM.
+RETURN:   A homogeneous rational frame in the same format as
+         rankOneTrivializationLinear.
+NOTE:     This is the strict SpaSM backend for the finite graded-slice scan.
+         It errors if SpaSM is unavailable or the coefficient field is
+         unsupported; it never substitutes Singular's generic module kernel.
+SEE ALSO: rankOneTrivializationLinear, rankOneSheafSpaSM,
+          rankOneSheafSectionBasisSpaSM
+EXAMPLE: example rankOneTrivializationSpaSM; shows an example
+"
+{
+  // Preflight before any free or one-generator shortcut.
+  sectionBasisRequireSpaSM();
+  return(sectionBasisRankOneTrivializationLinear(M,IX,1));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  // Requires a Singular installation built with the sispasm module:
+  rankOneTrivializationSpaSM(M,ideal(0));
 }
 
 // Assemble the cache only after the frame has been validated by its
@@ -2363,8 +2819,11 @@ NOTE:     This constructor calls rankOneTrivializationLinear once. Subsequent
          rankOneSheaf(M,I), it computes neither a graded Hom module nor a
          saturation-based injectivity certificate. Correctness therefore
          relies on the integral-support, torsion-free, and rank-one input
-         assumptions, which are not checked by this procedure.
-SEE ALSO: lineBundleLinear, rankOneSheaf, rankOneTrivializationLinear,
+         assumptions, which are not checked by this procedure. Its constant
+         nullspaces always use Singular's generic module kernel; use
+         rankOneSheafSpaSM to request the strict SpaSM backend.
+SEE ALSO: rankOneSheafSpaSM, lineBundleLinear, rankOneSheaf,
+          rankOneTrivializationLinear,
           rankOneSheafSectionBasisLinear, rankOneSheafSectionBasis,
           rankOneSheafSectionBasisDirect
 EXAMPLE: example rankOneSheafLinear; shows an example
@@ -2394,6 +2853,39 @@ example
   rankOneSheafSectionBasis(F,1);
 }
 
+proc rankOneSheafSpaSM(module M,ideal IX)
+"USAGE:   rankOneSheafSpaSM(M,I); M module, I ideal
+ASSUME:   The assumptions of rankOneSheafLinear hold, the sispasm module is
+         available, and the coefficient field is supported by SpaSM.
+RETURN:   RankOneSheaf containing a frame recovered by strict exact SpaSM
+         nullspaces.
+NOTE:     SpaSM is preflighted before any shortcut. The procedure errors if
+         that backend cannot be used and never substitutes a generic kernel.
+SEE ALSO: lineBundleSpaSM, rankOneSheafLinear,
+          rankOneTrivializationSpaSM, rankOneSheafSectionBasisSpaSM
+EXAMPLE: example rankOneSheafSpaSM; shows an example
+"
+{
+  if ((typeof(attrib(M,"isHomog"))!="intvec") && (size(M)==0))
+  {
+    intvec zeroWeights;
+    zeroWeights[nrows(M)]=0;
+    attrib(M,"isHomog",zeroWeights);
+  }
+  list T=rankOneTrivializationSpaSM(M,IX);
+  RankOneSheaf F=sectionBasisMakeRankOneSheaf(M,IX,T);
+  return(F);
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  RankOneSheaf F=rankOneSheafSpaSM(M,ideal(0));
+  rankOneSheafSectionBasis(F,0);
+}
+
 proc lineBundleLinear(module M,ideal IX)
 "USAGE:   lineBundleLinear(M,I); M module, I ideal
 ASSUME:   I defines a nonempty integral homogeneous support and the
@@ -2417,6 +2909,28 @@ example
   module O=0;
   attrib(O,"isHomog",intvec(0));
   RankOneSheaf L=lineBundleLinear(O,ideal(0));
+  lineBundleSectionBasis(L,2);
+}
+
+proc lineBundleSpaSM(module M,ideal IX)
+"USAGE:   lineBundleSpaSM(M,I); M module, I ideal
+RETURN:   The RankOneSheaf returned by rankOneSheafSpaSM(M,I).
+NOTE:     This is the line-bundle name for the strict SpaSM constructor.
+         Local freeness is an input assumption and is not tested separately.
+SEE ALSO: rankOneSheafSpaSM, lineBundleLinear,
+          lineBundleSectionBasisSpaSM
+EXAMPLE: example lineBundleSpaSM; shows an example
+"
+{
+  return(rankOneSheafSpaSM(M,IX));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  RankOneSheaf L=lineBundleSpaSM(O,ideal(0));
   lineBundleSectionBasis(L,2);
 }
 
@@ -2793,6 +3307,332 @@ example
   rationalMapFromSections(V);
 }
 
+// Scalarize a BGG basis after its rational frame has already been checked.
+// Generic injectivity of the frame makes its map on H^0 injective.
+static proc sectionBasisTrustedTrivializedBasisBGG(module M,int d,
+                                                    ideal images,poly f,
+                                                    list #)
+{
+  list B;
+  if (size(#)==0) { B=sheafSectionBasisBGG(M,d); }
+  if (size(#)==1) { B=sheafSectionBasisBGG(M,d,#[1]); }
+  if (size(#)==2) { B=sheafSectionBasisBGG(M,d,#[1],#[2]); }
+
+  ideal H;
+  if (size(B[1])>0)
+  {
+    matrix sectionVectors=matrix(B[1]);
+    if (nrows(sectionVectors)>nrows(M))
+    {
+      ERROR("internal error: BGG section vectors exceed the checked frame rank");
+    }
+    matrix paddedVectors[nrows(M)][size(B[1])];
+    paddedVectors[1..nrows(sectionVectors),1..ncols(sectionVectors)]=
+      sectionVectors;
+    H=ideal(matrix(images)*paddedVectors);
+  }
+  return(list(H,f*B[2],B[3]));
+}
+
+// Run the genuine BGG/Tate representative algorithm and build a typed
+// SectionSpace from a frame which was validated or canonically constructed.
+static proc sectionBasisBGGSpace(module M,int d,ideal IX,list T,list #)
+{
+  if (size(#)>2)
+  {
+    ERROR("expected at most a BGG tail degree and denominator");
+  }
+  list B;
+  if (size(#)==0)
+  {
+    B=sectionBasisTrustedTrivializedBasisBGG(M,d,T[1],T[2]);
+  }
+  if (size(#)==1)
+  {
+    B=sectionBasisTrustedTrivializedBasisBGG(M,d,T[1],T[2],#[1]);
+  }
+  if (size(#)==2)
+  {
+    B=sectionBasisTrustedTrivializedBasisBGG(M,d,T[1],T[2],#[1],#[2]);
+  }
+  if ((B[2]==0) || (!homog(B[2])))
+  {
+    ERROR("internal error: the BGG section denominator is zero or nonhomogeneous");
+  }
+  module supportModule=IX;
+  attrib(supportModule,"isHomog",intvec(0));
+  if (!sectionBasisRegularDenominator(supportModule,B[2]))
+  {
+    ERROR("the scalar BGG section denominator is a zero divisor on the support");
+  }
+  int i;
+  for (i=1; i<=size(B[1]); i++)
+  {
+    if ((B[1][i]==0) || (!homog(B[1][i])) ||
+        (deg(B[1][i])-deg(B[2])!=d+T[3]))
+    {
+      ERROR("internal error: invalid scalar BGG section degree");
+    }
+  }
+  SectionSpace V;
+  V.over=basering;
+  V.presentation=M;
+  V.supportIdeal=IX;
+  V.basis=B[1];
+  V.denom=B[2];
+  V.trivializationImages=T[1];
+  V.trivializationDenom=T[2];
+  V.twist=d;
+  V.trivializationShift=T[3];
+  V.tailDegree=B[3];
+  return(V);
+}
+
+proc rankOneSheafSectionBasisBGG(def data,int d,list #)
+"USAGE:   rankOneSheafSectionBasisBGG(F,d[,s,g]); F RankOneSheaf
+         rankOneSheafSectionBasisBGG(M,d,I[,s,g]); M module, I ideal,
+         d,s int, g poly
+ASSUME:   I is the homogeneous coordinate ideal of the support of coker(M),
+         whose associated sheaf is torsion-free and generically of rank one,
+         and M has its row degrees assigned as isHomog.
+RETURN:   SectionSpace V containing a scalar rational basis of global
+         sections of the twist d, computed from a BGG/Tate resolution.
+NOTE:     This is a genuine representative-producing BGG algorithm, not a
+         multiplication-table computation with BGG dimension verification.
+         It chooses a rational frame for module input and reuses the validated
+         cached frame for F. If supplied, s must satisfy s>=d and
+         s>reg(coker(M)); g must be a regular homogeneous form of degree s-d.
+         The same algorithm also applies to non-invertible rank-one
+         torsion-free and divisorial sheaves.
+SEE ALSO: lineBundleSectionBasisBGG, sheafSectionBasisBGG,
+          rankOneSheafSectionBasisBGGLinear, rankOneSheafSectionBasis,
+          rankOneSheafSectionBasisDirect, rationalMapFromSections
+EXAMPLE: example rankOneSheafSectionBasisBGG; shows an example
+"
+{
+  if (typeof(data)=="RankOneSheaf")
+  {
+    if (size(#)>2)
+    {
+      ERROR("expected at most a BGG tail degree and denominator");
+    }
+    RankOneSheaf F=data;
+    sectionBasisRequireCachedFrame(F);
+    list T=list(F.trivializationImages,F.trivializationDenom,
+                F.trivializationShift);
+    if (size(#)==0)
+    {
+      return(sectionBasisBGGSpace(F.presentation,d,F.supportIdeal,T));
+    }
+    if (size(#)==1)
+    {
+      return(sectionBasisBGGSpace(F.presentation,d,F.supportIdeal,T,#[1]));
+    }
+    return(sectionBasisBGGSpace(F.presentation,d,F.supportIdeal,T,
+                                #[1],#[2]));
+  }
+  if (typeof(data)!="module")
+  {
+    ERROR("expected a module or a RankOneSheaf");
+  }
+  if ((size(#)<1) || (size(#)>3) || (typeof(#[1])!="ideal"))
+  {
+    ERROR("expected M,d,I followed by at most a BGG tail degree and denominator");
+  }
+  module M=data;
+  ideal IX=#[1];
+  list T=rankOneTrivialization(M,IX);
+  if (size(#)==1)
+  {
+    return(sectionBasisBGGSpace(M,d,IX,T));
+  }
+  if (size(#)==2)
+  {
+    return(sectionBasisBGGSpace(M,d,IX,T,#[2]));
+  }
+  return(sectionBasisBGGSpace(M,d,IX,T,#[2],#[3]));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  RankOneSheaf F=rankOneSheaf(O,ideal(0));
+  SectionSpace V=rankOneSheafSectionBasisBGG(F,2);
+  V;
+  rationalMapFromSections(V);
+}
+
+proc lineBundleSectionBasisBGG(def data,int d,list #)
+"USAGE:   lineBundleSectionBasisBGG(F,d[,s,g]); F RankOneSheaf
+         lineBundleSectionBasisBGG(M,d,I[,s,g]); M module, I ideal
+ASSUME:   The sheafification of coker(M) is a line bundle on the support I.
+RETURN:   SectionSpace containing a BGG/Tate basis of global sections.
+NOTE:     This is the line-bundle name for rankOneSheafSectionBasisBGG and
+         has exactly the same implementation. Local freeness is an input
+         assumption and is not tested separately.
+SEE ALSO: rankOneSheafSectionBasisBGG, lineBundleSectionBasisBGGLinear,
+          lineBundleSectionBasis, lineBundleSectionBasisDirect
+EXAMPLE: example lineBundleSectionBasisBGG; shows an example
+"
+{
+  if (size(#)==0) { return(rankOneSheafSectionBasisBGG(data,d)); }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisBGG(data,d,#[1]));
+  }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasisBGG(data,d,#[1],#[2]));
+  }
+  if (size(#)==3)
+  {
+    return(rankOneSheafSectionBasisBGG(data,d,#[1],#[2],#[3]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasisBGG");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  lineBundleSectionBasisBGG(O,1,ideal(0));
+}
+
+proc rankOneSheafSectionBasisBGGLinear(module M,int d,ideal IX,list #)
+"USAGE:   rankOneSheafSectionBasisBGGLinear(M,d,I[,s,g]); M module,
+         d,s int, I ideal, g poly
+ASSUME:   I defines a nonempty integral homogeneous support, the sheafification
+         of coker(M) is torsion-free and generically of rank one, and M has
+         its row degrees assigned as isHomog.
+RETURN:   SectionSpace containing a BGG/Tate basis of global sections.
+NOTE:     This complete one-call variant finds the rational frame by finite
+         linear algebra using Singular's generic exact module kernel, then
+         computes sections by the genuine BGG method. The stated support,
+         torsion-free, and rank-one assumptions are not checked. For several
+         twists, construct F=rankOneSheafLinear(M,I) once and call
+         rankOneSheafSectionBasisBGG(F,d).
+SEE ALSO: rankOneSheafSectionBasisBGGSpaSM,
+          lineBundleSectionBasisBGGLinear, rankOneSheafLinear,
+          rankOneSheafSectionBasisBGG, rankOneSheafSectionBasisLinear
+EXAMPLE: example rankOneSheafSectionBasisBGGLinear; shows an example
+"
+{
+  if (size(#)>2)
+  {
+    ERROR("expected at most a BGG tail degree and denominator");
+  }
+  RankOneSheaf F=rankOneSheafLinear(M,IX);
+  if (size(#)==0) { return(rankOneSheafSectionBasisBGG(F,d)); }
+  if (size(#)==1) { return(rankOneSheafSectionBasisBGG(F,d,#[1])); }
+  return(rankOneSheafSectionBasisBGG(F,d,#[1],#[2]));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  rankOneSheafSectionBasisBGGLinear(M,0,ideal(0));
+}
+
+proc lineBundleSectionBasisBGGLinear(module M,int d,ideal IX,list #)
+"USAGE:   lineBundleSectionBasisBGGLinear(M,d,I[,s,g]); M module,
+         d,s int, I ideal, g poly
+ASSUME:   I defines a nonempty integral homogeneous support and the
+         sheafification of coker(M) is a line bundle there.
+RETURN:   SectionSpace containing a BGG/Tate basis of global sections.
+NOTE:     This is the line-bundle alias of
+         rankOneSheafSectionBasisBGGLinear. Local freeness is assumed.
+SEE ALSO: rankOneSheafSectionBasisBGGLinear, lineBundleLinear,
+          lineBundleSectionBasisBGG, lineBundleSectionBasisLinear
+EXAMPLE: example lineBundleSectionBasisBGGLinear; shows an example
+"
+{
+  if (size(#)==0) { return(rankOneSheafSectionBasisBGGLinear(M,d,IX)); }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisBGGLinear(M,d,IX,#[1]));
+  }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasisBGGLinear(M,d,IX,#[1],#[2]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasisBGGLinear");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  lineBundleSectionBasisBGGLinear(O,2,ideal(0));
+}
+
+proc rankOneSheafSectionBasisBGGSpaSM(module M,int d,ideal IX,list #)
+"USAGE:   rankOneSheafSectionBasisBGGSpaSM(M,d,I[,s,g]); M module,
+         d,s int, I ideal, g poly
+ASSUME:   The assumptions of rankOneSheafSectionBasisBGGLinear hold, the
+         sispasm module is available, and the coefficient field is supported.
+RETURN:   SectionSpace containing a BGG/Tate basis of global sections.
+NOTE:     Frame recovery uses strict exact SpaSM nullspaces. The procedure
+         errors rather than substituting another kernel backend.
+SEE ALSO: lineBundleSectionBasisBGGSpaSM, rankOneSheafSpaSM,
+          rankOneSheafSectionBasisBGGLinear, rankOneSheafSectionBasisBGG
+EXAMPLE: example rankOneSheafSectionBasisBGGSpaSM; shows an example
+"
+{
+  if (size(#)>2)
+  {
+    ERROR("expected at most a BGG tail degree and denominator");
+  }
+  RankOneSheaf F=rankOneSheafSpaSM(M,IX);
+  if (size(#)==0) { return(rankOneSheafSectionBasisBGG(F,d)); }
+  if (size(#)==1) { return(rankOneSheafSectionBasisBGG(F,d,#[1])); }
+  return(rankOneSheafSectionBasisBGG(F,d,#[1],#[2]));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  rankOneSheafSectionBasisBGGSpaSM(M,0,ideal(0));
+}
+
+proc lineBundleSectionBasisBGGSpaSM(module M,int d,ideal IX,list #)
+"USAGE:   lineBundleSectionBasisBGGSpaSM(M,d,I[,s,g]); M module,
+         d,s int, I ideal, g poly
+RETURN:   The strict-SpaSM BGG SectionSpace for the line bundle.
+NOTE:     This is the line-bundle alias of
+         rankOneSheafSectionBasisBGGSpaSM. Local freeness is assumed.
+SEE ALSO: rankOneSheafSectionBasisBGGSpaSM,
+          lineBundleSectionBasisBGGLinear, lineBundleSpaSM
+EXAMPLE: example lineBundleSectionBasisBGGSpaSM; shows an example
+"
+{
+  if (size(#)==0) { return(rankOneSheafSectionBasisBGGSpaSM(M,d,IX)); }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisBGGSpaSM(M,d,IX,#[1]));
+  }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasisBGGSpaSM(M,d,IX,#[1],#[2]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasisBGGSpaSM");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  lineBundleSectionBasisBGGSpaSM(O,2,ideal(0));
+}
+
 // Run the multiplication-table algorithm and build its typed result from a
 // frame which has already been validated or canonically constructed.
 static proc sectionBasisMultTableSpace(module M,int d,ideal IX,list T,list #)
@@ -3011,16 +3851,17 @@ RETURN:   SectionSpace V containing a scalar rational basis of global sections
          of the twist d.
 NOTE:     This is the complete one-call section algorithm using finite linear
          algebra for frame recovery and multiplication tables for the section
-         computation. Over supported odd prime fields the frame nullspace uses
-         exact deterministic SpaSM automatically when Singular was built with
-         it; otherwise it uses Singular's exact generic module kernel.
+         computation. Frame nullspaces always use Singular's exact generic
+         module kernel. Use rankOneSheafSectionBasisSpaSM to request strict
+         exact SpaSM nullspaces; no backend substitution occurs.
          Unlike rankOneSheafSectionBasis(M,d,I), no graded Hom module or
          saturation-based frame certificate is computed. Correctness relies
          on the integral-support, torsion-free, and rank-one assumptions above,
          which are not checked. Verification is off unless v is explicitly
          nonzero. For several twists, construct F=rankOneSheafLinear(M,I) once
          and call rankOneSheafSectionBasis(F,d) repeatedly instead.
-SEE ALSO: lineBundleSectionBasisLinear, rankOneSheafLinear,
+SEE ALSO: rankOneSheafSectionBasisSpaSM, lineBundleSectionBasisLinear,
+          rankOneSheafLinear,
           rankOneSheafSectionBasis, rankOneTrivializationLinear,
           rankOneSheafSectionBasisMultTable, rationalMapFromSections
 EXAMPLE: example rankOneSheafSectionBasisLinear; shows an example
@@ -3043,7 +3884,7 @@ example
 {"EXAMPLE:";
   echo=2;
   ring R=32003,(x,y,z),dp;
-  // e2=x*e1 presents O(1). Frame recovery uses SpaSM when available.
+  // e2=x*e1 presents O(1). Frame recovery uses Singular's module kernel.
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
   SectionSpace V=rankOneSheafSectionBasisLinear(M,0,ideal(0));
@@ -3088,6 +3929,80 @@ example
   module O=0;
   attrib(O,"isHomog",intvec(0));
   lineBundleSectionBasisLinear(O,2,ideal(0));
+}
+
+proc rankOneSheafSectionBasisSpaSM(module M,int d,ideal IX,list #)
+"USAGE:   rankOneSheafSectionBasisSpaSM(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+ASSUME:   The assumptions of rankOneSheafSectionBasisLinear hold, the sispasm
+         module is available, and the coefficient field is supported by SpaSM.
+RETURN:   SectionSpace containing a scalar rational basis of global sections.
+NOTE:     This complete one-call command recovers the frame with strict exact
+         SpaSM nullspaces and computes sections by multiplication tables. It
+         errors if SpaSM cannot be used and never substitutes another backend.
+         For several twists, construct F=rankOneSheafSpaSM(M,I) once.
+SEE ALSO: lineBundleSectionBasisSpaSM, rankOneSheafSpaSM,
+          rankOneSheafSectionBasisLinear, rankOneSheafSectionBasis
+EXAMPLE: example rankOneSheafSectionBasisSpaSM; shows an example
+"
+{
+  if (size(#)>3)
+  {
+    ERROR("expected at most tail degree, denominator, and verification flag");
+  }
+  RankOneSheaf F=rankOneSheafSpaSM(M,IX);
+  if (size(#)==0) { return(rankOneSheafSectionBasis(F,d)); }
+  if (size(#)==1) { return(rankOneSheafSectionBasis(F,d,#[1])); }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasis(F,d,#[1],#[2]));
+  }
+  return(rankOneSheafSectionBasis(F,d,#[1],#[2],#[3]));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module M=-x*gen(1)+gen(2);
+  attrib(M,"isHomog",intvec(-1,0));
+  SectionSpace V=rankOneSheafSectionBasisSpaSM(M,0,ideal(0));
+  V;
+  rationalMapFromSections(V);
+}
+
+proc lineBundleSectionBasisSpaSM(module M,int d,ideal IX,list #)
+"USAGE:   lineBundleSectionBasisSpaSM(M,d,I[,s,g,v]); M module,
+         d,s int, I ideal, g poly, v int
+RETURN:   The strict-SpaSM SectionSpace for the line bundle.
+NOTE:     This is the line-bundle alias of rankOneSheafSectionBasisSpaSM.
+         Local freeness is an input assumption and is not tested separately.
+SEE ALSO: rankOneSheafSectionBasisSpaSM, lineBundleSpaSM,
+          lineBundleSectionBasisLinear
+EXAMPLE: example lineBundleSectionBasisSpaSM; shows an example
+"
+{
+  if (size(#)==0) { return(rankOneSheafSectionBasisSpaSM(M,d,IX)); }
+  if (size(#)==1)
+  {
+    return(rankOneSheafSectionBasisSpaSM(M,d,IX,#[1]));
+  }
+  if (size(#)==2)
+  {
+    return(rankOneSheafSectionBasisSpaSM(M,d,IX,#[1],#[2]));
+  }
+  if (size(#)==3)
+  {
+    return(rankOneSheafSectionBasisSpaSM(M,d,IX,#[1],#[2],#[3]));
+  }
+  ERROR("too many arguments for lineBundleSectionBasisSpaSM");
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  module O=0;
+  attrib(O,"isHomog",intvec(0));
+  lineBundleSectionBasisSpaSM(O,2,ideal(0));
 }
 
 proc rankOneSheafSectionBasisMultTable(def data,int d,list #)

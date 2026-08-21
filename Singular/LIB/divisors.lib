@@ -47,6 +47,7 @@ globalSectionsIdeal(divisor)                    fractional ideal representing th
 rankOneSheafFromDivisor(divisor)                cached rank-one sheaf with its fractional frame
 lineBundleFromDivisor(divisor)                  line-bundle alias for the cached divisor sheaf
 globalSectionsMultTable(divisor,int[,int,poly,int]) sections from multiplication tables
+globalSectionsBGG(divisor,int[,int,poly])            sections from a genuine BGG/Tate tail
 degreeDivisor(divisor)                          degree of a divisor
 linearlyEquivalent(divisor,divisor)             test whether two divisors a linearly equivalent
 effective(divisor)                              compute an effective divisor
@@ -345,7 +346,7 @@ RETURN:  a list L. L[1] is a fractional-ideal numerator N and L[2] is a
 THEORY:  If D=(I)-(J), choose a nonzero f in I and compute the purified
          quotient N=(fJ:I). Unlike globalSections, this procedure keeps the
          complete graded fractional ideal rather than extracting one degree.
-SEE ALSO: globalSections, globalSectionsMultTable
+SEE ALSO: globalSections, globalSectionsMultTable, globalSectionsBGG
 KEYWORDS: divisors, fractional ideals
 EXAMPLE: example globalSectionsIdeal; shows an example
 "
@@ -377,7 +378,8 @@ NOTE:    The presentation is constructed in the current coordinate ring as
          and N/f are constructed together here, the frame is recorded as
          validated without repeating the generic user-supplied-frame checks.
 SEE ALSO: lineBundleFromDivisor, rankOneSheaf, rankOneSheafSectionBasis,
-          globalSectionsIdeal, globalSectionsMultTable
+          rankOneSheafSectionBasisBGG, globalSectionsIdeal,
+          globalSectionsMultTable, globalSectionsBGG
 KEYWORDS: divisors, rank-one sheaves, line bundles, global sections
 EXAMPLE: example rankOneSheafFromDivisor; shows an example
 "
@@ -647,6 +649,63 @@ phi;
 // BGG dimension check:
 L=globalSectionsMultTable(D,0,1,z,1);
 L;
+}
+
+
+proc globalSectionsBGG(divisor D,int d,list #)
+"USAGE:  globalSectionsBGG(D,d[,s,g]); D divisor, d,s int, g poly
+ASSUME:  D is a homogeneous divisor on a smooth irreducible projective
+        variety X in P^n whose homogeneous qring has the S2 property.
+RETURN:  a list L. L[1] is an ideal of homogeneous scalar numerators,
+        L[2] is their common denominator, and L[3] is the BGG tail degree.
+        The fractions L[1][i]/L[2] form a basis of H^0(X,O_X(D)(d)).
+NOTE:    The canonical fractional-ideal frame of D is cached in a
+        RankOneSheaf and passed to rankOneSheafSectionBasisBGG. Thus this is
+        one complete divisor-to-sections command: it constructs the graded
+        presentation, computes actual representatives from a Tate resolution,
+        and scalarizes them without rediscovering or revalidating its trusted
+        divisor frame. If supplied, s must satisfy s>=d and be strictly larger
+        than the module regularity; g must be regular of degree s-d.
+        This is a genuine BGG representative algorithm. It neither calls the
+        multiplication-table algorithm nor uses sheafCohBGG as verification.
+THEORY:  The degree-s multiplication map gives the right BGG tail. Exterior
+        source generators of weight -d are H^0, and their linear Tate strand
+        decodes the rational representatives.
+SEE ALSO: globalSectionsMultTable, globalSectionsIdeal,
+          rankOneSheafFromDivisor, rankOneSheafSectionBasisBGG,
+          rationalMapFromSections
+KEYWORDS: divisors, sheaf cohomology, rational maps, BGG, Tate resolution
+EXAMPLE: example globalSectionsBGG; shows an example
+"
+{
+  if (size(#)>2)
+  {
+    ERROR("expected at most a BGG tail degree and denominator");
+  }
+  RankOneSheaf F=rankOneSheafFromDivisor(D);
+  SectionSpace V;
+  if (size(#)==0)
+  {
+    V=rankOneSheafSectionBasisBGG(F,d);
+  }
+  if (size(#)==1)
+  {
+    V=rankOneSheafSectionBasisBGG(F,d,#[1]);
+  }
+  if (size(#)==2)
+  {
+    V=rankOneSheafSectionBasisBGG(F,d,#[1],#[2]);
+  }
+  return(list(V.basis,V.denom,V.tailDegree));
+}
+example
+{ "EXAMPLE:";
+ring r=0,(x,y,z),dp;
+// D=2(x=0)-(y=0), hence O(D)=O(1):
+divisor D=makeDivisor(ideal(x2),ideal(y));
+list L=globalSectionsBGG(D,0,1,z);
+L;
+rationalMapFromSections(L);
 }
 
 
