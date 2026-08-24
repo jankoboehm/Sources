@@ -2642,6 +2642,7 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
     if ( rHasGlobalOrdering(currRing)
     && (!TEST_OPT_RETURN_SB)
     && (!TEST_OPT_DEGBOUND)
+    && TEST_V_PROBABILISTIC
     && (currRing->LexOrder
          || rHasBlockOrder(currRing))
     && (!idIsSimpleGB(F,Q))

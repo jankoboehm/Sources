@@ -467,6 +467,7 @@ ideal kTryHilbstd(ideal F, ideal Q)
 {
  if (rField_is_Ring(currRing)) return NULL;
  if (!rHasGlobalOrdering(currRing)) return NULL;
+ if (!TEST_V_PROBABILISTIC) return NULL;
  if(TEST_V_PURE_GB) return NULL;
 
  intvec* fdegree=kHilbstdPositiveFDegWeights(currRing);
