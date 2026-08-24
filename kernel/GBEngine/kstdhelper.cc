@@ -37,8 +37,10 @@ static int kFindLuckyPrime(ideal F, ideal Q) // TODO
   return prim;
 }
 
-poly kTryHC(ideal F, ideal Q)
+poly kTryHC(ideal F, ideal Q, long* colength)
 {
+  assume(colength!=NULL);
+  *colength=-1;
   if (Q!=NULL)
     return NULL;
   int prim=kFindLuckyPrime(F,Q);
@@ -67,7 +69,11 @@ poly kTryHC(ideal F, ideal Q)
   // clean
   idDelete(&FF);
   poly HC=NULL;
-  if (strat->kNoether!=NULL) scComputeHC(res,QQ,0,HC);
+  if (strat->kNoether!=NULL)
+  {
+    scComputeHC(res,QQ,0,HC);
+    *colength=scMult0Int(res,QQ);
+  }
   delete strat;
   if (QQ!=NULL) idDelete(&QQ);
   idDelete(&res);
