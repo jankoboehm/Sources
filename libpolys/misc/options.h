@@ -70,7 +70,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define V_ASSIGN_NONE    27
 #define V_PURE_GB        28
 #define V_PROBABILISTIC  29
-/* for tests: 30 */
+#define V_STDHILB        30
 #define V_DEG_STOP       31
 
 
@@ -137,6 +137,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define TEST_V_ASSIGN_NONE         BVERBOSE(V_ASSIGN_NONE)
 #define TEST_V_PURE_GB             BVERBOSE(V_PURE_GB)
 #define TEST_V_PROBABILISTIC       BVERBOSE(V_PROBABILISTIC)
+#define TEST_V_STDHILB             BVERBOSE(V_STDHILB)
 
 #define TEST_VERB_NSB              BVERBOSE(V_NSB)
 #define TEST_V_DEG_STOP            BVERBOSE(V_DEG_STOP)

@@ -32,6 +32,9 @@ Changed libraries:
 
 Changes in the kernel/build system:
 @itemize
+@item new algorithmic @code{option(stdhilb)} for @code{std}; it is also
+activated by @code{option(probabilistic)}. This shortcut is unchecked and an
+unlucky prime may lead to an incorrect result over @code{QQ}
 @item new global @code{option(probabilistic)}. It enables probabilistic
 Groebner-basis shortcuts and omits final exact verification, but not
 stabilization, in modular algorithms

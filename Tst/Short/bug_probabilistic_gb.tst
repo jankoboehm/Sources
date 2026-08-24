@@ -11,6 +11,13 @@ G;
 hilb(G);
 vdim(G);
 
+option(stdhilb);
+ideal Gstdhilb = std(I);
+Gstdhilb;
+hilb(Gstdhilb);
+vdim(Gstdhilb);
+option(nostdhilb);
+
 option(probabilistic);
 ideal Gprob = std(I);
 Gprob;

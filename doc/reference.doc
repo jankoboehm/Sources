@@ -5526,6 +5526,14 @@ tries to find the highest corner of the staircase (HC) as fast as
 possible during a standard basis computation (only used for local
 orderings).
 @c ---------
+@item @code{stdhilb}
+@cindex stdhilb, option
+@cindex hilbert driven Groebner basis, option
+activates the Hilbert-driven algorithm in @code{std} for difficult global
+orderings. This shortcut is unchecked and an unlucky prime may lead to an
+incorrect result over @code{QQ}. It is also activated by
+@code{option(probabilistic)}.
+@c ---------
 @c @item @code{interrupt}
 @c allows fast interruption of standard basis computation
 @c ---------
@@ -5570,7 +5578,8 @@ hilbert driven Groebner basis for difficult orderings during Groebner basis comp
 @cindex modular algorithms, probabilistic option
 @cindex verification, modular algorithms
 allows probabilistic shortcuts. For Groebner basis computations this enables
-the modular Hilbert-driven algorithm for difficult orderings. For modular
+the @code{stdhilb} branch of @code{std}. This shortcut is unchecked and an
+unlucky prime may lead to an incorrect result over @code{QQ}. For modular
 algorithms, the probabilistic stabilization test is still performed, but the
 final exact verification is omitted. This option is off by default.
 @c ---------
@@ -7793,11 +7802,13 @@ without the modular highest corner.
 See @ref{option}.
 
 @item @strong{Note:}
-If @code{option(probabilistic)} is set, uses a modular Hilbert-driven
+The algorithmic option @code{stdhilb} activates a modular Hilbert-driven
 Groebner algorithm in the case of a block ordering and an ideal over
-@code{QQ}. An unlucky prime may lead to an incorrect result.
+@code{QQ}. It is also activated by @code{option(probabilistic)}. This shortcut
+is unchecked and an unlucky prime may lead to an incorrect result over
+@code{QQ}.
 @*The algorithm can be switched off again by
-@code{option(noprobabilistic)} or @code{option(pure_gb)}.
+@code{option(nostdhilb,noprobabilistic)} or @code{option(pure_gb)}.
 See @ref{option}.
 
 @item @strong{Example:}
