@@ -2700,8 +2700,11 @@ example
   ring R=32003,(x,y,z),dp;
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
-  // Requires a Singular installation built with the sispasm module:
-  rankOneTrivializationSpaSM(M,ideal(0));
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    rankOneTrivializationSpaSM(M,ideal(0));
+  }
 }
 
 // Assemble the cache only after the frame has been validated by its
@@ -2882,8 +2885,12 @@ example
   ring R=32003,(x,y,z),dp;
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
-  RankOneSheaf F=rankOneSheafSpaSM(M,ideal(0));
-  rankOneSheafSectionBasis(F,0);
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    RankOneSheaf F=rankOneSheafSpaSM(M,ideal(0));
+    rankOneSheafSectionBasis(F,0);
+  }
 }
 
 proc lineBundleLinear(module M,ideal IX)
@@ -2930,8 +2937,12 @@ example
   ring R=32003,(x,y,z),dp;
   module O=0;
   attrib(O,"isHomog",intvec(0));
-  RankOneSheaf L=lineBundleSpaSM(O,ideal(0));
-  lineBundleSectionBasis(L,2);
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    RankOneSheaf L=lineBundleSpaSM(O,ideal(0));
+    lineBundleSectionBasis(L,2);
+  }
 }
 
 proc lineBundle(def data,list #)
@@ -3599,7 +3610,11 @@ example
   ring R=32003,(x,y,z),dp;
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
-  rankOneSheafSectionBasisBGGSpaSM(M,0,ideal(0));
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    rankOneSheafSectionBasisBGGSpaSM(M,0,ideal(0));
+  }
 }
 
 proc lineBundleSectionBasisBGGSpaSM(module M,int d,ideal IX,list #)
@@ -3630,7 +3645,11 @@ example
   ring R=32003,(x,y,z),dp;
   module O=0;
   attrib(O,"isHomog",intvec(0));
-  lineBundleSectionBasisBGGSpaSM(O,2,ideal(0));
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    lineBundleSectionBasisBGGSpaSM(O,2,ideal(0));
+  }
 }
 
 // Run the multiplication-table algorithm and build its typed result from a
@@ -3965,9 +3984,13 @@ example
   ring R=32003,(x,y,z),dp;
   module M=-x*gen(1)+gen(2);
   attrib(M,"isHomog",intvec(-1,0));
-  SectionSpace V=rankOneSheafSectionBasisSpaSM(M,0,ideal(0));
-  V;
-  rationalMapFromSections(V);
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    SectionSpace V=rankOneSheafSectionBasisSpaSM(M,0,ideal(0));
+    V;
+    rationalMapFromSections(V);
+  }
 }
 
 proc lineBundleSectionBasisSpaSM(module M,int d,ideal IX,list #)
@@ -4002,7 +4025,11 @@ example
   ring R=32003,(x,y,z),dp;
   module O=0;
   attrib(O,"isHomog",intvec(0));
-  lineBundleSectionBasisSpaSM(O,2,ideal(0));
+  load("sispasm.so","try");
+  if (defined(spasm_first_kernel_vector))
+  {
+    lineBundleSectionBasisSpaSM(O,2,ideal(0));
+  }
 }
 
 proc rankOneSheafSectionBasisMultTable(def data,int d,list #)
