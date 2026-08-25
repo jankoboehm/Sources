@@ -11,6 +11,7 @@
  * - spasm_kernel(spasm)->spasm
  * - spasm_rref(spasm) -> spasm (legacy SpaSM)
  * - spasm_rref_permuted(spasm) -> spasm (SpaSM 1.3; RREF of A*Q)
+ * - spasm_kernel_basis(module) -> module
  * - <spasm>[<int>,<int>] -> number: reading an entry (get_spasm_entry)
 */
 #include "singularconfig.h"
@@ -221,6 +222,31 @@ static ideal conv_spasm2smatrix(spasm *A, const ring R)
       p_SetComp(p,i+1,R);p_SetmComp(p,R);
       M->m[Aj[px]]=p_Add_q(M->m[Aj[px]],p,R);
     }
+  }
+  return M;
+}
+
+// A SpaSM kernel matrix stores one right-kernel vector in each row.  Singular
+// modules store generators in columns, so transpose this representation while
+// converting it and preserve the full ambient rank when the kernel is zero.
+static ideal conv_spasm_kernel2module(spasm *K, const ring R)
+{
+  ideal M=idInit(K->n,K->m);
+  const int *Kj=K->j;
+  const auto *Kp=K->p;
+  spasm_GFp *Kx=K->x;
+  for (int i=0;i<K->n;i++)
+  {
+    poly v=NULL;
+    for (auto px=Kp[i];px<Kp[i+1];px++)
+    {
+      const spasm_GFp x=(Kx!=NULL) ? Kx[px] : 1;
+      poly term=p_ISet(x,R);
+      p_SetComp(term,Kj[px]+1,R);
+      p_SetmComp(term,R);
+      v=p_Add_q(v,term,R);
+    }
+    M->m[i]=v;
   }
   return M;
 }
@@ -498,6 +524,43 @@ static BOOLEAN first_kernel_vector(leftv res, leftv args)
   res->data=(void*)K;
   return FALSE;
 }
+
+// Return a complete basis of the right kernel as Singular module generators.
+// This is the sparse, exact backend used by sheafSectionModuleSpaSM.  Unlike
+// the public blackbox operations, suppress SpaSM's unconditional progress
+// diagnostics because this entry point is an implementation detail.
+static BOOLEAN kernel_basis(leftv res, leftv args)
+{
+  if ((args==NULL) || (args->next!=NULL) ||
+      ((args->Typ()!=SMATRIX_CMD) && (args->Typ()!=MODUL_CMD)))
+    return TRUE;
+  if (!spasm_ring_supported(currRing))
+  {
+    WerrorS("SpaSM requires an odd supported prime field");
+    return TRUE;
+  }
+
+  spasm_stderr_silencer silence;
+  spasm *A=conv_smatrix2spasm((ideal)args->Data(),currRing);
+  if (A==NULL) return TRUE;
+  const int columnCount=A->m;
+  spasm *K=sp_kernel(A,currRing);
+  spasm_csr_free(A);
+  ideal result;
+  if (K==NULL)
+  {
+    // Legacy SpaSM may represent a full-column-rank kernel by NULL.
+    result=idInit(0,columnCount);
+  }
+  else
+  {
+    result=conv_spasm_kernel2module(K,currRing);
+    spasm_csr_free(K);
+  }
+  res->rtyp=MODUL_CMD;
+  res->data=(void*)result;
+  return FALSE;
+}
 static BOOLEAN sp_Op1(int op,leftv res, leftv arg)
 {
   if(op==TRANSPOSE_CMD)
@@ -567,6 +630,7 @@ extern "C" int SI_MOD_INIT(sispasm)(SModulFunctions* p)
                 supports_current_ring);
   p->iiAddCproc("spasm.so","spasm_first_kernel_vector",FALSE,
                 first_kernel_vector);
+  p->iiAddCproc("spasm.so","spasm_kernel_basis",FALSE,kernel_basis);
   return (MAX_TOK);
 }
 #else

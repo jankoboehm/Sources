@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-version="version sheafcoh.lib 4.4.1.0 Aug_2026 "; // $Id$
+version="version sheafcoh.lib 4.4.1.1 Aug_2026 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  sheafcoh.lib   Procedures for Computing Sheaf Cohomology
@@ -18,6 +18,9 @@ PROCEDURES:
  truncate(phi,d);        truncation of coker(phi) at d
  truncateFast(phi,d);    truncation of coker(phi) at d (fast+ experimental)
  CM_regularity(M);       Castelnuovo-Mumford regularity of coker(M)
+ sheafSectionModule(M,d); graded section module in all degrees >=d
+ sheafSectionModuleLinear(M,d); force Singular kernels for the section module
+ sheafSectionModuleSpaSM(M,d); force SpaSM kernels for the section module
  sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
  sheafSectionBasisBGG(M,d[,s,g]); representatives from a genuine BGG/Tate tail
  trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
@@ -1091,6 +1094,558 @@ static proc sectionBasisCompatibilityKernel(module G,module Bs,
   }
   module K=modulo(C,std(0));
   return(K);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// The truncated graded section module
+//
+//   Gamma_>=d(F)=direct sum_(e>=d) H^0(P^n,F(e)).
+//
+// Put N=coker(M), r=reg(N), and q=max(d,r+1).  The local-cohomology
+// definition of regularity implies N_e=H^0(F(e)) for e>=q, and N_>=q has a
+// q-linear resolution.  Its generators, linear relations, and every lower
+// section space down to d can therefore be reconstructed by constant linear
+// algebra.  The dual Koszul complex gives the exact downward step.
+
+static proc sectionModuleSpaSMUsable()
+{
+  // These fields are known to be unsupported, so avoid loading an optional
+  // module which cannot be selected anyway.
+  if (char(basering)==0) { return(0); }
+  if (char(basering)==2) { return(0); }
+  if (!defined(spasm_kernel_basis))
+  {
+    load("sispasm.so","try");
+  }
+  // Singular's Boolean operators are eager, so do not combine these guards.
+  if (!defined(spasm_supports_current_ring)) { return(0); }
+  if (!defined(spasm_kernel_basis)) { return(0); }
+  return(spasm_supports_current_ring());
+}
+
+static proc sectionModuleRequireSpaSM()
+{
+  if (!defined(spasm_kernel_basis))
+  {
+    load("sispasm.so","try");
+  }
+  if (!defined(spasm_supports_current_ring))
+  {
+    ERROR("SpaSM kernel requested, but the sispasm module is not available");
+  }
+  if (!defined(spasm_kernel_basis))
+  {
+    ERROR("SpaSM kernel requested, but the sispasm module is not available");
+  }
+  if (!spasm_supports_current_ring())
+  {
+    ERROR("SpaSM kernel requested, but the current coefficient field is unsupported");
+  }
+}
+
+// Complete right kernel of a constant matrix.  Backend selection is made
+// once before the section-module computation; a SpaSM error is never retried
+// with the generic kernel.
+static proc sectionModuleConstantKernel(matrix A,int useSpaSM)
+{
+  module K;
+  if (useSpaSM)
+  {
+    K=spasm_kernel_basis(module(A));
+  }
+  else
+  {
+    module zeroModule=0;
+    K=modulo(module(A),std(zeroModule));
+  }
+
+  matrix KM=matrix(K);
+  if (nrows(KM)!=ncols(A))
+  {
+    ERROR("internal error: a constant-kernel backend returned the wrong ambient dimension");
+  }
+  if (deg(KM)>0)
+  {
+    ERROR("internal error: a constant-kernel backend returned nonconstant entries");
+  }
+  return(K);
+}
+
+// Bases of coker(M)_e and coker(M)_(e+1), followed by the n+1 scalar
+// multiplication matrices V_e -> V_(e+1).
+static proc sectionModuleMultiplicationData(module G,intvec weights,int e)
+{
+  module B=sectionBasisGradedPiece(G,weights,e);
+  module B1=sectionBasisGradedPiece(G,weights,e+1);
+  list variableMaps;
+  int sourceDimension=size(B);
+  int targetDimension=size(B1);
+  if (sourceDimension==0)
+  {
+    return(list(B,B1,variableMaps));
+  }
+  if (targetDimension==0)
+  {
+    ERROR("internal error: multiplication from a stable nonzero section space has zero target");
+  }
+
+  int ell;
+  module P;
+  matrix T,PM,trailingRows;
+  for (ell=1;ell<=nvars(basering);ell++)
+  {
+    P=reduce(var(ell)*B,G);
+    if (nrows(P)>nrows(B1))
+    {
+      PM=matrix(P);
+      trailingRows=PM[nrows(B1)+1..nrows(P),1..sourceDimension];
+      if (deg(trailingRows)>=0)
+      {
+        ERROR("internal error: multiplication left the target homogeneous piece");
+      }
+      P=module(PM[1..nrows(B1),1..sourceDimension]);
+    }
+    T=lift(B1,P);
+    if ((nrows(T)!=targetDimension) ||
+        (ncols(T)!=sourceDimension) || (deg(T)>0))
+    {
+      ERROR("internal error while constructing a section-module multiplication map");
+    }
+    variableMaps[ell]=T;
+  }
+  return(list(B,B1,variableMaps));
+}
+
+// Given multiplication V_(e+1)->V_(e+2), recover V_e as the kernel of
+//
+// V_(e+1)^(n+1) -> V_(e+2)^binomial(n+1,2),
+// (s_i) |-> (x_i*s_j-x_j*s_i)_(i<j).
+//
+// The returned list consists of dim(V_e) and the coordinate projections,
+// which are the multiplication matrices V_e->V_(e+1).
+static proc sectionModulePreviousSpace(list variableMaps,int useSpaSM)
+{
+  int nv=size(variableMaps);
+  if (nv==0)
+  {
+    ERROR("internal error: missing section-module multiplication maps");
+  }
+  matrix firstMap=variableMaps[1];
+  int sourceDimension=ncols(firstMap);
+  int targetDimension=nrows(firstMap);
+  int ell;
+  matrix variableMap;
+  for (ell=2;ell<=nv;ell++)
+  {
+    variableMap=variableMaps[ell];
+    if ((ncols(variableMap)!=sourceDimension) ||
+        (nrows(variableMap)!=targetDimension))
+    {
+      ERROR("internal error: incompatible section-module multiplication maps");
+    }
+  }
+
+  // On P^0 the single coordinate is invertible after sheafification.
+  if (nv==1)
+  {
+    list p0Maps=unitmat(sourceDimension);
+    return(list(sourceDimension,p0Maps));
+  }
+
+  int pairCount=nv*(nv-1) div 2;
+  int kernelAmbientDimension=nv*sourceDimension;
+  list projectionMaps;
+  int i,j,a,b,pairIndex,rowOffset;
+  matrix fullProjection,mapI,mapJ,projection;
+
+  // This branch is mathematically unreachable for genuine consecutive
+  // section spaces with sourceDimension>0, but it also gives the correct
+  // kernel of an empty compatibility matrix.
+  if (targetDimension==0)
+  {
+    for (i=1;i<=nv;i++)
+    {
+      fullProjection=matrix(0,sourceDimension,kernelAmbientDimension);
+      for (a=1;a<=sourceDimension;a++)
+      {
+        fullProjection[a,(i-1)*sourceDimension+a]=1;
+      }
+      projectionMaps[i]=fullProjection;
+    }
+    return(list(kernelAmbientDimension,projectionMaps));
+  }
+
+  matrix compatibility[targetDimension*pairCount][kernelAmbientDimension];
+  pairIndex=0;
+  for (i=1;i<nv;i++)
+  {
+    mapI=variableMaps[i];
+    for (j=i+1;j<=nv;j++)
+    {
+      mapJ=variableMaps[j];
+      rowOffset=pairIndex*targetDimension;
+      for (a=1;a<=targetDimension;a++)
+      {
+        for (b=1;b<=sourceDimension;b++)
+        {
+          compatibility[rowOffset+a,(j-1)*sourceDimension+b]
+            =mapI[a,b];
+          compatibility[rowOffset+a,(i-1)*sourceDimension+b]
+            =-mapJ[a,b];
+        }
+      }
+      pairIndex++;
+    }
+  }
+
+  module K=sectionModuleConstantKernel(compatibility,useSpaSM);
+  int previousDimension=size(K);
+  if (previousDimension==0)
+  {
+    return(list(0,projectionMaps));
+  }
+  matrix KM=matrix(K);
+  for (i=1;i<=nv;i++)
+  {
+    projection=matrix(0,sourceDimension,previousDimension);
+    for (a=1;a<=sourceDimension;a++)
+    {
+      for (b=1;b<=previousDimension;b++)
+      {
+        projection[a,b]=KM[(i-1)*sourceDimension+a,b];
+      }
+    }
+    projectionMaps[i]=projection;
+  }
+  return(list(previousDimension,projectionMaps));
+}
+
+// Assemble a presentation from the spaces V_d,...,V_q, their multiplication
+// maps, and the degree-(q+1) relations which generate the q-linear tail.
+static proc sectionModuleAssemble(int d,int q,intvec dimensions,
+                                  list multiplicationMaps,module tailKernel)
+{
+  int spaceCount=q-d+1;
+  int nv=nvars(basering);
+  intvec offsets;
+  int totalRows=0;
+  int index,a,b,ell,columnCount,sourceDimension,targetDimension;
+  list maps;
+  matrix mu;
+  for (index=1;index<=spaceCount;index++)
+  {
+    offsets[index]=totalRows+1;
+    totalRows=totalRows+dimensions[index];
+  }
+  if (totalRows==0)
+  {
+    module zeroPresentation=gen(1);
+    attrib(zeroPresentation,"isHomog",intvec(d));
+    return(zeroPresentation);
+  }
+
+  int totalColumns=size(tailKernel);
+  for (index=1;index<spaceCount;index++)
+  {
+    totalColumns=totalColumns+nv*dimensions[index];
+  }
+  int allocatedColumns=max(1,totalColumns);
+  matrix presentation[totalRows][allocatedColumns];
+  intvec resultWeights;
+  resultWeights[totalRows]=0;
+  for (index=1;index<=spaceCount;index++)
+  {
+    for (a=1;a<=dimensions[index];a++)
+    {
+      resultWeights[offsets[index]+a-1]=d+index-1;
+    }
+  }
+
+  // Relations describing multiplication out of every recovered lower space.
+  columnCount=0;
+  for (index=1;index<spaceCount;index++)
+  {
+    sourceDimension=dimensions[index];
+    targetDimension=dimensions[index+1];
+    // Once a recovered section space vanishes, every lower one vanishes as
+    // well.  Their multiplication-map list entries are intentionally absent.
+    if (sourceDimension>0)
+    {
+      maps=multiplicationMaps[index];
+      for (ell=1;ell<=nv;ell++)
+      {
+        mu=maps[ell];
+        if ((ncols(mu)!=sourceDimension) || (nrows(mu)!=targetDimension))
+        {
+          ERROR("internal error: incompatible multiplication map during section-module assembly");
+        }
+        for (a=1;a<=sourceDimension;a++)
+        {
+          columnCount++;
+          presentation[offsets[index]+a-1,columnCount]=var(ell);
+          for (b=1;b<=targetDimension;b++)
+          {
+            presentation[offsets[index+1]+b-1,columnCount]
+              =presentation[offsets[index+1]+b-1,columnCount]-mu[b,a];
+          }
+        }
+      }
+    }
+  }
+
+  // Since q>reg(coker(M)), the stable tail has a q-linear resolution.
+  // Therefore the kernel of S_1 tensor V_q -> V_(q+1) generates all of its
+  // relations.
+  int tailDimension=dimensions[spaceCount];
+  matrix tailKM=matrix(tailKernel);
+  if (nrows(tailKM)!=nv*tailDimension)
+  {
+    ERROR("internal error: incompatible stable-tail kernel");
+  }
+  int relation;
+  for (relation=1;relation<=size(tailKernel);relation++)
+  {
+    columnCount++;
+    for (a=1;a<=tailDimension;a++)
+    {
+      for (ell=1;ell<=nv;ell++)
+      {
+        presentation[offsets[spaceCount]+a-1,columnCount]
+          =presentation[offsets[spaceCount]+a-1,columnCount]
+           +var(ell)*tailKM[(ell-1)*tailDimension+a,relation];
+      }
+    }
+  }
+  if (columnCount!=totalColumns)
+  {
+    ERROR("internal error: wrong number of section-module relations");
+  }
+
+  module result=presentation;
+  attrib(result,"isHomog",resultWeights);
+  if (!homog(result))
+  {
+    ERROR("internal error: the section-module presentation is not homogeneous");
+  }
+  return(result);
+}
+
+static proc sectionModulePolynomial(module M,int d,int useSpaSM)
+{
+  int regValue=CM_regularity(M);
+  int q=max(d,regValue+1);
+  module G=std(M);
+  intvec weights=attrib(M,"isHomog");
+  list tailData=sectionModuleMultiplicationData(G,weights,q);
+  module Bq=tailData[1];
+  module Bq1=tailData[2];
+  list currentMaps=tailData[3];
+  int tailDimension=size(Bq);
+  if (tailDimension==0)
+  {
+    module zeroPresentation=gen(1);
+    attrib(zeroPresentation,"isHomog",intvec(d));
+    return(zeroPresentation);
+  }
+
+  int nextDimension=size(Bq1);
+  int nv=nvars(basering);
+  matrix tailMultiplication[nextDimension][nv*tailDimension];
+  matrix mu;
+  int ell,a,b;
+  for (ell=1;ell<=nv;ell++)
+  {
+    mu=currentMaps[ell];
+    for (a=1;a<=nextDimension;a++)
+    {
+      for (b=1;b<=tailDimension;b++)
+      {
+        tailMultiplication[a,(ell-1)*tailDimension+b]=mu[a,b];
+      }
+    }
+  }
+  module tailKernel=sectionModuleConstantKernel(tailMultiplication,useSpaSM);
+
+  int spaceCount=q-d+1;
+  intvec dimensions;
+  dimensions[spaceCount]=tailDimension;
+  list multiplicationMaps;
+  int e,index,previousDimension,zeroIndex;
+  list previousData,previousMaps;
+  for (e=q-1;e>=d;e--)
+  {
+    index=e-d+1;
+    previousData=sectionModulePreviousSpace(currentMaps,useSpaSM);
+    previousDimension=previousData[1];
+    dimensions[index]=previousDimension;
+    if (previousDimension==0)
+    {
+      for (zeroIndex=index-1;zeroIndex>=1;zeroIndex--)
+      {
+        dimensions[zeroIndex]=0;
+      }
+      break;
+    }
+    previousMaps=previousData[2];
+    multiplicationMaps[index]=previousMaps;
+    currentMaps=previousMaps;
+  }
+
+  return(sectionModuleAssemble(d,q,dimensions,multiplicationMaps,tailKernel));
+}
+
+// backend=-1 selects once, backend=0 forces Singular, backend=1 forces SpaSM.
+static proc sectionModuleDispatch(module M,int d,int backend)
+{
+  if (typeof(attrib(M,"isHomog"))!="intvec")
+  {
+    if (size(M)==0)
+    {
+      intvec zeroWeights;
+      zeroWeights[nrows(M)]=0;
+      attrib(M,"isHomog",zeroWeights);
+    }
+    else
+    {
+      ERROR("No admissible degree vector assigned");
+    }
+  }
+  if (!homog(M))
+  {
+    ERROR("the presentation must be homogeneous for the assigned generator degrees");
+  }
+
+  int useSpaSM=0;
+  if (backend<0)
+  {
+    useSpaSM=sectionModuleSpaSMUsable();
+  }
+  if (backend>0)
+  {
+    sectionModuleRequireSpaSM();
+    useSpaSM=1;
+  }
+
+  list RL=ringlist(basering);
+  if (RL[4]!=0)
+  {
+    intvec qWeights=attrib(M,"isHomog");
+    def Q=basering;
+    ideal coordinateIdealQ=RL[4];
+    RL[4]=ideal(0);
+    def S=ring(RL);
+    setring S;
+    module MS=imap(Q,M);
+    ideal IX=imap(Q,coordinateIdealQ);
+    MS=MS+IX*freemodule(nrows(MS));
+    attrib(MS,"isHomog",qWeights);
+    module resultS=sectionModulePolynomial(MS,d,useSpaSM);
+    intvec resultWeights=attrib(resultS,"isHomog");
+
+    setring Q;
+    module resultQ=imap(S,resultS);
+    attrib(resultQ,"isHomog",resultWeights);
+    return(resultQ);
+  }
+
+  return(sectionModulePolynomial(M,d,useSpaSM));
+}
+
+proc sheafSectionModule(module M,int d)
+"USAGE:   sheafSectionModule(M,d); M module, d int
+ASSUME:   M is a graded presentation matrix over a standard graded
+         polynomial ring over a field, or its homogeneous qring, with the row
+         degrees assigned as isHomog.
+RETURN:   module P presenting the direct sum, over all e>=d, of
+         H^0(Proj(basering),sheaf(coker(M))(e)).
+         In particular, dimGradedPart(P,e) is zero for e<d and is the
+         corresponding h^0 for every e>=d.
+NOTE:     The procedure chooses its constant-kernel backend once. It uses
+         SpaSM when the optional module is available and the coefficient
+         field is supported, and otherwise uses Singular's generic exact
+         module kernel. If a selected SpaSM computation fails, it is not
+         retried with another backend.
+         The certified starting degree is max(d,reg(coker(M))+1). The stable
+         linear tail is reconstructed there, and the sheafified dual Koszul
+         complex recovers all requested lower degrees and multiplication
+         maps exactly; no saturation, heuristic stabilization, verification, or
+         BGG computation is used. The returned presentation is generally nonminimal.
+SEE ALSO: sheafSectionModuleLinear, sheafSectionModuleSpaSM,
+          sheafSectionBasis, truncate, CM_regularity
+EXAMPLE: example sheafSectionModule; shows an example
+"
+{
+  return(sectionModuleDispatch(M,d,-1));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module Point=x,y;
+  attrib(Point,"isHomog",intvec(0));
+  // O_Point has one section in every twist, including negative twists.
+  module G=sheafSectionModule(Point,-2);
+  intvec(dimGradedPart(G,-3),dimGradedPart(G,-2),
+         dimGradedPart(G,-1),dimGradedPart(G,0),dimGradedPart(G,1));
+}
+
+proc sheafSectionModuleLinear(module M,int d)
+"USAGE:   sheafSectionModuleLinear(M,d); M module, d int
+RETURN:   A presentation of the same graded section module as
+         sheafSectionModule(M,d), computed with Singular's generic exact
+         module kernels.
+NOTE:     This command never probes or dispatches to SpaSM.
+SEE ALSO: sheafSectionModule, sheafSectionModuleSpaSM
+EXAMPLE: example sheafSectionModuleLinear; shows an example
+"
+{
+  return(sectionModuleDispatch(M,d,0));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module Point=x,y;
+  attrib(Point,"isHomog",intvec(0));
+  module G=sheafSectionModuleLinear(Point,-1);
+  intvec(dimGradedPart(G,-2),dimGradedPart(G,-1),
+         dimGradedPart(G,0),dimGradedPart(G,1));
+}
+
+proc sheafSectionModuleSpaSM(module M,int d)
+"USAGE:   sheafSectionModuleSpaSM(M,d); M module, d int
+ASSUME:   The assumptions of sheafSectionModule hold, the sispasm module is
+         available, and the current coefficient field is supported by SpaSM.
+RETURN:   A presentation of the same graded section module as
+         sheafSectionModule(M,d), with every constant nullspace computed by
+         the strict exact SpaSM backend.
+NOTE:     SpaSM is preflighted before the computation. This command errors if
+         SpaSM is unavailable or inapplicable and never substitutes another
+         backend.
+SEE ALSO: sheafSectionModule, sheafSectionModuleLinear
+EXAMPLE: example sheafSectionModuleSpaSM; shows an example when SpaSM is
+         available
+"
+{
+  return(sectionModuleDispatch(M,d,1));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  load("sispasm.so","try");
+  if (defined(spasm_kernel_basis))
+  {
+    if (spasm_supports_current_ring())
+    {
+      module Point=x,y;
+      attrib(Point,"isHomog",intvec(0));
+      module G=sheafSectionModuleSpaSM(Point,-1);
+      intvec(dimGradedPart(G,-2),dimGradedPart(G,-1),
+             dimGradedPart(G,0),dimGradedPart(G,1));
+    }
+  }
 }
 
 static proc sectionBasisEvaluation(module K,ideal U,module Bs,poly g)

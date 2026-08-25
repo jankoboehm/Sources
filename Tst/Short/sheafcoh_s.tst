@@ -823,4 +823,81 @@ kill r;
    size(NF(linearQCoordinates,std(directQCoordinates+linearQSupport)));
    size(NF(directQCoordinates,std(linearQCoordinates+linearQSupport)));
 
+// The complete truncated section module is reconstructed from its certified
+// linear tail.  The point tests genuine descent through negative twists, while
+// O and O plus irrelevant torsion exercise the first vanishing lower space:
+//----------------------------------------------------------------------------
+   ring RsectionModule=0,(x,y,z),dp;
+   module sectionPoint=x,y;
+   attrib(sectionPoint,"isHomog",intvec(0));
+   module pointTail=sheafSectionModuleLinear(sectionPoint,-2);
+   homog(pointTail);
+   intvec(dimGradedPart(pointTail,-3),dimGradedPart(pointTail,-2),
+          dimGradedPart(pointTail,-1),dimGradedPart(pointTail,0),
+          dimGradedPart(pointTail,1),dimGradedPart(pointTail,2));
+   module highPointTail=sheafSectionModuleLinear(sectionPoint,4);
+   intvec(dimGradedPart(highPointTail,3),dimGradedPart(highPointTail,4),
+          dimGradedPart(highPointTail,5));
+   matrix zeroPresentationMatrix[1][1];
+   module sectionO=zeroPresentationMatrix;
+   attrib(sectionO,"isHomog",intvec(0));
+   module structureTail=sheafSectionModule(sectionO,-2);
+   intvec(dimGradedPart(structureTail,-3),dimGradedPart(structureTail,-2),
+          dimGradedPart(structureTail,-1),dimGradedPart(structureTail,0),
+          dimGradedPart(structureTail,1),dimGradedPart(structureTail,2));
+   module sectionTorsion=x*gen(2),y*gen(2),z*gen(2);
+   attrib(sectionTorsion,"isHomog",intvec(0,0));
+   module torsionTail=sheafSectionModuleLinear(sectionTorsion,-2);
+   intvec(dimGradedPart(torsionTail,-1),dimGradedPart(torsionTail,0),
+          dimGradedPart(torsionTail,1),dimGradedPart(torsionTail,2));
+
+// A rank-two sheaf checks the full multiplication tables and agrees with the
+// independent local-duality computation in every requested degree:
+//--------------------------------------------------------------------------
+   module tangentMinusOne=x*gen(1)+y*gen(2)+z*gen(3);
+   attrib(tangentMinusOne,"isHomog",intvec(0,0,0));
+   module tangentTail=sheafSectionModuleLinear(tangentMinusOne,-3);
+   intvec(dimGradedPart(tangentTail,-3),dimGradedPart(tangentTail,-2),
+          dimGradedPart(tangentTail,-1),dimGradedPart(tangentTail,0),
+          dimGradedPart(tangentTail,1),dimGradedPart(tangentTail,2),
+          dimGradedPart(tangentTail,3));
+   intvec(dimH(0,tangentMinusOne,-3),dimH(0,tangentMinusOne,-2),
+          dimH(0,tangentMinusOne,-1),dimH(0,tangentMinusOne,0),
+          dimH(0,tangentMinusOne,1),dimH(0,tangentMinusOne,2),
+          dimH(0,tangentMinusOne,3));
+
+// Automatic backend selection remains exact when SpaSM is inapplicable:
+//-----------------------------------------------------------------------
+   ring RsectionModuleTwo=2,(x,y,z),dp;
+   module sectionPointTwo=x,y;
+   attrib(sectionPointTwo,"isHomog",intvec(0));
+   module automaticTailTwo=sheafSectionModule(sectionPointTwo,-2);
+   module linearTailTwo=sheafSectionModuleLinear(sectionPointTwo,-2);
+   intvec(dimGradedPart(automaticTailTwo,-3),
+          dimGradedPart(automaticTailTwo,-2),
+          dimGradedPart(automaticTailTwo,-1),
+          dimGradedPart(automaticTailTwo,0),
+          dimGradedPart(automaticTailTwo,1));
+   intvec(dimGradedPart(linearTailTwo,-3),dimGradedPart(linearTailTwo,-2),
+          dimGradedPart(linearTailTwo,-1),dimGradedPart(linearTailTwo,0),
+          dimGradedPart(linearTailTwo,1));
+
+// Homogeneous qrings and P^0 use the same public interface:
+//-----------------------------------------------------------
+   ring RsectionModuleQAmbient=0,(x,y,z),dp;
+   qring RsectionModuleQ=std(x2+y2+z2);
+   module conicO=0;
+   attrib(conicO,"isHomog",intvec(0));
+   module conicTail=sheafSectionModuleLinear(conicO,-2);
+   intvec(dimGradedPart(conicTail,-2),dimGradedPart(conicTail,-1),
+          dimGradedPart(conicTail,0),dimGradedPart(conicTail,1),
+          dimGradedPart(conicTail,2),dimGradedPart(conicTail,3));
+   ring RsectionModulePZero=0,(x),dp;
+   module pointSpaceO=0;
+   attrib(pointSpaceO,"isHomog",intvec(0));
+   module pointSpaceTail=sheafSectionModuleLinear(pointSpaceO,-3);
+   intvec(dimGradedPart(pointSpaceTail,-4),dimGradedPart(pointSpaceTail,-3),
+          dimGradedPart(pointSpaceTail,-2),dimGradedPart(pointSpaceTail,-1),
+          dimGradedPart(pointSpaceTail,0),dimGradedPart(pointSpaceTail,1));
+
 tst_status(1);$

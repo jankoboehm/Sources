@@ -11,7 +11,10 @@ ring automaticRing=32003,(u0,u1,u2,u3),dp;
 ideal automaticCubic=u0^3+u1^3+u2^3+u3^3;
 list automaticAdjunction=KSCadjunctionPrepass(automaticCubic);
 setring r;
-if (!defined(spasm_first_kernel_vector))
+int completeSpaSMInterface=1;
+if (!defined(spasm_first_kernel_vector)) { completeSpaSMInterface=0; }
+if (!defined(spasm_kernel_basis)) { completeSpaSMInterface=0; }
+if (!completeSpaSMInterface)
 {
   if (spasmAdvertised) { print("SPASM_TEST_FAIL"); }
   else { print("SPASM_TEST_SKIP"); }
@@ -23,10 +26,19 @@ else
   module K=spasm_first_kernel_vector(module(A));
   if (size(K)==0) { ok=0; }
   if (size(module(A*matrix(K)))!=0) { ok=0; }
+  module fullK=spasm_kernel_basis(module(A));
+  if ((size(fullK)!=2) || (nrows(matrix(fullK))!=3)) { ok=0; }
+  if (size(module(A*matrix(fullK)))!=0) { ok=0; }
   matrix B[3][2]=1,0,0,1,1,1;
   module L=spasm_first_kernel_vector(module(B));
   if (size(L)!=0) { ok=0; }
   if (nrows(matrix(L))!=2) { ok=0; }
+  module fullL=spasm_kernel_basis(module(B));
+  if ((size(fullL)!=0) || (nrows(matrix(fullL))!=2)) { ok=0; }
+  matrix zeroMatrix[2][3];
+  module fullZeroKernel=spasm_kernel_basis(module(zeroMatrix));
+  if ((size(fullZeroKernel)!=3) ||
+      (nrows(matrix(fullZeroKernel))!=3)) { ok=0; }
   matrix C[3][2]=1,0,0,1,0,0;
   spasm sparseC=module(C);
   sparseC=sparseC;
@@ -44,6 +56,31 @@ else
   if (size(NF(GV,std(VG)))!=0) { ok=0; }
   SectionSpace BGGSpace=rankOneSheafSectionBasisBGGSpaSM(P,0,ideal(0),1,x);
   if (size(BGGSpace)!=3) { ok=0; }
+  module sectionPoint=x,y;
+  attrib(sectionPoint,"isHomog",intvec(0));
+  module sectionTailSpaSM=sheafSectionModuleSpaSM(sectionPoint,-2);
+  module sectionTailAuto=sheafSectionModule(sectionPoint,-2);
+  module sectionTailLinear=sheafSectionModuleLinear(sectionPoint,-2);
+  if ((dimGradedPart(sectionTailSpaSM,-3)!=0) ||
+      (dimGradedPart(sectionTailSpaSM,-2)!=1) ||
+      (dimGradedPart(sectionTailSpaSM,2)!=1)) { ok=0; }
+  if ((dimGradedPart(sectionTailAuto,-2)!=1) ||
+      (dimGradedPart(sectionTailLinear,-2)!=1)) { ok=0; }
+  ring sectionQAmbient=32003,(a,b,c),dp;
+  qring sectionQ=std(a2+b2+c2);
+  module sectionQO=0;
+  attrib(sectionQO,"isHomog",intvec(0));
+  module sectionQTail=sheafSectionModuleSpaSM(sectionQO,-1);
+  if ((dimGradedPart(sectionQTail,-1)!=0) ||
+      (dimGradedPart(sectionQTail,0)!=1) ||
+      (dimGradedPart(sectionQTail,2)!=5)) { ok=0; }
+  ring sectionPZero=32003,(t),dp;
+  module sectionPZeroO=0;
+  attrib(sectionPZeroO,"isHomog",intvec(0));
+  module sectionPZeroTail=sheafSectionModuleSpaSM(sectionPZeroO,-2);
+  if ((dimGradedPart(sectionPZeroTail,-3)!=0) ||
+      (dimGradedPart(sectionPZeroTail,-2)!=1) ||
+      (dimGradedPart(sectionPZeroTail,1)!=1)) { ok=0; }
   ring r4=32003,(x0,x1,x2,x3),dp;
   ideal quintic=x0^5+x1^5+x2^5+x3^5;
   int phiLinear=KSCphiDim(quintic,1);
@@ -72,6 +109,12 @@ else
   // The explicit generic command remains available, independently of SpaSM.
   SectionSpace V2=rankOneSheafSectionBasisLinear(P2,0,ideal(0));
   if (size(V2)!=3) { ok=0; }
+  module sectionPoint2=x,y;
+  attrib(sectionPoint2,"isHomog",intvec(0));
+  module sectionTailAuto2=sheafSectionModule(sectionPoint2,-2);
+  module sectionTailLinear2=sheafSectionModuleLinear(sectionPoint2,-2);
+  if ((dimGradedPart(sectionTailAuto2,-2)!=1) ||
+      (dimGradedPart(sectionTailLinear2,-2)!=1)) { ok=0; }
   if (ok) { print("SPASM_TEST_OK"); }
   else { print("SPASM_TEST_FAIL"); }
 }
@@ -88,9 +131,21 @@ attrib(O,"isHomog",intvec(0));
 rankOneTrivializationSpaSM(O,ideal(0));
 quit;
 ' 2>&1)
+    unavailableSection=$("$SINGULAR_BIN_DIR/Singular" -q -c '
+ring r=32003,(x,y,z),dp;
+LIB "sheafcoh.lib";
+module O=0;
+attrib(O,"isHomog",intvec(0));
+sheafSectionModuleSpaSM(O,-1);
+quit;
+' 2>&1)
     case "$unavailable" in
-      *"SpaSM kernel requested, but the sispasm module is not available"*) exit 77 ;;
+      *"SpaSM kernel requested, but the sispasm module is not available"*) ;;
       *) echo "$unavailable"; exit 1 ;;
+    esac
+    case "$unavailableSection" in
+      *"SpaSM kernel requested, but the sispasm module is not available"*) exit 77 ;;
+      *) echo "$unavailableSection"; exit 1 ;;
     esac
     ;;
   *SPASM_TEST_OK*) ;;
@@ -108,7 +163,21 @@ rankOneTrivializationSpaSM(O,ideal(0));
 quit;
 ' 2>&1)
 
+unsupportedSection=$("$SINGULAR_BIN_DIR/Singular" -q -c '
+ring r=2,(x,y,z),dp;
+LIB "sheafcoh.lib";
+module O=0;
+attrib(O,"isHomog",intvec(0));
+sheafSectionModuleSpaSM(O,-1);
+quit;
+' 2>&1)
+
 case "$unsupported" in
-  *"SpaSM kernel requested, but the current coefficient field is unsupported"*) exit 0 ;;
+  *"SpaSM kernel requested, but the current coefficient field is unsupported"*) ;;
   *) echo "$unsupported"; exit 1 ;;
+esac
+
+case "$unsupportedSection" in
+  *"SpaSM kernel requested, but the current coefficient field is unsupported"*) exit 0 ;;
+  *) echo "$unsupportedSection"; exit 1 ;;
 esac
