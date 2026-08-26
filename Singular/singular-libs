@@ -53,6 +53,7 @@ SLIB1 = arr.lib arnold.lib arnoldclassify.lib \
 	methods.lib modules.lib multigrading.lib modwalk.lib\
 	modnormal.lib \
 	nets.lib ncfrac.lib ncloc.lib \
+	nonGeneralTypeSurfacesP4.lib \
 	numerAlg.lib numerDecom.lib \
         olga.lib orbitparam.lib \
 	parallel.lib polyclass.lib polymake.lib polybori.lib \

@@ -1,5 +1,26 @@
 #!/bin/sh
 
+automaticLoad=$("$SINGULAR_BIN_DIR/Singular" -q -c '
+ring r=32003,(x,y,z),dp;
+LIB "sheafcoh.lib";
+// Test generic lazy loading in its own process, independently of the
+// classifiers automatic loader in the main regression below.
+module P=-x*gen(1)+gen(2);
+attrib(P,"isHomog",intvec(-1,0));
+SectionSpace V=lineBundleSectionBasis(P,0,ideal(0));
+if (size(V)!=3) { print("AUTO_SECTION_FAIL"); }
+else
+{
+  if (defined(spasm_first_kernel_vector)) { print("AUTO_SECTION_SPASM"); }
+  else { print("AUTO_SECTION_GENERIC"); }
+}
+quit;
+')
+case "$automaticLoad" in
+  *AUTO_SECTION_SPASM*|*AUTO_SECTION_GENERIC*) ;;
+  *) echo "$automaticLoad"; exit 1 ;;
+esac
+
 result=$("$SINGULAR_BIN_DIR/Singular" -q -c '
 ring r=32003,(x,y,z),dp;
 int spasmAdvertised=system("with","spasm");
@@ -22,6 +43,14 @@ if (!completeSpaSMInterface)
 else
 {
   int ok=spasm_supports_current_ring();
+  module automaticPresentation=-x*gen(1)+gen(2);
+  attrib(automaticPresentation,"isHomog",intvec(-1,0));
+  SectionSpace automaticSections=lineBundleSectionBasis(
+                                  automaticPresentation,0,ideal(0));
+  if (size(automaticSections)!=3) { ok=0; }
+  RankOneSheaf automaticSheaf=lineBundle(automaticPresentation,ideal(0));
+  SectionSpace automaticTwist=lineBundleSectionBasis(automaticSheaf,1);
+  if (size(automaticTwist)!=6) { ok=0; }
   matrix A[2][3]=1,2,3,2,4,6;
   module K=spasm_first_kernel_vector(module(A));
   if (size(K)==0) { ok=0; }
@@ -54,6 +83,29 @@ else
   ideal GV=G.basis*V.denom;
   if (size(NF(VG,std(GV)))!=0) { ok=0; }
   if (size(NF(GV,std(VG)))!=0) { ok=0; }
+  ideal automaticCoordinates=automaticSections.basis*V.denom;
+  ideal forcedCoordinates=V.basis*automaticSections.denom;
+  if (size(NF(automaticCoordinates,std(forcedCoordinates)))!=0) { ok=0; }
+  if (size(NF(forcedCoordinates,std(automaticCoordinates)))!=0) { ok=0; }
+  // A nonlinear prime support exercises the primality preflight. Reducible
+  // and nonreduced supports must retain the validated original frame method.
+  ideal conicSupport=x2+y*z;
+  module conicPresentation=-x*gen(1)+gen(2),
+    conicSupport[1]*gen(1),conicSupport[1]*gen(2);
+  attrib(conicPresentation,"isHomog",intvec(-1,0));
+  SectionSpace conicSections=lineBundleSectionBasis(
+                              conicPresentation,0,conicSupport);
+  if (size(conicSections)!=3) { ok=0; }
+  module reduciblePresentation=y*gen(1),x*gen(2);
+  attrib(reduciblePresentation,"isHomog",intvec(0,0));
+  SectionSpace reducibleSections=rankOneSheafSectionBasis(
+                                  reduciblePresentation,0,ideal(x*y));
+  if (size(reducibleSections)!=2) { ok=0; }
+  module thickenedLine=x2;
+  attrib(thickenedLine,"isHomog",intvec(0));
+  SectionSpace thickenedSections=lineBundleSectionBasis(
+                                  thickenedLine,0,ideal(x2));
+  if (size(thickenedSections)!=1) { ok=0; }
   SectionSpace BGGSpace=rankOneSheafSectionBasisBGGSpaSM(P,0,ideal(0),1,x);
   if (size(BGGSpace)!=3) { ok=0; }
   module sectionPoint=x,y;
@@ -74,6 +126,18 @@ else
   if ((dimGradedPart(sectionQTail,-1)!=0) ||
       (dimGradedPart(sectionQTail,0)!=1) ||
       (dimGradedPart(sectionQTail,2)!=5)) { ok=0; }
+  RankOneSheaf automaticQSheaf=lineBundle(sectionQO,ideal(0));
+  SectionSpace automaticQSections=lineBundleSectionBasis(automaticQSheaf,1);
+  if (basering!=sectionQ) { ok=0; }
+  if (size(automaticQSections)!=3) { ok=0; }
+  setring sectionQAmbient;
+  qring reducibleQ=std(a*b);
+  module reducibleQPresentation=b*gen(1),a*gen(2);
+  attrib(reducibleQPresentation,"isHomog",intvec(0,0));
+  SectionSpace reducibleQSections=rankOneSheafSectionBasis(
+                                   reducibleQPresentation,0,ideal(0));
+  if (basering!=reducibleQ) { ok=0; }
+  if (size(reducibleQSections)!=2) { ok=0; }
   ring sectionPZero=32003,(t),dp;
   module sectionPZeroO=0;
   attrib(sectionPZeroO,"isHomog",intvec(0));
@@ -109,12 +173,20 @@ else
   // The explicit generic command remains available, independently of SpaSM.
   SectionSpace V2=rankOneSheafSectionBasisLinear(P2,0,ideal(0));
   if (size(V2)!=3) { ok=0; }
+  SectionSpace automaticTwo=lineBundleSectionBasis(P2,0,ideal(0));
+  if (size(automaticTwo)!=3) { ok=0; }
   module sectionPoint2=x,y;
   attrib(sectionPoint2,"isHomog",intvec(0));
   module sectionTailAuto2=sheafSectionModule(sectionPoint2,-2);
   module sectionTailLinear2=sheafSectionModuleLinear(sectionPoint2,-2);
   if ((dimGradedPart(sectionTailAuto2,-2)!=1) ||
       (dimGradedPart(sectionTailLinear2,-2)!=1)) { ok=0; }
+  ring rationalRing=0,(x,y,z),dp;
+  module rationalPresentation=-x*gen(1)+gen(2);
+  attrib(rationalPresentation,"isHomog",intvec(-1,0));
+  SectionSpace rationalSections=lineBundleSectionBasis(
+                                 rationalPresentation,0,ideal(0));
+  if (size(rationalSections)!=3) { ok=0; }
   if (ok) { print("SPASM_TEST_OK"); }
   else { print("SPASM_TEST_FAIL"); }
 }
@@ -148,7 +220,12 @@ quit;
       *) echo "$unavailableSection"; exit 1 ;;
     esac
     ;;
-  *SPASM_TEST_OK*) ;;
+  *SPASM_TEST_OK*)
+    case "$automaticLoad" in
+      *AUTO_SECTION_SPASM*) ;;
+      *) echo "$automaticLoad"; exit 1 ;;
+    esac
+    ;;
   *) echo "$result"; exit 1 ;;
 esac
 

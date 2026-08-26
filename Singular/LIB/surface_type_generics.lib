@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version surface_type_generics.lib 0.1.0 Jul_2026";
+version="version surface_type_generics.lib 0.1.1 Aug_2026";
 category="Algebraic Geometry";
 info="
 LIBRARY:  surface_type_generics.lib
@@ -29,6 +29,8 @@ WHAT \"GENERIC\" MEANS HERE:
   generic representative of that type.  Exact embedded parameter spaces for the
   high-degree P^4 models are much more specialized and are usually built by
   liaison or syzygy constructions.
+  For the actual stored examples use the separate nonGeneralTypeSurfacesP4.lib,
+  with nonGeneralTypeSurfaceP4(name); the generic constructors here are distinct.
 
 CHARACTERISTIC WARNINGS:
   * Enriques quotients by an involution are implemented for characteristic not 2.
@@ -723,9 +725,8 @@ proc STG_genericSurface(string surfaceType, list #)
 "USAGE:   STG_genericSurface(type[,parameters]);
 RETURN:  no return; use a direct constructor instead.
 MATHEMATICS:
-         Singular procedures which create and return rings have to return from
-         the constructor itself.  A dispatcher that calls such a constructor
-         cannot safely return the constructed [ring,ideal,...] list.  Use
+         This legacy dispatcher for constructors returning [ring,ideal,...]
+         lists is disabled. Use
          STG_K3, STG_cubic_scroll, STG_abelian_product, and the other direct
          constructors instead.
 EXAMPLE: STGsurfaceTypes();
@@ -746,8 +747,9 @@ proc STG_catalogueNames()
 "USAGE:   STG_catalogueNames();
 RETURN:  list of supported catalogue labels.
 MATHEMATICS:
-         The labels are grouped by surface type.  Use STG_catalogueSurface(name)
-         to obtain a generic representative of the corresponding type.
+         The labels are grouped by surface type. Use a direct generic constructor
+         for a random representative of that type. For the actual stored ideal,
+         load nonGeneralTypeSurfacesP4.lib and call nonGeneralTypeSurfaceP4(name).
 EXAMPLE: list N=STG_catalogueNames(); N[1];
 "
 {
@@ -820,9 +822,9 @@ proc STG_catalogueSurface(string name, list #)
 "USAGE:   STG_catalogueSurface(name[,parameters]);
 RETURN:  no return; use STG_catalogueType and a direct constructor instead.
 MATHEMATICS:
-         This library keeps catalogue labels as metadata.  Because Singular
-         ring-returning constructors cannot be wrapped safely, choose the direct
-         constructor corresponding to STG_catalogueType(name).
+         This legacy generic dispatcher is disabled. Choose the direct
+         constructor corresponding to STG_catalogueType(name). For a fixed
+         example, nonGeneralTypeSurfacesP4.lib provides nonGeneralTypeSurfaceP4.
 EXAMPLE: STG_catalogueType(\"abelian_d10_pi6\");
 "
 {

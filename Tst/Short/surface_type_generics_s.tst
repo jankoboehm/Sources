@@ -83,4 +83,69 @@ nvars(basering);
 size(B[2]);
 dim(std(B[2]));
 
+// Stored P4 catalogue: fields, generators, fingerprints and ring lifetime.
+LIB "nonGeneralTypeSurfacesP4.lib";
+proc STG_testFixed(string name)
+{
+  def fixedRing=nonGeneralTypeSurfaceP4(name);
+  setring fixedRing;
+  intvec degrees;
+  int termCount;
+  int j;
+  for(j=1;j<=size(surfaceIdeal);j=j+1)
+  {
+    degrees[j]=deg(surfaceIdeal[j]);
+    termCount=termCount+size(surfaceIdeal[j]);
+  }
+  print(name+"|"+string(char(basering))+"|"+string(nvars(basering))+
+        "|"+string(size(surfaceIdeal))+"|"+string(degrees)+"|"+string(termCount));
+  print(attrib(surfaceIdeal,"catalogueName")+"|"+attrib(surfaceIdeal,"catalogueType")+
+        "|"+attrib(surfaceIdeal,"sourceSHA256"));
+  map evaluate=basering,2,3,5,7,11;
+  print(string(evaluate(surfaceIdeal)));
+}
+list fixedNames=nonGeneralTypeSurfaceP4Names();
+int fixedIndex;
+for(fixedIndex=1;fixedIndex<=size(fixedNames);fixedIndex=fixedIndex+1)
+{
+  STG_testFixed(fixedNames[fixedIndex]);
+}
+
+ring fixedCaller=0,(dummy),dp;
+poly callerObject=dummy^2+1;
+system("--random",314159);
+int nextWithoutLoad=random(1,1000000);
+system("--random",314159);
+def firstFixed=nonGeneralTypeSurfaceP4("bordiga");
+int nextAfterLoad=random(1,1000000);
+nextWithoutLoad==nextAfterLoad;
+char(basering)==0;
+callerObject==dummy^2+1;
+setring firstFixed;
+ideal firstFixedIdeal=surfaceIdeal;
+def repeatedFixed=nonGeneralTypeSurfaceP4("bordiga");
+setring repeatedFixed;
+ideal mappedFirst=imap(firstFixed,firstFixedIdeal);
+int generatorsAgree=1;
+for(fixedIndex=1;fixedIndex<=size(surfaceIdeal);fixedIndex=fixedIndex+1)
+{
+  if(surfaceIdeal[fixedIndex]!=mappedFirst[fixedIndex])
+  {
+    generatorsAgree=0;
+  }
+}
+generatorsAgree;
+proc STG_testFixedWrapper(string name)
+{
+  return(nonGeneralTypeSurfaceP4(name));
+}
+def wrappedFixed=STG_testFixedWrapper("enriques_d11_pi10");
+setring wrappedFixed;
+char(basering)==43;
+attrib(surfaceIdeal,"catalogueName")=="enriques_d11_pi10";
+setring firstFixed;
+surfaceIdeal[1]==firstFixedIdeal[1];
+setring fixedCaller;
+callerObject==dummy^2+1;
+
 tst_status(1);$
