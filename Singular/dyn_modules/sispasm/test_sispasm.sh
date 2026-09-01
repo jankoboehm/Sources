@@ -171,8 +171,10 @@ else
   int phiExactSpaSM=KSCphiDimExactSpaSM(quintic,1);
   if ((phiLinear!=2) || (phiSpaSM!=2) || (phiExactSpaSM!=2)) { ok=0; }
   if (find(automaticAdjunction[4],"SpaSM")==0) { ok=0; }
-  // Exercise the automatic exact |5K| dispatcher on a small, deterministic,
-  // non-subcanonical surface rather than only the adjunction selector.
+  // Exercise the demand-driven automatic classifier on a small, deterministic,
+  // non-subcanonical elliptic surface.  The exact P2 Riemann--Roch gap now
+  // proves kappa=1 before |5K| is formed; the exact SpaSM map command and the
+  // automatic SpaSM selector are tested independently above.
   system("--random",12345678);
   ring r5=31991,(v0,v1,v2,v3,v4),dp;
   ideal automaticLinearForms=randomid(maxideal(1),4,3);
@@ -183,8 +185,17 @@ else
   ideal automaticSurface=minor(automaticMatrix,2);
   def automaticClassification=KSCclassify(automaticSurface);
   if (automaticClassification.subcanonical!=0) { ok=0; }
-  if (automaticClassification.phi5Dimension!=1) { ok=0; }
-  if (find(automaticClassification.certificate,"SpaSM")==0) { ok=0; }
+  if (automaticClassification.kodairaDimension!="1") { ok=0; }
+  if ((size(automaticClassification.plurigenera)!=2) ||
+      (automaticClassification.plurigenera[1]!=2) ||
+      (automaticClassification.plurigenera[2]!=3)) { ok=0; }
+  if (automaticClassification.fallbackMaxPlurigenus!=2) { ok=0; }
+  if (automaticClassification.phi5Dimension!=-1) { ok=0; }
+  if (find(automaticClassification.certificate,
+           "no higher canonical power or rational map was constructed")==0)
+  {
+    ok=0;
+  }
   ring r2=2,(x,y,z),dp;
   if (spasm_supports_current_ring()) { ok=0; }
   module P2=-x*gen(1)+gen(2);
