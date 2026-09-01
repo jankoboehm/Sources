@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-version="version sheafcoh.lib 4.4.1.2 Aug_2026 "; // $Id$
+version="version sheafcoh.lib 4.4.1.3 Sep_2026 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  sheafcoh.lib   Procedures for Computing Sheaf Cohomology
@@ -21,6 +21,9 @@ PROCEDURES:
  sheafSectionModule(M,d); graded section module in all degrees >=d
  sheafSectionModuleLinear(M,d); force Singular kernels for the section module
  sheafSectionModuleSpaSM(M,d); force SpaSM kernels for the section module
+ sheafSectionDimension(M,d); dimension of H^0 of one twist
+ sheafSectionDimensionLinear(M,d); one H^0 dimension via Singular kernels
+ sheafSectionDimensionSpaSM(M,d); one H^0 dimension via SpaSM kernels
  sheafSectionBasis(M,d[,s,g,v]); representatives for H^0 of the sheaf
  sheafSectionBasisBGG(M,d[,s,g]); representatives from a genuine BGG/Tate tail
  trivializedSectionBasis(M,d,h,f,I[,s,g,v]); scalar rational representatives
@@ -901,14 +904,97 @@ example
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static proc sheafCohResolutionSourceWeights(module differential,
+                                             intvec targetWeights)
+{
+  intvec sourceWeights;
+  int columnIndex;
+  int rowIndex;
+  int degreeFound;
+  int weightedDegree;
+  int currentDegree;
+  for (columnIndex=1; columnIndex<=ncols(differential); columnIndex++)
+  {
+    degreeFound=0;
+    for (rowIndex=1; rowIndex<=nrows(differential); rowIndex++)
+    {
+      if (differential[columnIndex][rowIndex]!=0)
+      {
+        currentDegree=deg(differential[columnIndex][rowIndex])
+                      +targetWeights[rowIndex];
+        if (!degreeFound)
+        {
+          weightedDegree=currentDegree;
+          degreeFound=1;
+        }
+        else
+        {
+          if (currentDegree!=weightedDegree)
+          {
+            ERROR("internal error: a minimized resolution differential is not homogeneous");
+          }
+        }
+      }
+    }
+    if (!degreeFound)
+    {
+      ERROR("internal error: a minimized resolution contains a zero free generator");
+    }
+    sourceWeights[columnIndex]=weightedDegree;
+  }
+  return(sourceWeights);
+}
+
+static proc sheafCohCMRegularityFres(module M)
+{
+  intvec targetWeights=attrib(M,"isHomog");
+  module standardM=std(M);
+  attrib(standardM,"isHomog",targetWeights);
+  resolution F=fres(standardM,0);
+  F=minres(F);
+
+  int regularityValue=targetWeights[1];
+  int generatorIndex;
+  for (generatorIndex=2; generatorIndex<=size(targetWeights);
+       generatorIndex++)
+  {
+    regularityValue=max(regularityValue,targetWeights[generatorIndex]);
+  }
+
+  int step;
+  intvec sourceWeights;
+  module differential;
+  for (step=1; step<=nvars(basering); step++)
+  {
+    differential=F[step];
+    if (size(differential)==0) { break; }
+    sourceWeights=sheafCohResolutionSourceWeights(differential,
+                                                   targetWeights);
+    for (generatorIndex=1; generatorIndex<=size(sourceWeights);
+         generatorIndex++)
+    {
+      regularityValue=max(regularityValue,
+                           sourceWeights[generatorIndex]-step);
+    }
+    targetWeights=sourceWeights;
+  }
+  return(regularityValue);
+}
+
 proc CM_regularity (module M)
 "USAGE:   CM_regularity(M);    M module
 ASSUME:   @code{M} is graded, and it comes assigned with an admissible degree
          vector as an attribute
 RETURN:  integer, the Castelnuovo-Mumford regularity of coker(M)
-NOTE:    The procedure calls mres. For a zero presentation, it reads the
-         shifts directly, since the regularity of a shifted free direct sum
-         is the maximum generator degree.
+NOTE:    The default algorithm calls mres.  Setting
+         attrib(CM_regularity,\"Algorithm\",\"minres_fres\") minimizes a
+         complete Schreyer resolution and reconstructs the degree of every
+         free generator before reading the regularity.  This explicit grading
+         reconstruction is necessary because fres/minres does not retain
+         isHomog attributes on its differentials.  \"minres_res\" keeps the
+         older alternative.  For a zero presentation, the shifts are read
+         directly, since the regularity of a shifted free direct sum is the
+         maximum generator degree.
 EXAMPLE: example CM_regularity; shows an example
 KEYWORDS: Castelnuovo-Mumford regularity
 "
@@ -945,13 +1031,20 @@ KEYWORDS: Castelnuovo-Mumford regularity
     return(freeRegularity);
   }
 
-  if( attrib(CM_regularity,"Algorithm") == "minres_res" )
+  if( attrib(CM_regularity,"Algorithm") == "minres_fres" )
   {
-    def L = minres( res(M,0) ); // let's try it out!
+    return(sheafCohCMRegularityFres(M));
   }
   else
   {
-    def L = mres(M,0);
+    if( attrib(CM_regularity,"Algorithm") == "minres_res" )
+    {
+      def L = minres( res(M,0) ); // let's try it out!
+    }
+    else
+    {
+      def L = mres(M,0);
+    }
   }
 
   intmat BeL = betti(L);
@@ -991,11 +1084,25 @@ static proc sectionBasisProductOfVariables()
   return(p);
 }
 
+// Singular normally infers a module's ambient free rank from its last
+// nonzero component.  A section basis can have identically zero trailing
+// components, so retain the presentation rank explicitly on every raw basis
+// returned by the public representative algorithms.
+static proc sectionBasisRememberAmbientRank(module N,int r)
+{
+  if (nrows(N)>r)
+  {
+    ERROR("internal error: section vectors exceed the presentation rank");
+  }
+  attrib(N,"rank",r);
+  return(N);
+}
+
 static proc sectionBasisZeroModule(int r)
 {
   matrix Z[r][1];
   module N=Z;
-  return(N);
+  return(sectionBasisRememberAmbientRank(N,r));
 }
 
 // Return the canonical standard monomials of degree d in coker(M).
@@ -1005,8 +1112,8 @@ static proc sectionBasisZeroModule(int r)
 static proc sectionBasisGradedPiece(module G,intvec w,int d)
 {
   int r=nrows(G);
-  module L,B;
-  int i,j;
+  module L;
+  int i;
   for (i=1; i<=r; i++)
   {
     if (d>w[i])
@@ -1018,11 +1125,20 @@ static proc sectionBasisGradedPiece(module G,intvec w,int d)
       if (d==w[i]) { L=L+gen(i); }
     }
   }
-  for (j=1; j<=size(L); j++)
-  {
-    if (reduce(L[j],G)==L[j]) { B=B+L[j]; }
-  }
-  return(B);
+
+  // G is a standard basis, so its leading monomials generate in(G).  Reduce
+  // the whole homogeneous ambient slice once by this monomial module:
+  // standard monomials remain unchanged and every nonstandard monomial goes
+  // to zero.  This is the same canonical quotient basis as the former
+  // interpreted loop of reduce(L[j],G)==L[j], but all divisibility tests now
+  // run in one Singular kernel call and no polynomial tails are computed.
+  module initialG=lead(G);
+  attrib(initialG,"isSB",1);
+  module B=reduce(L,initialG);
+  // Module addition retains zero placeholder columns.  Remove them so the
+  // matrix column count agrees with the vector-space dimension size(B), but
+  // keep the known ambient free rank even when its trailing rows vanish.
+  return(sectionBasisRememberAmbientRank(simplify(B,2),r));
 }
 
 // The columns of the result describe all compatible images of the degree-a
@@ -1059,9 +1175,10 @@ static proc sectionBasisCompatibilityKernel(module G,module Bs,
   {
     ERROR("internal error: expected linear syzygies of a power of the irrelevant ideal");
   }
+  attrib(Bs1,"isSB",1);
   int ell;
   module P;
-  matrix T,A,PM,trailingRows;
+  matrix T,A;
   // SU is a matrix whose rows are the monomials in U and whose columns are
   // its linear syzygies.  Assemble the entire compatibility matrix as a sum
   // of Kronecker products.  Thus each multiplication-by-variable map is
@@ -1069,18 +1186,12 @@ static proc sectionBasisCompatibilityKernel(module G,module Bs,
   for (ell=1; ell<=nvars(basering); ell++)
   {
     P=reduce(var(ell)*Bs,G);
-    // Bulk reduction retains the ambient number of module rows, whereas a
-    // homogeneous-piece basis drops trailing rows which are identically
-    // zero.  Check and trim those rows before the bulk lift.
-    if (nrows(P)>nrows(Bs1))
+    if ((nrows(P)!=nrows(G)) || (ncols(P)!=ds))
     {
-      PM=matrix(P);
-      trailingRows=PM[nrows(Bs1)+1..nrows(P),1..ds];
-      if (deg(trailingRows)>=0)
-      {
-        ERROR("internal error: multiplication left the target homogeneous piece");
-      }
-      P=module(PM[1..nrows(Bs1),1..ds]);
+      ERROR("internal error: compatibility multiplication by variable "
+            +string(ell)+" changed the ambient "+string(nrows(G))+"x"
+            +string(ds)+" shape to "+string(nrows(P))+"x"
+            +string(ncols(P)));
     }
     T=lift(Bs1,P);
     if ((nrows(T)!=ds1) || (ncols(T)!=ds))
@@ -1190,27 +1301,35 @@ static proc sectionModuleMultiplicationData(module G,intvec weights,int e)
     ERROR("internal error: multiplication from a stable nonzero section space has zero target");
   }
 
+  // B1 consists of distinct standard monomials of one weighted degree.  It is
+  // therefore already a monomial standard basis of the submodule it spans.
+  // Mark this explicitly so lift keeps these columns, and hence the desired
+  // section coordinates, instead of silently recomputing and reordering a
+  // standard basis.
+  attrib(B1,"isSB",1);
+
   int ell;
   module P;
-  matrix T,PM,trailingRows;
+  matrix T;
   for (ell=1;ell<=nvars(basering);ell++)
   {
     P=reduce(var(ell)*B,G);
-    if (nrows(P)>nrows(B1))
+    if ((nrows(P)!=nrows(G)) || (ncols(P)!=sourceDimension))
     {
-      PM=matrix(P);
-      trailingRows=PM[nrows(B1)+1..nrows(P),1..sourceDimension];
-      if (deg(trailingRows)>=0)
-      {
-        ERROR("internal error: multiplication left the target homogeneous piece");
-      }
-      P=module(PM[1..nrows(B1),1..sourceDimension]);
+      ERROR("internal error: multiplication reduction changed the ambient "
+            +string(nrows(G))+"x"+string(sourceDimension)+" shape to "
+            +string(nrows(P))+"x"+string(ncols(P)));
     }
     T=lift(B1,P);
     if ((nrows(T)!=targetDimension) ||
         (ncols(T)!=sourceDimension) || (deg(T)>0))
     {
-      ERROR("internal error while constructing a section-module multiplication map");
+      ERROR("internal error while constructing section-module multiplication by variable "
+            +string(ell)+": expected "+string(targetDimension)+"x"
+            +string(sourceDimension)+" constant coordinates, got "
+            +string(nrows(T))+"x"+string(ncols(T))+" of degree "
+            +string(deg(T))+" (basis columns "+string(ncols(B))+", target "
+            +string(ncols(B1))+", reduced products "+string(ncols(P))+")");
     }
     variableMaps[ell]=T;
   }
@@ -1256,8 +1375,8 @@ static proc sectionModulePreviousSpace(list variableMaps,int useSpaSM)
   int pairCount=nv*(nv-1) div 2;
   int kernelAmbientDimension=nv*sourceDimension;
   list projectionMaps;
-  int i,j,a,b,pairIndex,rowOffset;
-  matrix fullProjection,mapI,mapJ,projection;
+  int i,a,b;
+  matrix fullProjection,projection;
 
   // This branch is mathematically unreachable for genuine consecutive
   // section spaces with sourceDimension>0, but it also gives the correct
@@ -1276,27 +1395,24 @@ static proc sectionModulePreviousSpace(list variableMaps,int useSpaSM)
     return(list(kernelAmbientDimension,projectionMaps));
   }
 
-  matrix compatibility[targetDimension*pairCount][kernelAmbientDimension];
-  pairIndex=0;
-  for (i=1;i<nv;i++)
+  // The compatibility map is the Koszul differential tensored with the
+  // variable multiplication maps.  Assemble its blocks by kernel-level
+  // matrix operations instead of scanning every scalar entry in the
+  // interpreter.
+  ideal linearMonomials=maxideal(1);
+  module linearSyzygies=syz(linearMonomials);
+  matrix syzygyMatrix=matrix(linearSyzygies);
+  if ((nrows(syzygyMatrix)!=nv) ||
+      (ncols(syzygyMatrix)!=pairCount) || (deg(syzygyMatrix)>1))
   {
-    mapI=variableMaps[i];
-    for (j=i+1;j<=nv;j++)
-    {
-      mapJ=variableMaps[j];
-      rowOffset=pairIndex*targetDimension;
-      for (a=1;a<=targetDimension;a++)
-      {
-        for (b=1;b<=sourceDimension;b++)
-        {
-          compatibility[rowOffset+a,(j-1)*sourceDimension+b]
-            =mapI[a,b];
-          compatibility[rowOffset+a,(i-1)*sourceDimension+b]
-            =-mapJ[a,b];
-        }
-      }
-      pairIndex++;
-    }
+    ERROR("internal error: expected the linear Koszul syzygies of the variables");
+  }
+  matrix compatibility[targetDimension*pairCount][kernelAmbientDimension];
+  matrix variableBlocks;
+  for (ell=1;ell<=nv;ell++)
+  {
+    variableBlocks=transpose(diff(syzygyMatrix,var(ell)));
+    compatibility=compatibility+tensor(variableBlocks,variableMaps[ell]);
   }
 
   module K=sectionModuleConstantKernel(compatibility,useSpaSM);
@@ -1495,9 +1611,49 @@ static proc sectionModulePolynomial(module M,int d,int useSpaSM)
   return(sectionModuleAssemble(d,q,dimensions,multiplicationMaps,tailKernel));
 }
 
-// backend=-1 selects once, backend=0 forces Singular, backend=1 forces SpaSM.
-static proc sectionModuleDispatch(module M,int d,int backend)
+// Compute only h^0 at d.  This is the dimension-only specialization of
+// sectionModulePolynomial: the same theorem-certified stable tail and exact
+// Koszul compatibility descent are used, but relations for the stable tail
+// and a presentation of the complete truncated module are not constructed.
+static proc sectionModuleDimensionPolynomial(module M,int d,int useSpaSM)
 {
+  int regValue=CM_regularity(M);
+  int q=max(d,regValue+1);
+  module G=std(M);
+  intvec weights=attrib(M,"isHomog");
+  if (q==d)
+  {
+    module Bd=sectionBasisGradedPiece(G,weights,d);
+    return(size(Bd));
+  }
+  list tailData=sectionModuleMultiplicationData(G,weights,q);
+  module Bq=tailData[1];
+  list currentMaps=tailData[3];
+  int currentDimension=size(Bq);
+  if (currentDimension==0) { return(0); }
+
+  int e;
+  list previousData;
+  for (e=q-1;e>=d;e--)
+  {
+    previousData=sectionModulePreviousSpace(currentMaps,useSpaSM);
+    currentDimension=previousData[1];
+    if (currentDimension==0) { return(0); }
+    currentMaps=previousData[2];
+  }
+  return(currentDimension);
+}
+
+// backend=-1 selects once, backend=0 forces Singular, backend=1 forces SpaSM.
+// The optional fourth argument requests only the dimension in degree d.
+// Keeping both outputs behind this dispatcher makes validation, backend
+// selection, and homogeneous-qring conversion identical.
+static proc sectionModuleDispatch(module M,int d,int backend,list #)
+{
+  if (size(#)>1) { ERROR("internal error: invalid section-module dispatch"); }
+  int dimensionOnly=0;
+  if (size(#)==1) { dimensionOnly=#[1]; }
+
   if (typeof(attrib(M,"isHomog"))!="intvec")
   {
     if (size(M)==0)
@@ -1540,6 +1696,12 @@ static proc sectionModuleDispatch(module M,int d,int backend)
     ideal IX=imap(Q,coordinateIdealQ);
     MS=MS+IX*freemodule(nrows(MS));
     attrib(MS,"isHomog",qWeights);
+    if (dimensionOnly)
+    {
+      int dimensionS=sectionModuleDimensionPolynomial(MS,d,useSpaSM);
+      setring Q;
+      return(dimensionS);
+    }
     module resultS=sectionModulePolynomial(MS,d,useSpaSM);
     intvec resultWeights=attrib(resultS,"isHomog");
 
@@ -1549,6 +1711,10 @@ static proc sectionModuleDispatch(module M,int d,int backend)
     return(resultQ);
   }
 
+  if (dimensionOnly)
+  {
+    return(sectionModuleDimensionPolynomial(M,d,useSpaSM));
+  }
   return(sectionModulePolynomial(M,d,useSpaSM));
 }
 
@@ -1644,6 +1810,90 @@ example
       module G=sheafSectionModuleSpaSM(Point,-1);
       intvec(dimGradedPart(G,-2),dimGradedPart(G,-1),
              dimGradedPart(G,0),dimGradedPart(G,1));
+    }
+  }
+}
+
+proc sheafSectionDimension(module M,int d)
+"USAGE:   sheafSectionDimension(M,d); M module, d int
+ASSUME:   The assumptions of sheafSectionModule hold.
+RETURN:   The integer h^0(Proj(basering),sheaf(coker(M))(d)).
+NOTE:     This is the dimension-only form of sheafSectionModule. It uses the
+         same certified starting degree max(d,reg(coker(M))+1) and the same
+         exact compatibility descent, but does not compute stable-tail
+         relations or assemble a presentation in all degrees >=d.
+         SpaSM is chosen automatically when available and applicable;
+         otherwise Singular's generic exact kernels are used. A selected
+         backend is never retried with another backend.
+SEE ALSO: sheafSectionDimensionLinear, sheafSectionDimensionSpaSM,
+          sheafSectionModule, dimH
+EXAMPLE: example sheafSectionDimension; shows an example
+"
+{
+  return(sectionModuleDispatch(M,d,-1,1));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module Point=x,y;
+  attrib(Point,"isHomog",intvec(0));
+  intvec(sheafSectionDimension(Point,-2),
+         sheafSectionDimension(Point,0),
+         sheafSectionDimension(Point,2));
+}
+
+proc sheafSectionDimensionLinear(module M,int d)
+"USAGE:   sheafSectionDimensionLinear(M,d); M module, d int
+RETURN:   The same h^0 dimension as sheafSectionDimension(M,d), computed
+         with Singular's generic exact module kernels.
+NOTE:     This command never probes or dispatches to SpaSM.
+SEE ALSO: sheafSectionDimension, sheafSectionDimensionSpaSM,
+          sheafSectionModuleLinear
+EXAMPLE: example sheafSectionDimensionLinear; shows an example
+"
+{
+  return(sectionModuleDispatch(M,d,0,1));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=0,(x,y,z),dp;
+  module Point=x,y;
+  attrib(Point,"isHomog",intvec(0));
+  sheafSectionDimensionLinear(Point,-1);
+}
+
+proc sheafSectionDimensionSpaSM(module M,int d)
+"USAGE:   sheafSectionDimensionSpaSM(M,d); M module, d int
+ASSUME:   The assumptions of sheafSectionDimension hold, the sispasm module
+         is available, and the current coefficient field is supported by
+         SpaSM.
+RETURN:   The same h^0 dimension as sheafSectionDimension(M,d), with every
+         constant nullspace computed by the strict exact SpaSM backend.
+NOTE:     SpaSM is preflighted before the computation. This command errors if
+         SpaSM is unavailable or inapplicable and never substitutes another
+         backend.
+SEE ALSO: sheafSectionDimension, sheafSectionDimensionLinear,
+          sheafSectionModuleSpaSM
+EXAMPLE: example sheafSectionDimensionSpaSM; shows an example when SpaSM is
+         available
+"
+{
+  return(sectionModuleDispatch(M,d,1,1));
+}
+example
+{"EXAMPLE:";
+  echo=2;
+  ring R=32003,(x,y,z),dp;
+  load("sispasm.so","try");
+  if (defined(spasm_kernel_basis))
+  {
+    if (spasm_supports_current_ring())
+    {
+      module Point=x,y;
+      attrib(Point,"isHomog",intvec(0));
+      sheafSectionDimensionSpaSM(Point,-1);
     }
   }
 }
@@ -1956,6 +2206,8 @@ NOTE:     If s is omitted, the procedure uses
          against the multiplication-table algorithm.
          For a qring, the presentation is lifted to the ambient polynomial
          ring and the quotient ideal is added to its relation module.
+         L[1] retains nrows(M) as its ambient free-module rank, including
+         when every returned vector has zero trailing coordinates.
 THEORY:   The construction uses the BGG correspondence and the Tate
          resolution as in Eisenbud-Floystad-Schreyer, Trans. AMS 355 (2003).
 SEE ALSO: sheafSectionBasis, sheafCohBGG, trivializedSectionBasis
@@ -2028,7 +2280,9 @@ EXAMPLE: example sheafSectionBasisBGG; shows an example
 
     setring Q;
     def qResult=imap(S,qResult);
-    return(qResult);
+    module qBasis=qResult[1];
+    qBasis=sectionBasisRememberAmbientRank(qBasis,nrows(M));
+    return(list(qBasis,qResult[2],qResult[3]));
   }
 
   int reg=CM_regularity(M);
@@ -2078,6 +2332,7 @@ EXAMPLE: example sheafSectionBasisBGG; shows an example
   }
   if (a==0)
   {
+    Bs=sectionBasisRememberAmbientRank(Bs,nrows(M));
     return(list(Bs,g,s));
   }
 
@@ -2088,22 +2343,19 @@ EXAMPLE: example sheafSectionBasisBGG; shows an example
   }
   int ds=size(Bs);
   int ds1=size(Bs1);
+  attrib(Bs1,"isSB",1);
   matrix Delta[ds1][ds];
   int i;
   module P;
-  matrix T,PM,trailingRows;
+  matrix T;
   for (i=1; i<=nvars(basering); i++)
   {
     P=reduce(var(i)*Bs,G);
-    if (nrows(P)>nrows(Bs1))
+    if ((nrows(P)!=nrows(G)) || (ncols(P)!=ds))
     {
-      PM=matrix(P);
-      trailingRows=PM[nrows(Bs1)+1..nrows(P),1..ds];
-      if (deg(trailingRows)>=0)
-      {
-        ERROR("internal error: BGG multiplication left the target homogeneous piece");
-      }
-      P=module(PM[1..nrows(Bs1),1..ds]);
+      ERROR("internal error: BGG multiplication by variable "+string(i)
+            +" changed the ambient "+string(nrows(G))+"x"+string(ds)
+            +" shape to "+string(nrows(P))+"x"+string(ncols(P)));
     }
     T=lift(Bs1,P);
     if ((nrows(T)!=ds1) || (ncols(T)!=ds) || (deg(T)>0))
@@ -2141,6 +2393,7 @@ EXAMPLE: example sheafSectionBasisBGG; shows an example
     ERROR("internal error: BGG evaluation has incompatible dimensions");
   }
   module N=module(matrix(Bs)*evaluated);
+  N=sectionBasisRememberAmbientRank(N,nrows(M));
   return(list(N,g,s));
 }
 example
@@ -2199,6 +2452,8 @@ NOTE:     If s is omitted, the procedure uses the stable bound
          changes or retries the requested tail.
          For a qring, the presentation is lifted to the ambient polynomial
          ring and the quotient ideal is added to its relation module.
+         L[1] retains nrows(M) as its ambient free-module rank, including
+         when every returned vector has zero trailing coordinates.
 THEORY:   Put a=s-d. The procedure computes
          Hom(m^a,coker(M))_d from the degree-s and degree-(s+1) pieces and
          the multiplication maps. In the stable range this finite ideal
@@ -2288,7 +2543,9 @@ EXAMPLE: example sheafSectionBasis; shows an example
 
     setring Q;
     def qResult=imap(S,qResult);
-    return(qResult);
+    module qBasis=qResult[1];
+    qBasis=sectionBasisRememberAmbientRank(qBasis,nrows(M));
+    return(list(qBasis,qResult[2],qResult[3]));
   }
 
   int automaticTail=(size(#)==0);
@@ -2400,6 +2657,7 @@ EXAMPLE: example sheafSectionBasis; shows an example
 
   matrix BB=matrix(Bs);
   module N=module(BB*EK);
+  N=sectionBasisRememberAmbientRank(N,nrows(M));
   if (verify)
   {
     verifiedH0=sectionBasisBGGDimension(M,d);

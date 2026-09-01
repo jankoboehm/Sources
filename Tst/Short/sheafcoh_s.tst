@@ -150,6 +150,18 @@ kill r;
    size(SB[1]);
    SB[1];
    SB[3];
+   // The unique sheaf section uses only the first presentation generator.
+   // Its raw module must nevertheless remember both ambient rows.
+   attrib(SB[1],"rank");
+   nrows(matrix(SB[1]));
+   list TBGG=sheafSectionBasisBGG(T,0);
+   size(TBGG[1]);
+   attrib(TBGG[1],"rank");
+   nrows(matrix(TBGG[1]));
+   list TEmpty=sheafSectionBasis(T,-1);
+   size(TEmpty[1]);
+   attrib(TEmpty[1],"rank");
+   nrows(matrix(TEmpty[1]));
 
 // Verification is opt-in and performs one check without changing the tail:
 //-------------------------------------------------------------------------
@@ -451,6 +463,8 @@ kill r;
    poly qUnitDenominator=1;
    list SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator,0);
    size(SBVerify[1]);
+   attrib(SBVerify[1],"rank");
+   nrows(matrix(SBVerify[1]));
    SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator);
    size(SBVerify[1]);
    SBVerify=sheafSectionBasis(Tverify,0,0,qUnitDenominator,1);
@@ -835,6 +849,14 @@ kill r;
    intvec(dimGradedPart(pointTail,-3),dimGradedPart(pointTail,-2),
           dimGradedPart(pointTail,-1),dimGradedPart(pointTail,0),
           dimGradedPart(pointTail,1),dimGradedPart(pointTail,2));
+   if (sheafSectionDimensionLinear(sectionPoint,-2)!=1)
+   {
+     ERROR("wrong dimension-only point section space");
+   }
+   if (sheafSectionDimension(sectionPoint,2)!=dimGradedPart(pointTail,2))
+   {
+     ERROR("automatic dimension-only result differs from the section module");
+   }
    module highPointTail=sheafSectionModuleLinear(sectionPoint,4);
    intvec(dimGradedPart(highPointTail,3),dimGradedPart(highPointTail,4),
           dimGradedPart(highPointTail,5));
@@ -851,6 +873,23 @@ kill r;
    intvec(dimGradedPart(torsionTail,-1),dimGradedPart(torsionTail,0),
           dimGradedPart(torsionTail,1),dimGradedPart(torsionTail,2));
 
+// A nonminimal presentation may reduce a nonstandard variable product to a
+// different ambient generator.  The degree-(q+1) basis must therefore be the
+// full standard-monomial slice, not merely the standard products of degree q.
+// Here e_2=x^2 e_1, so coker(nonminimalO) is O although x^2 e_1 itself lies
+// in the initial module.
+   module nonminimalO=[x2,-1];
+   attrib(nonminimalO,"isHomog",intvec(0,2));
+   module nonminimalTail=sheafSectionModuleLinear(nonminimalO,0);
+   intvec(dimGradedPart(nonminimalTail,0),
+          dimGradedPart(nonminimalTail,1),
+          dimGradedPart(nonminimalTail,2),
+          dimGradedPart(nonminimalTail,3));
+   if (sheafSectionDimensionLinear(nonminimalO,2)!=6)
+   {
+     ERROR("wrong section dimension for a nonminimal presentation");
+   }
+
 // A rank-two sheaf checks the full multiplication tables and agrees with the
 // independent local-duality computation in every requested degree:
 //--------------------------------------------------------------------------
@@ -865,6 +904,11 @@ kill r;
           dimH(0,tangentMinusOne,-1),dimH(0,tangentMinusOne,0),
           dimH(0,tangentMinusOne,1),dimH(0,tangentMinusOne,2),
           dimH(0,tangentMinusOne,3));
+   if (sheafSectionDimensionLinear(tangentMinusOne,-2)
+       !=dimH(0,tangentMinusOne,-2))
+   {
+     ERROR("dimension-only rank-two result differs from local duality");
+   }
 
 // Automatic backend selection remains exact when SpaSM is inapplicable:
 //-----------------------------------------------------------------------
@@ -881,6 +925,11 @@ kill r;
    intvec(dimGradedPart(linearTailTwo,-3),dimGradedPart(linearTailTwo,-2),
           dimGradedPart(linearTailTwo,-1),dimGradedPart(linearTailTwo,0),
           dimGradedPart(linearTailTwo,1));
+   if (sheafSectionDimension(sectionPointTwo,-1)
+       !=sheafSectionDimensionLinear(sectionPointTwo,-1))
+   {
+     ERROR("automatic characteristic-two dimension backend differs from linear");
+   }
 
 // Homogeneous qrings and P^0 use the same public interface:
 //-----------------------------------------------------------
@@ -892,6 +941,11 @@ kill r;
    intvec(dimGradedPart(conicTail,-2),dimGradedPart(conicTail,-1),
           dimGradedPart(conicTail,0),dimGradedPart(conicTail,1),
           dimGradedPart(conicTail,2),dimGradedPart(conicTail,3));
+   if (sheafSectionDimensionLinear(conicO,1)
+       !=dimGradedPart(conicTail,1))
+   {
+     ERROR("dimension-only qring result differs from the section module");
+   }
    ring RsectionModulePZero=0,(x),dp;
    module pointSpaceO=0;
    attrib(pointSpaceO,"isHomog",intvec(0));
@@ -899,5 +953,9 @@ kill r;
    intvec(dimGradedPart(pointSpaceTail,-4),dimGradedPart(pointSpaceTail,-3),
           dimGradedPart(pointSpaceTail,-2),dimGradedPart(pointSpaceTail,-1),
           dimGradedPart(pointSpaceTail,0),dimGradedPart(pointSpaceTail,1));
+   if (sheafSectionDimensionLinear(pointSpaceO,-3)!=1)
+   {
+     ERROR("wrong dimension-only P^0 section space");
+   }
 
 tst_status(1);$
