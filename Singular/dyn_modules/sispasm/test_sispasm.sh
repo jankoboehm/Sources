@@ -1,5 +1,24 @@
 #!/bin/sh
 
+directAutoLoad=$("$SINGULAR_BIN_DIR/Singular" -q -c '
+ring r=32003,(x,y,z),dp;
+load("sispasm.so","try");
+int directAutoLoadOK=1;
+if (!defined(spasm_first_kernel_vector)) { directAutoLoadOK=0; }
+if (!defined(spasm_supports_current_ring)) { directAutoLoadOK=0; }
+if (directAutoLoadOK)
+{
+  if (!spasm_supports_current_ring()) { directAutoLoadOK=0; }
+}
+if (directAutoLoadOK) { print("SPASM_DIRECT_AUTOLOAD_OK"); }
+else { print("SPASM_DIRECT_AUTOLOAD_FAIL"); }
+quit;
+')
+case "$directAutoLoad" in
+  *SPASM_DIRECT_AUTOLOAD_OK*) ;;
+  *) echo "$directAutoLoad"; exit 1 ;;
+esac
+
 automaticLoad=$("$SINGULAR_BIN_DIR/Singular" -q -c '
 ring r=32003,(x,y,z),dp;
 LIB "sheafcoh.lib";

@@ -618,19 +618,19 @@ extern "C" int SI_MOD_INIT(sispasm)(SModulFunctions* p)
   b->blackbox_Op1=sp_Op1;
   b->blackbox_Op3=sp_Op3;
   SPASM_CMD=setBlackboxStuff(b,"spasm");
-  p->iiAddCproc("spasm.so","spasm_kernel",FALSE,kernel);
+  p->iiAddCproc("sispasm.so","spasm_kernel",FALSE,kernel);
 #ifdef SINGULAR_SPASM_CURRENT_API
-  p->iiAddCproc("spasm.so","spasm_rref_permuted",FALSE,rref);
+  p->iiAddCproc("sispasm.so","spasm_rref_permuted",FALSE,rref);
 #else
-  p->iiAddCproc("spasm.so","spasm_rref",FALSE,rref);
+  p->iiAddCproc("sispasm.so","spasm_rref",FALSE,rref);
 #endif
-  p->iiAddCproc("spasm.so","to_smatrix",FALSE,to_smatrix);
-  p->iiAddCproc("spasm.so","to_matrix",FALSE,to_matrix);
-  p->iiAddCproc("spasm.so","spasm_supports_current_ring",FALSE,
+  p->iiAddCproc("sispasm.so","to_smatrix",FALSE,to_smatrix);
+  p->iiAddCproc("sispasm.so","to_matrix",FALSE,to_matrix);
+  p->iiAddCproc("sispasm.so","spasm_supports_current_ring",FALSE,
                 supports_current_ring);
-  p->iiAddCproc("spasm.so","spasm_first_kernel_vector",FALSE,
+  p->iiAddCproc("sispasm.so","spasm_first_kernel_vector",FALSE,
                 first_kernel_vector);
-  p->iiAddCproc("spasm.so","spasm_kernel_basis",FALSE,kernel_basis);
+  p->iiAddCproc("sispasm.so","spasm_kernel_basis",FALSE,kernel_basis);
   return (MAX_TOK);
 }
 #else
