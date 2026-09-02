@@ -1427,6 +1427,7 @@ void siInit(char *name)
   basePackHdl=h;
 
   coeffs_BIGINT = nInitChar(n_Q,(void*)1);
+  iiInitExtraCprocs();
 
 #if 1
    // def HAVE_POLYEXTENSIONS
@@ -1478,7 +1479,6 @@ void siInit(char *name)
     nRegisterCfByName(nrnInitCfByName,n_Zn); // and n_Znm
     iiAddCproc("kernel","crossprod",FALSE,iiCrossProd);
     iiAddCproc("kernel","Float",FALSE,iiFloat);
-    iiInitExtraCprocs();
     //h=enterid("RR",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
     //h=enterid("CC",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
