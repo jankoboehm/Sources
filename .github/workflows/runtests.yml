@@ -41,7 +41,7 @@ jobs:
               4ti2 normaliz libopenblas-dev libflint-dev \
               cmake
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            brew install autoconf automake libtool gmp readline mpfr ntl cddlib flint
+            brew install autoconf automake libtool cmake pkg-config gmp readline mpfr ntl cddlib flint
             # TODO: 4ti2?
             # TODO: normaliz?
           else
@@ -49,9 +49,70 @@ jobs:
             exit 1
           fi
 
+      - name: Install SpaSM dependencies
+        if: ${{ matrix.configflags != '--without-ntl --with-flint' }}
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get install -y fflas-ffpack pkg-config
+          else
+            brew tap Macaulay2/tap
+            brew trust --tap Macaulay2/tap
+            brew install Macaulay2/tap/fflas-ffpack
+          fi
+
+      - name: Check out SpaSM
+        if: ${{ matrix.configflags != '--without-ntl --with-flint' }}
+        uses: actions/checkout@v5
+        with:
+          repository: cbouilla/spasm
+          ref: 09c40943f1d4b754f89fb97fc9ddf2b8e53e967e
+          path: .ci/spasm
+
+      - name: Build SpaSM
+        if: ${{ matrix.configflags != '--without-ntl --with-flint' }}
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake_args=(-DBUILD_TESTING=OFF)
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            omp_prefix=$(brew --prefix libomp)
+            fflas_prefix=$(brew --prefix Macaulay2/tap/fflas-ffpack)
+            givaro_prefix=$(brew --prefix Macaulay2/tap/givaro)
+            export PKG_CONFIG_PATH="$fflas_prefix/lib/pkgconfig:$givaro_prefix/lib/pkgconfig:$(brew --prefix gmp)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+            cmake_args+=(
+              "-DCMAKE_PREFIX_PATH=$omp_prefix;$fflas_prefix;$givaro_prefix"
+              "-DOpenMP_C_FLAGS=-Xpreprocessor -fopenmp -I$omp_prefix/include"
+              "-DOpenMP_C_LIB_NAMES=omp"
+              "-DOpenMP_CXX_FLAGS=-Xpreprocessor -fopenmp -I$omp_prefix/include"
+              "-DOpenMP_CXX_LIB_NAMES=omp"
+              "-DOpenMP_omp_LIBRARY=$omp_prefix/lib/libomp.dylib"
+            )
+          fi
+          pkg-config --exists givaro fflas-ffpack
+          cmake -S .ci/spasm -B .ci/spasm/build "${cmake_args[@]}"
+          cmake --build .ci/spasm/build --target spasm --parallel 3
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            test -f .ci/spasm/build/src/libspasm.dylib
+          else
+            test -f .ci/spasm/build/src/libspasm.so
+          fi
+          echo "CPPFLAGS=-I$GITHUB_WORKSPACE/.ci/spasm/src" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$GITHUB_WORKSPACE/.ci/spasm/build/src -Wl,-rpath,$GITHUB_WORKSPACE/.ci/spasm/build/src" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/.ci/spasm/build/src${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          echo "DYLD_LIBRARY_PATH=$GITHUB_WORKSPACE/.ci/spasm/build/src${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+
       - run: ./autogen.sh
-      - run: ./configure --prefix=$prefix --enable-gfanlib ${{ matrix.configflags }}
+      - run: ./configure --prefix=$prefix --enable-gfanlib ${{ matrix.configflags }} ${{ matrix.configflags == '--without-ntl --with-flint' && '--disable-sispasm-module' || '' }}
+      - name: Require SpaSM in the usual builds
+        if: ${{ matrix.configflags != '--without-ntl --with-flint' }}
+        run: |
+          grep -q '^#define HAVE_SPASM_H 1$' _config.h
+          grep -q '^#define HAVE_SPASM 1$' _config.h
       - run: make -j3
+      - name: Require the no-SpaSM fallback builds
+        if: ${{ matrix.configflags == '--without-ntl --with-flint' }}
+        run: test ! -e Singular/dyn_modules/sispasm/.libs/sispasm.so
       - run: make check
       - run: make install
 

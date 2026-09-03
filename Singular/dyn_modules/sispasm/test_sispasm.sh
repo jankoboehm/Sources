@@ -2,6 +2,7 @@
 
 directAutoLoad=$("$SINGULAR_BIN_DIR/Singular" -q -c '
 ring r=32003,(x,y,z),dp;
+int directAutoLoadAdvertised=system("with","spasm");
 load("sispasm.so","try");
 int directAutoLoadOK=1;
 if (!defined(spasm_first_kernel_vector)) { directAutoLoadOK=0; }
@@ -11,11 +12,15 @@ if (directAutoLoadOK)
   if (!spasm_supports_current_ring()) { directAutoLoadOK=0; }
 }
 if (directAutoLoadOK) { print("SPASM_DIRECT_AUTOLOAD_OK"); }
-else { print("SPASM_DIRECT_AUTOLOAD_FAIL"); }
+else
+{
+  if (directAutoLoadAdvertised) { print("SPASM_DIRECT_AUTOLOAD_FAIL"); }
+  else { print("SPASM_DIRECT_AUTOLOAD_SKIP"); }
+}
 quit;
 ')
 case "$directAutoLoad" in
-  *SPASM_DIRECT_AUTOLOAD_OK*) ;;
+  *SPASM_DIRECT_AUTOLOAD_OK*|*SPASM_DIRECT_AUTOLOAD_SKIP*) ;;
   *) echo "$directAutoLoad"; exit 1 ;;
 esac
 
@@ -57,7 +62,14 @@ if (!defined(spasm_kernel_basis)) { completeSpaSMInterface=0; }
 if (!completeSpaSMInterface)
 {
   if (spasmAdvertised) { print("SPASM_TEST_FAIL"); }
-  else { print("SPASM_TEST_SKIP"); }
+  else
+  {
+    if (find(automaticAdjunction[4],"original classifier")==0)
+    {
+      print("SPASM_TEST_FAIL");
+    }
+    else { print("SPASM_TEST_SKIP"); }
+  }
 }
 else
 {
@@ -225,6 +237,10 @@ quit;
 
 case "$result" in
   *SPASM_TEST_SKIP*)
+    case "$automaticLoad" in
+      *AUTO_SECTION_GENERIC*) ;;
+      *) echo "$automaticLoad"; exit 1 ;;
+    esac
     unavailable=$("$SINGULAR_BIN_DIR/Singular" -q -c '
 ring r=32003,(x,y,z),dp;
 LIB "sheafcoh.lib";
