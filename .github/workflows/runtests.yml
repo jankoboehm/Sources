@@ -93,6 +93,8 @@ jobs:
               "-DOpenMP_omp_LIBRARY=$omp_prefix/lib/libomp.dylib"
               "-DCMAKE_SHARED_LINKER_FLAGS=-framework Accelerate"
             )
+          elif [ "$RUNNER_OS" == "Linux" ]; then
+            cmake_args+=("-DCMAKE_C_FLAGS=-Wno-error=format-truncation")
           fi
           pkg-config --exists givaro fflas-ffpack
           cmake -S .ci/spasm -B .ci/spasm/build "${cmake_args[@]}"
