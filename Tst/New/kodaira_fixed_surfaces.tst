@@ -65,6 +65,11 @@ proc KSCtestFixedSurface(string surfaceName,
 }
 
 ring capabilityRing=31991,(t),dp;
+
+// Keep availability-dependent control flow inside a procedure so that the
+// echoed test input is identical with and without the optional SpaSM module.
+proc KSCrunFixedSurfaces()
+{
 if (!defined(spasm_first_kernel_vector))
 {
   load("sispasm.so","try");
@@ -141,6 +146,9 @@ else
   KSCtestFixedSurface("elliptic_d7_pi6","properly elliptic surface","1",
                       intvec(2,3),0,0,2,0);
 }
+}
+
+KSCrunFixedSurfaces();
 
 print("KSC_FIXED_SURFACES_OK");
 tst_status(1);$
