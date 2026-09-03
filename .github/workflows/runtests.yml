@@ -79,7 +79,11 @@ jobs:
             omp_prefix=$(brew --prefix libomp)
             fflas_prefix=$(brew --prefix Macaulay2/tap/fflas-ffpack)
             givaro_prefix=$(brew --prefix Macaulay2/tap/givaro)
-            export PKG_CONFIG_PATH="$fflas_prefix/lib/pkgconfig:$givaro_prefix/lib/pkgconfig:$(brew --prefix gmp)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+            pc_overlay="$GITHUB_WORKSPACE/.ci/pkgconfig"
+            mkdir -p "$pc_overlay"
+            sed -e "/^Cflags:/s# -L$omp_prefix/lib##g" -e '/^Cflags:/s# -lomp##g' \
+              "$fflas_prefix/lib/pkgconfig/fflas-ffpack.pc" > "$pc_overlay/fflas-ffpack.pc"
+            export PKG_CONFIG_PATH="$pc_overlay:$fflas_prefix/lib/pkgconfig:$givaro_prefix/lib/pkgconfig:$(brew --prefix gmp)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
             cmake_args+=(
               "-DCMAKE_PREFIX_PATH=$omp_prefix;$fflas_prefix;$givaro_prefix"
               "-DOpenMP_C_FLAGS=-Xpreprocessor -fopenmp -I$omp_prefix/include"
@@ -87,6 +91,7 @@ jobs:
               "-DOpenMP_CXX_FLAGS=-Xpreprocessor -fopenmp -I$omp_prefix/include"
               "-DOpenMP_CXX_LIB_NAMES=omp"
               "-DOpenMP_omp_LIBRARY=$omp_prefix/lib/libomp.dylib"
+              "-DCMAKE_SHARED_LINKER_FLAGS=-framework Accelerate"
             )
           fi
           pkg-config --exists givaro fflas-ffpack
