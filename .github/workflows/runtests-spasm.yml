@@ -112,6 +112,11 @@ jobs:
               "-DOpenMP_omp_LIBRARY=$omp_prefix/lib/libomp.dylib"
               "-DCMAKE_SHARED_LINKER_FLAGS=-framework Accelerate"
             )
+            if [ "$RUNNER_ARCH" == "X64" ]; then
+              cmake_args+=(
+                "-DCMAKE_CXX_FLAGS=-Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=sign-compare -Wno-error=unused-but-set-variable -Wno-error=unused-parameter -Wno-error=unused-variable"
+              )
+            fi
           elif [ "$RUNNER_OS" == "Linux" ]; then
             cmake_args+=("-DCMAKE_C_FLAGS=-Wno-error=format-truncation -Wno-error=unused-result")
           fi
