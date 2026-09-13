@@ -7,10 +7,6 @@ on:
         description: Pull request number to test (leave empty to test the selected branch)
         required: false
         type: string
-  pull_request:
-    paths:
-      - '.github/workflows/ci-singularjl-lldb.yml'
-      - '.github/oscar/run_with_override_lldb.jl'
 
 permissions:
   contents: read
@@ -84,6 +80,8 @@ jobs:
 
       - name: Override bundled Singular
         run: |
+          # Match the 4 KiB omalloc ABI used by the published macOS ARM64 JLLs.
+          export ac_cv_pagesize=4096
           julia --project=override \
             "$SINGULARJL_PATH/etc/setup_override_dir.jl" \
             /tmp/SINGULARROOT \
@@ -98,12 +96,10 @@ jobs:
           julia --version
           lldb --version
           julia --project=override \
-            "$GITHUB_WORKSPACE/DEBUGTOOLS/.github/oscar/run_with_override_lldb.jl" \
+            "$SINGULARJL_PATH/etc/run_with_override.jl" \
             /tmp/singular_jll_override \
-            --startup-file=no \
-            --check-bounds=yes \
             --depwarn=error \
-            -e 'include(joinpath(ENV["SINGULARJL_PATH"], "test", "runtests.jl"))' \
+            "$GITHUB_WORKSPACE/DEBUGTOOLS/.github/oscar/run_with_override_lldb.jl" \
             2>&1 | tee "$RUNNER_TEMP/singularjl-lldb/lldb.log"
 
       - name: Collect macOS crash reports

@@ -84,7 +84,6 @@ jobs:
       #  if: ${{ always() }}
 
   cygwin:
-    name: Windows (Cygwin) - windows-latest
     runs-on: windows-latest
     timeout-minutes: 120
     env:
@@ -115,14 +114,14 @@ jobs:
       - name: Generate build system
         run: >-
           bash --login -eo pipefail -c
-          'mkdir -p /tmp/singular-autotools-bin;
-          ln -sf /usr/bin/autoconf-2.73 /tmp/singular-autotools-bin/autoconf;
-          ln -sf /usr/bin/autoheader-2.73 /tmp/singular-autotools-bin/autoheader;
-          ln -sf /usr/bin/autom4te-2.73 /tmp/singular-autotools-bin/autom4te;
-          ln -sf /usr/bin/autoreconf-2.73 /tmp/singular-autotools-bin/autoreconf;
-          ln -sf /usr/bin/aclocal-1.18 /tmp/singular-autotools-bin/aclocal;
-          ln -sf /usr/bin/automake-1.18 /tmp/singular-autotools-bin/automake;
-          PATH=/tmp/singular-autotools-bin:$PATH ./autogen.sh'
+          'mkdir -p /usr/local/bin;
+          ln -sf /usr/bin/autoconf-2.73 /usr/local/bin/autoconf;
+          ln -sf /usr/bin/autoheader-2.73 /usr/local/bin/autoheader;
+          ln -sf /usr/bin/autom4te-2.73 /usr/local/bin/autom4te;
+          ln -sf /usr/bin/autoreconf-2.73 /usr/local/bin/autoreconf;
+          ln -sf /usr/bin/aclocal-1.18 /usr/local/bin/aclocal;
+          ln -sf /usr/bin/automake-1.18 /usr/local/bin/automake;
+          ./autogen.sh'
 
       - name: Configure
         run: >-
