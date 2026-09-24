@@ -3,18 +3,11 @@
 
 #include "gfanlib/gfanlib.h"
 
-long wDeg(const poly p, const ring r, const gfan::ZVector &w)
+gfan::Integer wDeg(const poly p, const ring r, const gfan::ZVector &w)
 {
-  long d=0;
+  gfan::Integer d;
   for (unsigned i=0; i<w.size(); i++)
-  {
-    if (!w[i].fitsInInt())
-    {
-      WerrorS("wDeg: overflow in weight vector");
-      throw 0; // weightOverflow;
-    }
-    d += p_GetExp(p,i+1,r)*w[i].toInt();
-  }
+    d.madd(gfan::Integer(p_GetExp(p,i+1,r)), w[i]);
   return d;
 }
 
@@ -34,10 +27,10 @@ poly initial(const poly p, const ring r, const gfan::ZVector &w)
 
   poly q0 = p_Head(p,r);
   poly q1 = q0;
-  long d = wDeg(p,r,w);
+  gfan::Integer d = wDeg(p,r,w);
   for (poly currentTerm = p->next; currentTerm; pIter(currentTerm))
   {
-    long e = wDeg(currentTerm,r,w);
+    gfan::Integer e = wDeg(currentTerm,r,w);
     if (d<e)
     {
       p_Delete(&q0,r);
@@ -105,7 +98,7 @@ void initial(poly* pStar, const ring r, const gfan::ZVector &w)
   if (p==NULL)
     return;
 
-  long d = wDeg(p,r,w);
+  gfan::Integer d = wDeg(p,r,w);
   poly q0 = p;
   poly q1 = q0;
   pNext(q1) = NULL;
@@ -113,7 +106,7 @@ void initial(poly* pStar, const ring r, const gfan::ZVector &w)
 
   while(p)
   {
-    long e = wDeg(p,r,w);
+    gfan::Integer e = wDeg(p,r,w);
     if (d<e)
     {
       p_Delete(&q0,r);

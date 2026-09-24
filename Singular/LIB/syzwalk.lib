@@ -1,0 +1,126 @@
+///////////////////////////////////////////////////////////////////////////////
+version="version syzwalk.lib 4.5.0.0 Sep_2026";
+category="Commutative Algebra";
+info="
+LIBRARY:  syzwalk.lib
+
+AUTHORS:  Singular team
+
+OVERVIEW:
+Fast bookkeeping of standard-basis representations and relations, followed by
+Groebner basis conversion by a Groebner walk.
+
+PROCEDURES:
+  liftstdSyz(I);  standard basis, transformation matrix, and relation generators
+  groebnerWalk(G,source); generic walk from a source basis to the basering order
+  groebnerWalkLift(G,source); walk plus transformation of the source basis
+  syzWalk(G,source);      walk and compute relations of the target basis
+";
+
+///////////////////////////////////////////////////////////////////////////////
+proc liftstdSyz(def I)
+"USAGE:   liftstdSyz(I); I ideal or module
+RETURN:  list L with
+         L[1] a standard basis G of I,
+         L[2] a matrix T such that matrix(G)=matrix(I)*T, and
+         L[3] generators S of the relation module of I.
+PURPOSE: Computes G, T, and S in one standard-basis computation. Relation
+         vectors are recorded but are not used as reducers; no critical pairs
+         between relation vectors are generated.
+NOTE:    L[3] is a generating set, not necessarily a standard basis of the
+         relation module. Use std(L[3]) only if that additional work is needed.
+EXAMPLE: example liftstdSyz; shows an example
+"
+{
+  return(liftstdSyzInternal(I));
+}
+example
+{ "EXAMPLE:"; echo=2;
+  ring r=0,(x,y,z),dp;
+  ideal I=x2+y2+z2,xy+z2,y2+xz;
+  list L=liftstdSyz(I);
+  ideal G=L[1];
+  matrix T=L[2];
+  module S=L[3];
+  size(module(matrix(G)-matrix(I)*T)); // 0
+  size(module(matrix(I)*matrix(S)));   // 0
+}
+
+///////////////////////////////////////////////////////////////////////////////
+proc groebnerWalk(ideal G, def source)
+"USAGE:   groebnerWalk(G,source); G ideal, source ring
+ASSUME:  The current basering is the target ring. G is a reduced standard
+         basis for source, mapped into the current ring with imap(source,Gs).
+RETURN:  reduced Groebner basis in the ordering of the current basering
+PURPOSE: Performs a generic Groebner walk. Facets are oriented by exact
+         monomial comparisons in the target ordering, avoiding the large
+         numerical target perturbation used by the classical walk.
+NOTE:    Source and target must have compatible coefficient fields and the
+         same variables in the same positions, and both orders must be global.
+         Facet and order comparisons use arbitrary-precision integers. The
+         polynomial exponents themselves remain subject to each Singular
+         ring's maxExp; use matching L(...) bounds when the default is too
+         small.
+EXAMPLE: example groebnerWalk; shows an example
+"
+{
+  LIB "gfanlib.so";
+  return(genericGroebnerWalkInternal(G,source));
+}
+example
+{ "EXAMPLE:"; echo=2;
+  ring rd=0,(x,y,z),dp;
+  ideal I=x2+y*z,y2+x*z,z2+x*y;
+  option(redSB);
+  ideal Gd=std(I);
+
+  ring rb=0,(x,y,z),(lp(1),dp(2));
+  ideal mappedG=imap(rd,Gd);
+  ideal Gb=groebnerWalk(mappedG,rd);
+  size(reduce(imap(rd,I),Gb)); // 0
+}
+
+///////////////////////////////////////////////////////////////////////////////
+proc groebnerWalkLift(ideal G, def source)
+"USAGE:   groebnerWalkLift(G,source); G ideal, source ring
+ASSUME:  As for groebnerWalk(G,source).
+RETURN:  list L with the target Groebner basis L[1] and a matrix L[2]
+         satisfying matrix(L[1])=matrix(G)*L[2]
+PURPOSE: Performs the generic walk while bookkeeping the complete change of
+         basis from the supplied source Groebner basis.
+"
+{
+  LIB "gfanlib.so";
+  return(genericGroebnerWalkLiftInternal(G,source));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+proc syzWalk(ideal G, def source)
+"USAGE:   syzWalk(G,source); G ideal, source ring
+ASSUME:  As for groebnerWalk(G,source).
+RETURN:  list L with a target Groebner basis L[1], a transformation matrix
+         L[2] satisfying matrix(L[1])=matrix(G)*L[2], and relation generators
+         L[3] of the target basis L[1]
+PURPOSE: Walks the basis and records its relations without using relation
+         vectors as reducers or generating critical pairs between them.
+NOTE:    L[2] starts at the supplied source Groebner basis. If that basis was
+         obtained as G=F*T0, then T0*L[2] expresses the target basis in terms
+         of F. L[3] generates syz(L[1]); it is not made into a standard basis.
+"
+{
+  LIB "gfanlib.so";
+  list W=genericGroebnerWalkLiftInternal(G,source);
+  list R=liftstdSyzInternal(W[1]);
+  list result=list(W[1],W[2],R[3]);
+  attrib(result[1],"isSB",1);
+  return(result);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+static proc mod_init()
+{
+  intvec save=option(get);
+  option(noredefine);
+  LIB "syzwalk.so";
+  option(set,save);
+}

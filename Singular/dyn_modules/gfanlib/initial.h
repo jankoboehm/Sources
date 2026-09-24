@@ -11,7 +11,7 @@
 /**
  * Returns the weighted degree of the leading term of p with respect to w
  */
-long wDeg(const poly p, const ring r, const gfan::ZVector &w);
+gfan::Integer wDeg(const poly p, const ring r, const gfan::ZVector &w);
 
 /**
  * Returns the weighted multidegree of the leading term of p with respect to (w,W).

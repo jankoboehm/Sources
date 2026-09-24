@@ -281,7 +281,7 @@ AC_DEFUN([SING_ENABLE_MODULES], [dnl
 ])
 
 AC_DEFUN([SING_DISABLE_MODULES], [dnl
-  m4_foreach([MOD], [subsets, freealgebra, partialgb, syzextra,
+  m4_foreach([MOD], [subsets, freealgebra, partialgb, syzextra, syzwalk,
                      gfanlib, polymake, customstd, pyobject,
                      singmathic, gitfan, interval, systhreads,
                      loctriv, cohomo, machinelearning, sispasm], [dnl
@@ -321,6 +321,7 @@ AC_DEFUN([SING_BUILTIN_MODULES],
   bi_freealgebra=false
   bi_partialgb=false
   bi_syzextra=false
+  bi_syzwalk=false
   bi_pyobject=false
   bi_gfanlib=false
   bi_polymake=false
@@ -362,6 +363,7 @@ AC_DEFUN([SING_BUILTIN_MODULES],
        freealgebra ) bi_freealgebra=true;;
        partialgb ) bi_partialgb=true;;
        syzextra ) bi_syzextra=true ;;
+       syzwalk ) bi_syzwalk=true ;;
        pyobject ) bi_pyobject=true ;;
        gfanlib ) bi_gfanlib=true ;;
        polymake ) bi_polymake=true ;;
@@ -406,6 +408,7 @@ AC_DEFUN([SING_BUILTIN_MODULES],
  AM_CONDITIONAL([SI_BUILTIN_FREEALGEBRA], [test x$bi_freealgebra = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_PARTIALGB], [test x$bi_partialgb = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_SYZEXTRA], [test x$bi_syzextra = xtrue])
+ AM_CONDITIONAL([SI_BUILTIN_SYZWALK], [test x$bi_syzwalk = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_PYOBJECT], [test x$bi_pyobject = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_GFANLIB], [test x$bi_gfanlib = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_POLYMAKE], [test x$bi_polymake = xtrue])

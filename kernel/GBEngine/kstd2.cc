@@ -79,6 +79,36 @@ VAR long sba_interreduction_operations;
 #include "polys/shiftop.h"
 #endif
 
+// Copy the current reduced object into currRing.  With a tail ring the
+// leading monomial lives in currRing while the remaining terms use the
+// (possibly wider) exponent representation of strat->tailRing.
+static poly kCopyLObjectToCurrRing(const LObject* p, const kStrategy strat)
+{
+  assume(p!=NULL);
+  assume(p->p!=NULL);
+
+  if (strat->tailRing==currRing)
+    return p_Copy(p->p,currRing);
+
+  poly result=p_Head(p->p,currRing);
+  const poly tail=(p->t_p!=NULL) ? pNext(p->t_p) : pNext(p->p);
+  if (tail!=NULL)
+    pNext(result)=prCopyR_NoSort(tail,strat->tailRing,currRing);
+  return result;
+}
+
+// Keep a generating relation, but do not enter it into the reducer or pair
+// sets.  This is the inexpensive bookkeeping mode used by idLiftStdSyz.
+static void kCollectRelation(kStrategy strat)
+{
+  assume(strat!=NULL);
+  assume(strat->syzResult!=NULL);
+  assume(strat->P.p!=NULL);
+  assume(pGetComp(strat->P.p)>strat->syzComp);
+
+  idInsertPoly(strat->syzResult,kCopyLObjectToCurrRing(&strat->P,strat));
+}
+
 #ifdef STDZ_EXCHANGE_DURING_REDUCTION
 int kFindSameLMInT_Z(const kStrategy strat, const LObject* L, const int start)
 {
@@ -2843,6 +2873,10 @@ ideal bba (ideal F, ideal Q,intvec *w,bigintmat *hilb,kStrategy strat)
           //PrintS("<2>");
         }
 #endif
+      }
+      else if (strat->syzResult!=NULL)
+      {
+        kCollectRelation(strat);
       }
       if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
 //      Print("[%d]",hilbeledeg);

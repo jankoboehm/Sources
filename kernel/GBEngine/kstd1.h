@@ -50,6 +50,12 @@ ideal kStd(ideal F, ideal Q, tHomog h, intvec ** mw,intvec *hilb=NULL,
 ideal kStd2(ideal F, ideal Q, tHomog h, intvec ** mw,bigintmat *hilb=NULL,
           int syzComp=0,int newIdeal=0, intvec *vw=NULL, s_poly_proc_t sp=NULL);
 
+/// kStd2 with an additional sink for generating relations.  The relations
+/// are not inserted into the reducer or pair sets.
+ideal kStd2Syz(ideal F, ideal Q, tHomog h, intvec **mw, bigintmat *hilb,
+          int syzComp, int newIdeal, intvec *vw, s_poly_proc_t sp,
+          ideal *syzResult);
+
 /// pure GB/SB computations
 ideal kStd_internal(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb=NULL,
          int syzComp=0, int newIdeal=0, intvec *vw=NULL, s_poly_proc_t sp=NULL);

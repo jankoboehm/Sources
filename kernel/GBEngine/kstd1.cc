@@ -2432,8 +2432,10 @@ long kHomModDeg(poly p,const ring r)
   return j+(*kModW)[i-1];
 }
 
-ideal kStd_internal(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,
-         int syzComp, int newIdeal, intvec *vw, s_poly_proc_t sp)
+static ideal kStd_internalSyz(ideal F, ideal Q, tHomog h,intvec ** w,
+         bigintmat *hilb,
+         int syzComp, int newIdeal, intvec *vw, s_poly_proc_t sp,
+         ideal *syzResult)
 {
   assume(!idIs0(F));
   assume((Q==NULL)||(!idIs0(Q)));
@@ -2445,6 +2447,12 @@ ideal kStd_internal(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,
   BOOLEAN delete_w=(w==NULL);
 
   strat->s_poly=sp;
+  if (syzResult!=NULL)
+  {
+    idDelete(syzResult);
+    *syzResult=idInit(1,F->rank);
+    strat->syzResult=*syzResult;
+  }
   if(!TEST_OPT_RETURN_SB)
     strat->syzComp = syzComp;
   if (TEST_OPT_SB_1
@@ -2605,11 +2613,26 @@ ideal kStd_internal(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,
   return r;
 }
 
-ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
-          int newIdeal, intvec *vw, s_poly_proc_t sp)
+ideal kStd_internal(ideal F, ideal Q, tHomog h, intvec **w,
+         bigintmat *hilb, int syzComp, int newIdeal, intvec *vw,
+         s_poly_proc_t sp)
+{
+  return kStd_internalSyz(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp,NULL);
+}
+
+ideal kStd2Syz(ideal F, ideal Q, tHomog h, intvec **w, bigintmat *hilb,
+          int syzComp, int newIdeal, intvec *vw, s_poly_proc_t sp,
+          ideal *syzResult)
 {
   if(idIs0(F))
+  {
+    if (syzResult!=NULL)
+    {
+      idDelete(syzResult);
+      *syzResult=idInit(1,F->rank);
+    }
     return idInit(1,F->rank);
+  }
 
   if(idIs0(Q)) Q=NULL;
 #ifdef HAVE_SHIFTBBA
@@ -2620,6 +2643,7 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
   && (vw==NULL)
   && (newIdeal==0)
   && (sp==NULL)
+  && (syzResult==NULL)
   && (IDELEMS(F)>1)
   && (!TEST_OPT_SB_1)
   && (currRing->ppNoether==NULL)
@@ -2635,13 +2659,15 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
       long modular_colength=-1;
       currRing->ppNoether=kTryHC(F,Q,&modular_colength);
       const BOOLEAN used_hc=(currRing->ppNoether!=NULL);
-      ideal res=kStd_internal(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp);
+      ideal res=kStd_internalSyz(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp,
+                                 syzResult);
       if (currRing->ppNoether!=NULL) pLmDelete(currRing->ppNoether);
       currRing->ppNoether=NULL;
       if ((!used_hc)||(res==NULL)||(scMult0Int(res,Q)==modular_colength)) return res;
       if (TEST_OPT_PROT) PrintS("HC colength check failed, retry without HC\n");
       idDelete(&res);
-      return kStd_internal(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp);
+      return kStd_internalSyz(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp,
+                              syzResult);
     }
     /* test hilbstd */
     if ( rHasGlobalOrdering(currRing)
@@ -2661,7 +2687,13 @@ ideal kStd2(ideal F, ideal Q, tHomog h,intvec ** w, bigintmat *hilb,int syzComp,
       }
     }
   }
-  return kStd_internal(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp);
+  return kStd_internalSyz(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp,syzResult);
+}
+
+ideal kStd2(ideal F, ideal Q, tHomog h, intvec **w, bigintmat *hilb,
+          int syzComp, int newIdeal, intvec *vw, s_poly_proc_t sp)
+{
+  return kStd2Syz(F,Q,h,w,hilb,syzComp,newIdeal,vw,sp,NULL);
 }
 
 ideal kStd(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp,

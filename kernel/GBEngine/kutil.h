@@ -300,6 +300,10 @@ public:
 
   LObject P;
   ideal Shdl;
+  // Optional sink for relation vectors produced by an id-lift computation.
+  // They are collected without entering S or T, so they are never reducers
+  // and no critical pairs between relations are generated.
+  ideal syzResult;
   ideal D; /*V(S) is in D(D)*/
   ideal M; /*set of minimal generators*/
   polyset S;

@@ -197,7 +197,9 @@ static ideal idSectWithElim (ideal h1,ideal h2, GbVariant alg)
   return res;
 }
 
-static ideal idGroebner(ideal temp,int syzComp,GbVariant alg, bigintmat* hilb=NULL, intvec* w=NULL, tHomog hom=testHomog)
+static ideal idGroebner(ideal temp,int syzComp,GbVariant alg,
+  bigintmat* hilb=NULL, intvec* w=NULL, tHomog hom=testHomog,
+  ideal *syzResult=NULL)
 {
   //Print("syz=%d\n",syzComp);
   //PrintS(showOption());
@@ -216,10 +218,19 @@ static ideal idGroebner(ideal temp,int syzComp,GbVariant alg, bigintmat* hilb=NU
 #ifdef HAVE_SHIFTBBA
   if (rIsLPRing(currRing)) alg = GbStd;
 #endif
+  if ((syzResult!=NULL) && (alg!=GbStd) && (alg!=GbDefault))
+  {
+    WarnS("relation bookkeeping is currently implemented only for std");
+    alg=GbStd;
+  }
   if ((alg==GbStd)||(alg==GbDefault))
   {
     if (TEST_OPT_PROT &&(alg==GbStd)) { PrintS("std:"); mflush(); }
-    res = kStd2(temp,currRing->qideal,hom,&w,hilb,syzComp);
+    if (syzResult==NULL)
+      res = kStd2(temp,currRing->qideal,hom,&w,hilb,syzComp);
+    else
+      res = kStd2Syz(temp,currRing->qideal,hom,&w,hilb,syzComp,0,NULL,NULL,
+                     syzResult);
     idDelete(&temp);
   }
   else if (alg==GbSlimgb)
@@ -610,7 +621,8 @@ ideal idMultSect(resolvente arg, int length, GbVariant alg)
  *       S: relative syzygies(h1) modulo h11
  * if V_IDLIFT is set, ignore/do not return S
  */
-static ideal idPrepare (ideal  h1, ideal h11, tHomog hom, int syzcomp, intvec **w, GbVariant alg)
+static ideal idPrepare (ideal  h1, ideal h11, tHomog hom, int syzcomp,
+                        intvec **w, GbVariant alg, ideal *syzResult=NULL)
 {
   ideal   h2,h22;
   int     j,k;
@@ -705,8 +717,8 @@ static ideal idPrepare (ideal  h1, ideal h11, tHomog hom, int syzcomp, intvec **
   }
 
   ideal h3;
-  if (w!=NULL) h3=idGroebner(h2,syzcomp,alg,NULL,*w,hom);
-  else         h3=idGroebner(h2,syzcomp,alg,NULL,NULL,hom);
+  if (w!=NULL) h3=idGroebner(h2,syzcomp,alg,NULL,*w,hom,syzResult);
+  else         h3=idGroebner(h2,syzcomp,alg,NULL,NULL,hom,syzResult);
   return h3;
 }
 
@@ -977,8 +989,8 @@ ideal idSyzygies (ideal  h1, tHomog h,intvec **w, BOOLEAN setSyzComp,
 *computes a standard basis for h1 and stores the transformation matrix
 * in ma
 */
-ideal idLiftStd (ideal  h1, matrix* T, tHomog hi, ideal * S, GbVariant alg,
-  ideal h11)
+static ideal idLiftStdInternal(ideal h1, matrix* T, tHomog hi, ideal *S,
+  GbVariant alg, ideal h11, BOOLEAN reduceSyz)
 {
   int  inputIsIdeal=id_RankFreeModule(h1,currRing);
   long k;
@@ -1002,7 +1014,8 @@ ideal idLiftStd (ideal  h1, matrix* T, tHomog hi, ideal * S, GbVariant alg,
   si_opt_2|=Sy_bit(V_PURE_GB);
   k=si_max(1,inputIsIdeal);
 
-  if ((!lift3)&&(!TEST_OPT_RETURN_SB)) si_opt_2 |=Sy_bit(V_IDLIFT);
+  if (((!lift3)||(!reduceSyz))&&(!TEST_OPT_RETURN_SB))
+    si_opt_2 |=Sy_bit(V_IDLIFT);
 
   ring orig_ring = currRing;
   ring syz_ring = rAssure_SyzOrder(orig_ring,TRUE);
@@ -1022,7 +1035,14 @@ ideal idLiftStd (ideal  h1, matrix* T, tHomog hi, ideal * S, GbVariant alg,
   }
 
 
-  ideal s_h3=idPrepare(s_h1,s_h11,hi,k,&w,alg); // main (syz) GB computation
+  ideal collectedSyz=NULL;
+  ideal *syzSink=((lift3)&&(!reduceSyz)) ? &collectedSyz : NULL;
+  ideal s_h3=idPrepare(s_h1,s_h11,hi,k,&w,alg,syzSink);
+  // In bookkeeping mode the relations were intentionally kept out of the
+  // reducer and pair sets.  Append them only after the main GB is complete so
+  // the established extraction code can split G, T, and S as usual.
+  if (collectedSyz!=NULL)
+    s_h3=id_SimpleMove(s_h3,collectedSyz,currRing);
 
 
   if (w!=NULL) delete w;
@@ -1040,6 +1060,19 @@ ideal idLiftStd (ideal  h1, matrix* T, tHomog hi, ideal * S, GbVariant alg,
   s_h3->rank=h1->rank;
   SI_RESTORE_OPT(saveOpt1,saveOpt2);
   return s_h3;
+}
+
+ideal idLiftStd (ideal h1, matrix* T, tHomog hi, ideal *S, GbVariant alg,
+  ideal h11)
+{
+  return idLiftStdInternal(h1,T,hi,S,alg,h11,TRUE);
+}
+
+ideal idLiftStdSyz(ideal h1, matrix* T, ideal *S, tHomog hi,
+  GbVariant alg, ideal h11)
+{
+  assume(S!=NULL);
+  return idLiftStdInternal(h1,T,hi,S,alg,h11,FALSE);
 }
 
 static void idPrepareStd(ideal s_temp, int k)

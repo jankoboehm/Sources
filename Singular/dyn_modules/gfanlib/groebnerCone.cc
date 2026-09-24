@@ -153,7 +153,7 @@ groebnerCone::groebnerCone(const ideal I, const ring r, const gfan::ZVector& w, 
     {
       p_GetExpV(g,expv,polynomialRing);
       gfan::ZVector leadexpv = intStar2ZVector(n,expv);
-      long d = wDeg(g,polynomialRing,w);
+      gfan::Integer d = wDeg(g,polynomialRing,w);
       for (pIter(g); g; pIter(g))
       {
         p_GetExpV(g,expv,polynomialRing);
@@ -212,8 +212,8 @@ groebnerCone::groebnerCone(const ideal I, const ring r, const gfan::ZVector& u, 
     {
       p_GetExpV(g,expv,polynomialRing);
       gfan::ZVector leadexpv = intStar2ZVector(n,expv);
-      long d1 = wDeg(g,polynomialRing,u);
-      long d2 = wDeg(g,polynomialRing,w);
+      gfan::Integer d1 = wDeg(g,polynomialRing,u);
+      gfan::Integer d2 = wDeg(g,polynomialRing,w);
       for (pIter(g); g; pIter(g))
       {
         p_GetExpV(g,expv,polynomialRing);

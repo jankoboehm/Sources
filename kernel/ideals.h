@@ -139,6 +139,12 @@ ideal   idMultSect(resolvente arg, int length, GbVariant a=GbDefault);
 ideal   idSyzygies (ideal h1, tHomog h,intvec **w, BOOLEAN setSyzComp=TRUE,
                     BOOLEAN setRegularity=FALSE, int *deg = NULL, GbVariant a=GbDefault);
 ideal   idLiftStd  (ideal h1, matrix *m, tHomog h=testHomog, ideal *syz=NULL, GbVariant a=GbDefault, ideal h11=NULL);
+/// Compute a standard basis, its transformation matrix, and generating
+/// relations.  Relations are recorded but are not used as reducers and no
+/// critical pairs between relations are generated.
+ideal   idLiftStdSyz(ideal h1, matrix *m, ideal *syz,
+                     tHomog h=testHomog, GbVariant a=GbDefault,
+                     ideal h11=NULL);
 
 ideal   idLift (ideal mod, ideal submod,ideal * rest=NULL,
              BOOLEAN goodShape=FALSE, BOOLEAN isSB=TRUE,BOOLEAN divide=FALSE,

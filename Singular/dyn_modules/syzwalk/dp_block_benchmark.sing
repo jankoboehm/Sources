@@ -1,0 +1,43 @@
+// A homogeneous variant of the s6 example from
+// Amrhein--Gloor--Kuechlin, "Walking Faster" (DISCO 1996).
+//
+// On linuxbox (2026-09-23), direct (lp(6),dp(1)) took 74.6 s while the
+// dp basis followed by groebnerWalk took 15.3 s.  Timings are machine- and
+// build-dependent; the final two reductions check that the answers agree.
+
+LIB "syzwalk.lib";
+system("--ticks-per-sec",1000);
+
+ring source=0,(x1,x2,x3,x4,x5,x6,h),dp;
+ideal I=
+  2*x6*x2+2*x5*x3+x4^2+x1^2+x1*h,
+  2*x6*x3+2*x5*x4+2*x2*x1+x2^2,
+  2*x6*x4+x5^2+2*x3*x1+x3^2+x2^2,
+  2*x6*x5+2*x4*x1+x4^2+2*x3*x2,
+  x6^2+2*x5*x1+x5^2+2*x4*x2+x3^2,
+  2*x6*x1+x6^2+2*x5*x2+2*x4*x3;
+option(redSB);
+int dpTime=timer;
+ideal G=std(I);
+dpTime=timer-dpTime;
+
+ring target=0,(x1,x2,x3,x4,x5,x6,h),(lp(6),dp(1));
+ideal targetI=imap(source,I);
+int directTime=timer;
+ideal directBasis=std(targetI);
+directTime=timer-directTime;
+
+ideal mappedG=imap(source,G);
+int walkTime=timer;
+ideal walkedBasis=groebnerWalk(mappedG,source);
+walkTime=timer-walkTime;
+
+"dp (ms)",dpTime;
+"direct block (ms)",directTime;
+"walk only (ms)",walkTime;
+"dp plus walk (ms)",dpTime+walkTime;
+"basis sizes",size(directBasis),size(walkedBasis);
+"mutual remainders",
+  size(reduce(walkedBasis,directBasis)),
+  size(reduce(directBasis,walkedBasis));
+$

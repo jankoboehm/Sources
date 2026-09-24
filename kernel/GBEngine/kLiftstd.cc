@@ -286,6 +286,29 @@ int redLiftstd (LObject* h, kStrategy strat)
 #endif
     if(h->IsNull())
     {
+      if (strat->syzResult!=NULL)
+      {
+        // The main part reduced to zero.  V_IDLIFT normally discards the
+        // delayed representation tail here.  Materialize it when relations
+        // were requested, then return it as a non-zero pure module element;
+        // bba will collect it without entering it into S or T.
+        int relationLength=0;
+        poly relation=lazyComp(A,C,T,pass+1,h_tail,&relationLength,tailRing);
+        kDeleteLcm(h);
+        h->Clear();
+        omFreeSize(A,red_size*sizeof(number));
+        omFreeSize(T,red_size*sizeof(poly));
+        omFreeSize(C,red_size*sizeof(poly));
+        if (relation!=NULL)
+        {
+          h->tailRing=tailRing;
+          h->t_p=relation;
+          h->p=k_LmInit_tailRing_2_currRing(relation,tailRing);
+          h->pLength=relationLength;
+          return 1;
+        }
+        return 0;
+      }
       // clean up A,C,h_tail:
       for(int i=0;i<=pass;i++)
       {
@@ -535,4 +558,3 @@ ideal idDivRem(ideal A,const ideal quot, ideal &factor,ideal *unit,int lazyReduc
   }
   return result;
 }
-

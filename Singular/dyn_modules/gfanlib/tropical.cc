@@ -11,6 +11,7 @@
 #include "tropicalStrategy.h"
 #include "startingCone.h"
 #include "groebnerFan.h"
+#include "groebnerWalk.h"
 #include "groebnerComplex.h"
 #include "tropicalVariety.h"
 
@@ -447,6 +448,8 @@ void tropical_setup(SModulFunctions* p)
   p->iiAddCproc("tropical.lib","initialInternal",FALSE,initial);
   p->iiAddCproc("tropical.lib","tropicalVarietyInternal",FALSE,tropicalVariety);
   p->iiAddCproc("tropical.lib","groebnerFanInternal",FALSE,groebnerFan);
+  p->iiAddCproc("syzwalk.lib","genericGroebnerWalkInternal",FALSE,genericGroebnerWalk);
+  p->iiAddCproc("syzwalk.lib","genericGroebnerWalkLiftInternal",FALSE,genericGroebnerWalkLift);
   p->iiAddCproc("tropical.lib","groebnerComplexInternal",FALSE,groebnerComplex);
   // p->iiAddCproc("","ppreduceInitiallyInternal",FALSE,ppreduceInitially);
   // p->iiAddCproc("","ttreduceInitiallyInternal",FALSE,ttreduceInitially);
